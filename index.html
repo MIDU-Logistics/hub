@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611221510"></script>
-<script src="local.js?v=202611221510"></script>
+<script src="m365.js?v=202611221519"></script>
+<script src="local.js?v=202611221519"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -125,7 +125,7 @@ table.t tr.tot td{background:var(--soft2);font-weight:700}
 .seg label:last-child{border:0}.seg input{display:none}
 .seg input:checked+span{font-weight:700}
 .seg label:has(input:checked){background:var(--navy);color:#fff}
-@media print{body{background:#fff!important}body *{visibility:hidden!important}#mBody,#mBody *{visibility:visible!important}#mBody{position:absolute;left:0;top:0;width:100%}.ov{position:static;background:none;padding:0;display:block}.mbox{box-shadow:none;max-width:none}.mbar,#mHint{display:none}@page{size:A4;margin:10mm}}
+@media print{body{background:#fff!important}body *{visibility:hidden!important}#mBody,#mBody *{visibility:visible!important}#mBody{position:absolute;left:0;top:0;width:100%}.ov{position:static;background:none;padding:0;display:block}.mbox{box-shadow:none;max-width:none}.mbar,#mHint{display:none}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}@page{size:A4;margin:10mm}}
 </style>
 </head>
 <body>
@@ -803,8 +803,8 @@ BIND.utRep=()=>{const draw=()=>{const m=$("#rpM").value,rows=D.ut.filter(u=>u.da
   const its=D.uitems.slice().sort(uSort).filter(i=>rows.some(u=>u.item===i.key));
   h+=`<div class="card"><h2>${tr("Monthly consumption — quantity by item","الاستهلاك الشهري — الكمية لكل بند")}</h2><table class="t"><tr><th>${tr("Category","الفئة")}</th><th>${tr("Item","البند")}</th><th>${tr("Split","التوزيع")}</th><th>${tr("Unit","الوحدة")}</th>${W.map(w=>`<th class="num">${w.lab}</th>`).join("")}<th class="num">${tr("Total qty","إجمالي الكمية")}</th><th class="num">${tr("Amount (SAR)","المبلغ (ريال)")}</th></tr>`;
   its.forEach(i=>{const r=rows.filter(u=>u.item===i.key);h+=`<tr><td class="en">${esc(i.cat)}</td><td class="en">${esc(i.title)} <span class="hint">${i.key}</span></td><td class="en">${esc(splitTxt(i)||"—")}</td><td class="en">${esc(i.unit||"")}</td>${W.map(w=>`<td class="num">${int(r.filter(u=>inW(u,w)).reduce((a,u)=>a+u.qty,0))}</td>`).join("")}<td class="num"><b>${int(r.reduce((a,u)=>a+u.qty,0))}</b></td><td class="num">${money(r.reduce((a,u)=>a+amtOf(u),0))}</td></tr>`;});
-  $("#rpOut").innerHTML=`<div class="card"><div class="btns" style="margin:0"><button class="b n sm" id="rpPC">${tr("Print weekly report – Concrete","طباعة التقرير الأسبوعي – الخرسانة")}</button><button class="b n sm" id="rpPE" style="background:#138A8A">${tr("Print weekly report – Environment","طباعة التقرير الأسبوعي – البيئة")}</button></div></div>`+h+`</table>${GAS?`<div class="btns"><button class="b g sm" id="rpExp">${tr("Export weekly & monthly report to Excel (OneDrive)","تصدير التقرير الأسبوعي والشهري إلى Excel ‏(OneDrive)")}</button></div>`:""}</div>`;
-  $("#rpPC").onclick=()=>openModal("Weekly report – Concrete "+m,weeklyHtml(m,"concrete"),"Weekly Report Concrete ("+upMon(m)+")");$("#rpPE").onclick=()=>openModal("Weekly report – Environment "+m,weeklyHtml(m,"env"),"Weekly Report Environment ("+upMon(m)+")");const ex=$("#rpExp");if(ex)ex.onclick=()=>{ex.disabled=true;
+  $("#rpOut").innerHTML=`<div class="card"><div class="btns" style="margin:0"><select id="rpWk" style="width:auto;min-width:170px">${(()=>{const f=m+"-01",l=upD(m,upDays(m)),o=[`<option value="all">${tr("All weeks","كل الأسابيع")}</option>`];let i=1;for(let st=wkStart(f);st<=l;st=addDays(st,7),i++)o.push(`<option value="${st}">Week ${i} (${st>f?st.slice(5):f.slice(5)} → ${addDays(st,6)<l?addDays(st,6).slice(5):l.slice(5)})</option>`);return o.join("")})()}</select><button class="b n sm" id="rpPC">${tr("Print weekly report – Diesel & Concrete trips","طباعة التقرير الأسبوعي – الديزل ورحلات الخرسانة")}</button><button class="b n sm" id="rpPE" style="background:#138A8A">${tr("Print weekly report – Environment","طباعة التقرير الأسبوعي – البيئة")}</button></div></div>`+h+`</table>${GAS?`<div class="btns"><button class="b g sm" id="rpExp">${tr("Export weekly & monthly report to Excel (OneDrive)","تصدير التقرير الأسبوعي والشهري إلى Excel ‏(OneDrive)")}</button></div>`:""}</div>`;
+  $("#rpPC").onclick=()=>{const w=$("#rpWk").value;openModal("Weekly report – Diesel & Concrete trips "+m,tkReportHtml(m,w),"Weekly Report Diesel & Concrete Trips ("+upMon(m)+(w==="all"?"":" wk "+w.slice(5))+")");};$("#rpPE").onclick=()=>openModal("Weekly report – Environment "+m,weeklyHtml(m,"env"),"Weekly Report Environment ("+upMon(m)+")");const ex=$("#rpExp");if(ex)ex.onclick=()=>{ex.disabled=true;
    const wk=[["Contractor",...W.map(w=>w.lab),"Month"],...G.map(g=>[g.c||"(split not set)",...W.map(w=>r2(gAmt(g,rows.filter(u=>inW(u,w))))),r2(gAmt(g,rows))]).filter(x=>x[0]!=="(split not set)"||x[x.length-1])];
    const mo=[["Item key","Category","Item","Location","Split","Unit",...W.map(w=>w.lab),"Total qty","Rate (SAR)","Amount (SAR)"],...its.map(i=>{const r=rows.filter(u=>u.item===i.key);const q=r.reduce((a,u)=>a+u.qty,0);return [i.key,i.cat,i.title,i.loc||"",splitTxt(i),i.unit||"",...W.map(w=>r.filter(u=>inW(u,w)).reduce((a,u)=>a+u.qty,0)),q,utRate(i.cat).rate,r2(q*utRate(i.cat).rate)];})];
    const raw=[["Date","Item key","Item","Category","Location","Split","Qty","Unit","Reference","Amount (SAR)"],...rows.slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).map(u=>[u.date,u.item,u.title,u.type,u.c,splitTxt(uItem(u.item)),u.qty,u.unit,u.ref,r2(amtOf(u))])];
@@ -1367,7 +1367,47 @@ function weeklyHtml(m,kind){const env=kind==="env";const R=env?["Potable water",
    return `<tr style="height:24px"><td style="border:${b};background:${bg};color:${fc};font-weight:700;font-size:9.5px;padding:2px 4px">${lab}</td><td style="border:${b};text-align:center;font-size:9.5px">${u}</td>${cells}<td style="border:${b};text-align:center;font-weight:700;font-size:9.5px">${n0(tot)}</td><td style="border:${b};background:#FDEEE6;font-size:9px;color:#0000CC;padding:2px 4px">${esc(refs)}</td></tr>`;}).join("");
   const sig=`<table style="width:100%;margin-top:18px;font-size:9.5px;border-collapse:collapse"><tr><td style="width:40%;vertical-align:top"><div style="background:${UP_NAVY};color:#fff;font-weight:700;padding:3px 4px">CHECKED BY: MIDU LOGISTICS</div>${["Name:","Signature:","Date:"].map(k=>`<div style="display:flex;margin-top:12px"><b style="width:35%">${k}</b><span style="flex:1;border-bottom:1px solid #000"></span></div>`).join("")}</td><td style="width:12%"></td><td style="vertical-align:top"><div style="background:${UP_NAVY};color:#fff;font-weight:700;padding:3px 4px">APPROVED BY: ${env?"ENVIRONMENT DEPARTMENT":"CONCRETE LOGISTICS"}</div>${["Name:","Signature:","Date:"].map(k=>`<div style="display:flex;margin-top:12px"><b style="width:15%">${k}</b><span style="flex:1;border-bottom:1px solid #000"></span></div>`).join("")}</td></tr></table>`;
   return `<div style="${wi<W.length-1?"page-break-after:always;":""}padding:4px">${hdr}<div style="background:${bar};color:#fff;font-weight:700;font-size:11px;padding:4px 6px">WEEK ${wi+1}: &nbsp;${dn(inM[0]).replace("-"," ")} &nbsp;→&nbsp; ${dn(inM[inM.length-1]).replace("-"," ")} ${m.slice(0,4)}</div><table style="width:100%;border-collapse:collapse">${head}${body}</table>${env?"":sig}</div>`;}).join("");
- return `<div class="doc xl" style="font-family:Arial,Helvetica,sans-serif;color:#000;padding:10px 16px">${weeks}</div>`;}
+ return `<div class="doc xl" style="font-family:Arial,Helvetica,sans-serif;color:#000;padding:10px 16px"><style>@page{size:A4 landscape;margin:8mm}</style>${weeks}</div>`;}
+
+/* Weekly Diesel & Concrete Trips report – format agreed with Concrete (Turki's dashboard report, A4 landscape) */
+const TK_N="#1F2A44",TK_H="#E9EDF4",TK_F="#DCE1EA",TK_B="1px solid #C9CFDA";
+const TK_PL=["ShinYoung","Benteler","JVIS","FAXGIN","LEAR"];
+function tkCompany(u){const it=uItem(u.item)||{},loc=String(it.loc||u.c||""),t=u.type;
+ if(t==="Equipment diesel"){const own=/MIDU/i.test(loc)?"MIDU":/concrete/i.test(loc)?"Concrete":loc||"Other";return own+" – "+String(it.title||"").replace(/Trcuk/i,"Truck");}
+ if(t==="Tower lights diesel")return /laydown/i.test(loc)?"Store / Laydown Area":"Tower Lights";
+ const pl=TK_PL.find(c=>new RegExp(c,"i").test(loc));if(pl)return pl;if(/laydown/i.test(loc))return "Store / Laydown Area";return loc&&!/^zone|^pl/i.test(loc)?loc:"Other";}
+function tkWeekHtml(m,st){const days=Array.from({length:7},(_,i)=>addDays(st,i)),first=m+"-01",last=upD(m,upDays(m)),inM=x=>x>=first&&x<=last;
+ const dl=ds=>{const d=new Date(ds+"T12:00:00Z");return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getUTCDay()]+" "+String(d.getUTCDate()).padStart(2,"0")+"-"+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getUTCMonth()];};
+ const isFri=ds=>new Date(ds+"T12:00:00Z").getUTCDay()===5;
+ const W=W0=>W0, idx=Math.round((new Date(st+"T12:00:00Z")-new Date(wkStart(first)+"T12:00:00Z"))/864e5/7)+1;
+ const rng=`WEEK ${idx}: ${dl(days.find(inM)).replace("-"," ")} – ${dl(days.filter(inM).pop()).replace("-"," ")} ${m.slice(0,4)}`;
+ const MN=upMon(m).replace("-"," ");
+ const head=sv=>`<div style="display:flex;justify-content:flex-end;margin-bottom:6px"><img src="${LOGO}" style="height:20px"></div>
+ <div style="background:${TK_N};color:#fff;font-weight:700;font-size:11px;padding:5px 7px">WEEKLY REPORT – DIESEL &amp; CONCRETE TRIPS</div>
+ <table style="font-size:8.5px;font-weight:700;margin:4px 0 6px;border-collapse:collapse">${[["SERVICES",sv],["PROJECT NAME","ASP Project"],["COMPANY NAME","MIDU Company"],["MONTH",MN]].map(([a,b])=>`<tr><td style="width:150px;padding:0">${a}</td><td style="padding:0">${b}</td></tr>`).join("")}</table>
+ <div style="background:${TK_N};color:#fff;font-weight:700;font-size:9.5px;padding:3px 7px">${rng}</div>`;
+ const th=(v,x)=>`<th style="background:${TK_H};border:${TK_B};font-size:8.5px;padding:4px 3px;text-align:center;${x||""}">${v}</th>`;
+ const cols=first=>`<tr>${th(first,"text-align:left;width:19%")}${th("Unit","width:5%")}${days.map(d=>th(dl(d),isFri(d)?"background:"+TK_F:"")).join("")}${th("Week total")}${th("Remarks","width:8%")}</tr>`;
+ let PD=3;const cell=(d,v,bold)=>`<td style="border:${TK_B};font-size:8.5px;text-align:center;padding:${PD}px 3px;${isFri(d)||!inM(d)?"background:"+TK_F+";":""}${bold?"font-weight:700;":""}">${inM(d)?n0(v):""}</td>`;
+ const row=(lab,unit,vals,o={})=>{const tot=vals.reduce((a,v,i)=>a+(inM(days[i])?v:0),0);return `<tr style="${o.bg?"background:"+o.bg:""}"><td style="border:${TK_B};font-size:8.5px;padding:${PD}px 5px;${o.bold?"font-weight:700;":""}${o.indent?"padding-left:8px;":""}">${lab}</td><td style="border:${TK_B};font-size:8.5px;text-align:center;${o.bold?"font-weight:700":""}">${unit}</td>${days.map((d,i)=>cell(d,vals[i],o.bold)).join("")}<td style="border:${TK_B};font-size:8.5px;text-align:center;font-weight:700">${n0(tot)}</td><td style="border:${TK_B}"></td></tr>`;};
+ const sig=()=>`<table style="width:100%;margin-top:${PD>1?12:6}px;border-collapse:collapse"><tr><td style="width:48%;vertical-align:top;padding:0"><div style="background:${TK_N};color:#fff;font-weight:700;font-size:8.5px;padding:3px 6px">CHECKED BY: MIDU LOGISTICS</div><div style="border:${TK_B};border-top:0;font-size:8.5px;padding:4px 8px;line-height:16px">Name:<br>Signature:<br>Date:</div></td><td style="width:4%"></td><td style="vertical-align:top;padding:0"><div style="background:${TK_N};color:#fff;font-weight:700;font-size:8.5px;padding:3px 6px">APPROVED BY: CONCRETE LOGISTICS</div><div style="border:${TK_B};border-top:0;font-size:8.5px;padding:4px 8px;line-height:16px">Name:<br>Signature:<br>Date:</div></td></tr></table>`;
+ const R=D.ut.filter(u=>days.includes(u.date));
+ /* page 1 – diesel by company */
+ const DT=["Generators diesel","Equipment diesel"],dr=R.filter(u=>DT.includes(u.type));const comps={};dr.forEach(u=>{const c=tkCompany(u);(comps[c]=comps[c]||days.map(()=>0))[days.indexOf(u.date)]+=u.qty;});
+ const order=[...TK_PL,...Object.keys(comps).filter(c=>!TK_PL.includes(c)&&!/^(Concrete|MIDU) – /.test(c)),...Object.keys(comps).filter(c=>/^Concrete – /.test(c)).sort(),...Object.keys(comps).filter(c=>/^MIDU – /.test(c)).sort()];
+ const tot=days.map((_,i)=>order.reduce((a,c)=>a+((comps[c]||[])[i]||0),0));
+ const p1=`<div style="page-break-after:always">${head("Diesel consumption by company (generators + equipment)")}<table style="width:100%;border-collapse:collapse">${cols("Company")}${order.filter(c=>TK_PL.includes(c)||(comps[c]||[]).some(v=>v)).map(c=>row(esc(c),"L",comps[c]||days.map(()=>0))).join("")}${row("TOTAL DIESEL","L",tot,{bold:true,bg:TK_H})}</table>${sig()}</div>`;
+ /* page 2 – concrete trips by company */
+ PD=1;const TT=[["Concrete trucks","Concrete Trucks","Trips"],["Concrete vacuum","Concrete Vacuum","Trips"],["Concrete waste skip","Concrete Waste Skip","Skips"],["Garbage skip","Garbage Skip","Skips"]];
+ const tc={};R.filter(u=>TT.some(t=>t[0]===u.type)).forEach(u=>{const c=tkCompany(u);tc[c]=tc[c]||{};(tc[c][u.type]=tc[c][u.type]||days.map(()=>0))[days.indexOf(u.date)]+=u.qty;});
+ const groups=[...TK_PL,"Store / Laydown Area",...Object.keys(tc).filter(c=>!TK_PL.includes(c)&&c!=="Store / Laydown Area")];
+ const z=()=>days.map(()=>0);
+ const body=groups.filter(g=>TK_PL.includes(g)||g==="Store / Laydown Area"||tc[g]).map(g=>`<tr><td colspan="${days.length+4}" style="border:${TK_B};background:#F3F5F9;font-size:8.5px;font-weight:700;color:${TK_N};padding:1px 5px">${esc(g)}</td></tr>`+TT.map(([t,l,u])=>row(l,u,(tc[g]||{})[t]||z(),{indent:true})).join("")).join("")+
+  `<tr><td colspan="${days.length+4}" style="border:${TK_B};background:${TK_H};font-size:8.5px;font-weight:700;color:${TK_N};padding:3px 5px">TOTAL – ALL COMPANIES</td></tr>`+TT.map(([t,l,u])=>row(l,u,days.map((_,i)=>groups.reduce((a,g)=>a+(((tc[g]||{})[t]||[])[i]||0),0)),{bold:true,bg:"#F7F8FB"})).join("");
+ const p2=`<div>${head("Concrete trips by company (trucks, vacuum, waste skip, garbage skip)")}<table style="width:100%;border-collapse:collapse">${cols("Company / Trip type")}${body}</table>${sig()}</div>`;
+ return p1+p2;}
+function tkReportHtml(m,wk){const first=m+"-01",last=upD(m,upDays(m)),W=[];for(let st=wkStart(first);st<=last;st=addDays(st,7))W.push(st);
+ const sel=wk&&wk!=="all"?[wk]:W;return `<div class="doc xl" style="font-family:'Plus Jakarta Sans',Inter,Arial,Helvetica,sans-serif;color:#1d2321;padding:8px 12px"><style>@page{size:A4 landscape;margin:8mm}</style>${sel.map((st,i)=>`<div style="${i<sel.length-1?"page-break-after:always":""}">${tkWeekHtml(m,st)}</div>`).join("")}</div>`;}
 
 const mrDoc_old=q=>gdoc({title:"MAINTENANCE REQUEST",no:q.no,date:q.date,meta:[["Requested by",q.by],["Location",q.loc],["Asset ID",q.asset],["Asset",D.assets.find(a=>a.id===q.asset)?.desc||""],["Category",q.cat],["Priority",q.prio],["Assigned to",q.to],["Status",q.status]],cols:["Problem description","Action taken","Completed on"],rows:[[q.desc,"",""]],sig:["Requested by","Maintenance technician","Logistics approval"]});
 const mclDoc_old=x=>gdoc({title:"MONTHLY MAINTENANCE CHECKLIST",no:x.no,date:x.date,meta:[["Month",x.month],["Location",x.loc],["Checked by",x.by]],cols:["#","Category","Check point","Result","Remarks"],rows:x.res.map(r=>[r.i+1,MCL_T[r.i][0],MCL_T[r.i][1],r.s,r.rem]),sig:["Checked by","Maintenance supervisor","Logistics approval"]});
