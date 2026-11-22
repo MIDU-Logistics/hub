@@ -206,6 +206,7 @@ const LOCAL_COLLS = ["emps", "assetTypes", "assets", "uitems", "ut", "items", "s
 async function localGetAll() {
   const dataDir = await subDir("data");
   const ch = await readJson(dataDir, "choices.json");
+  try { window.WHREF = await readJson(dataDir, "whref.json"); } catch (e) { window.WHREF = null; }
   M365.choices = (ch && ch.choices) || {};
   const out = {}; let merged = 0;
   for (const n of LOCAL_COLLS) {
@@ -284,6 +285,10 @@ async function localImportAttendance() {
   if (added.length) await localUpsertMany({ punches: added });
   return res;
 }
+LOCAL.readDoc = async function (relPath) {
+  const parts = String(relPath).split("/"); const name = parts.pop();
+  const d = await subDir("Documents/" + parts.join("/"), false); const fh = await d.getFileHandle(name); return await fh.getFile();
+};
 async function localUploadDoc(path, name, blob) { return (await localSaveBlob(path, name, blob)).path; }
 
 (function () {
