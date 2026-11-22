@@ -13,6 +13,10 @@
 <script src="vendor/msal-browser.min.js"></script>
 <script src="vendor/xlsx.full.min.js" defer></script>
 <script src="vendor/html2pdf.bundle.min.js" defer></script>
+<script src="vendor/jsbarcode.min.js" defer></script>
+<script src="vendor/jspdf.umd.min.js" defer></script>
+<script src="vendor/qrcode.js" defer></script>
+<script src="vendor/midu-label-logo.js" defer></script>
 <script src="m365.js"></script>
 <script src="local.js"></script>
 <style>
@@ -313,7 +317,7 @@ function saved(no,doc,cls=""){msg("ok",`✔ ${tr("Saved","تم الحفظ")}: <b
 const NAV=()=>[
  [null,"home","⌂","#1B273D",tr("Home","الرئيسية")],
  [tr("Warehouse & Assets","المستودع والأصول")],
- [1,"grn","⬇","#1E9E6A",tr("Receive (GRN)","استلام (GRN)")],[1,"mds","⬆","#2F6FDE",tr("Issue (MDS)","صرف (MDS)")],[1,"mrs","↩","#138A8A",tr("Return (MRS)","إرجاع (MRS)")],[1,"asset","＋","#714B67",tr("New asset","أصل جديد")],[1,"count","☑","#D9961A",tr("Stock count","جرد")],
+ [1,"grn","⬇","#1E9E6A",tr("Receive (GRN)","استلام (GRN)")],[1,"mds","⬆","#2F6FDE",tr("Issue (MDS)","صرف (MDS)")],[1,"mrs","↩","#138A8A",tr("Return (MRS)","إرجاع (MRS)")],[1,"asset","＋","#714B67",tr("New asset","أصل جديد")],[1,"count","☑","#D9961A",tr("Stock count","جرد")],[1,"labels","▦","#714B67",tr("Print asset labels","طباعة ملصقات الأصول")],
  [tr("Utilities","الخدمات (Utilities)")],
  [1,"utDaily","⛽","#0E7490",tr("Daily readings","القراءات اليومية")],[1,"utRep","▤","#0E7490",tr("Weekly & monthly","أسبوعي وشهري")],[1,"utBC","₪","#0E7490",tr("Back charge & debit notes","إعادة الفوترة وإشعارات المدين")],[1,"utReg","☰","#0E7490",tr("Master back-charge register","السجل الرئيسي لإعادة الفوترة")],
  [tr("Procurement & Finance","المشتريات والمالية")],
@@ -458,6 +462,80 @@ BIND.count=()=>{$("#cWh").onchange=e=>$("#cLoc").innerHTML=locOpts(e.target.valu
  $("#cStart").onclick=()=>{const wh=$("#cWh").value,loc=$("#cLoc").value;CNT={no:$("#cNo").value,wh,loc,lines:D.stock.filter(s=>s.wh===wh&&s.loc===loc).map(s=>({code:s.code,sys:s.qty,counted:""}))};$("#cCard").style.display="block";draw(false);};
  $("#cCmp").onclick=()=>CNT&&draw(true);
  $("#cSub").onclick=()=>{if(!CNT)return;if(CNT.lines.some(l=>l.counted===""))return msg("err",ERR.req());const doc={no:CNT.no,type:"SC",date:today(),party:"Pending approval",wh:CNT.wh,loc:CNT.loc,lines:CNT.lines.map(l=>({code:l.code,qty:+l.counted,sys:l.sys}))};D.docs.push(doc);persist();CNT=null;render();saved(doc.no,doc,"a");};};
+
+/* ============================ ASSET LABELS (Zebra 60 × 40 mm, QR + Code 128) ============================ */
+let LBQ=[];try{LBQ=JSON.parse(localStorage.getItem("midu-hub-label-queue")||"[]")||[];}catch(e){LBQ=[];}
+const lbSave=()=>{try{localStorage.setItem("midu-hub-label-queue",JSON.stringify(LBQ));}catch(e){}};
+const LB_DOT=25.4/300;
+function lbQr(text){const q=qrcode(0,"M");q.addData(text);q.make();const n=q.getModuleCount(),m=[];for(let r=0;r<n;r++){const row=[];for(let c=0;c<n;c++)row.push(q.isDark(r,c));m.push(row);}return m;}
+function lbBits(text){const o={};JsBarcode(o,text,{format:"CODE128",displayValue:false});return o.encodings.map(e=>e.data).join("");}
+function lbWrap2(text,max){const w=String(text||"").split(/\s+/).filter(Boolean),l=[""];for(const x of w){const t=(l[l.length-1]+" "+x).trim();if(t.length<=max||!l[l.length-1])l[l.length-1]=t;else l.push(x);}if(l.length>2){l.length=2;l[1]=l[1].replace(/.{0,3}$/,"")+"...";}return l;}
+function lbList(){const out=[];LBQ.forEach(q=>{for(let k=0;k<q.copies;k++)out.push(q);});return out;}
+function lbLibsOk(){return typeof qrcode==="function"&&typeof JsBarcode==="function"&&window.jspdf&&window.MIDU_LABEL_LOGO;}
+function lbBarSvg(text){let b;try{b=lbBits(text);}catch(e){return "<svg></svg>";}let r="";for(let i=0;i<b.length;i++)if(b[i]==="1"){let j=i;while(b[j+1]==="1")j++;r+=`<rect x="${i}" y="0" width="${j-i+1}" height="1"/>`;i=j;}return `<svg viewBox="0 0 ${b.length} 1" preserveAspectRatio="none" style="width:100%;height:100%;display:block">${r}</svg>`;}
+function lbLabelHtml(L){const m=lbQr(L.id),n=m.length;let qr="";for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(m[r][c])qr+=`<rect x="${c}" y="${r}" width="1.02" height="1.02"/>`;const d=lbWrap2(L.desc,26);
+ return `<div style="position:relative;width:60mm;height:40mm;background:#fff;border:1px solid #cfd6e3;border-radius:6px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;flex:none">
+ <img src="${MIDU_LABEL_LOGO}" style="position:absolute;left:3mm;top:3mm;width:18mm;height:4.97mm">
+ <div style="position:absolute;right:3mm;top:3.9mm;font-size:6.5pt;font-weight:700;color:#1d283e">LOGISTICS DEPT</div>
+ <div style="position:absolute;left:3mm;right:3mm;top:9mm;border-top:.4pt solid #1d283e"></div>
+ <svg viewBox="0 0 ${n} ${n}" style="position:absolute;left:3mm;top:11mm;width:18mm;height:18mm" shape-rendering="crispEdges">${qr}</svg>
+ <div style="position:absolute;left:23mm;top:11.2mm;font-size:15pt;font-weight:700;color:#1d283e;white-space:nowrap">${esc(L.id)}</div>
+ <div style="position:absolute;left:23mm;top:18.6mm;width:34mm;font-size:6.5pt;line-height:3mm;color:#333">${d.map(esc).join("<br>")}</div>
+ <div style="position:absolute;left:23mm;top:27.5mm;width:34mm;height:7mm">${lbBarSvg(L.id)}</div>
+ <div style="position:absolute;left:0;right:0;top:36.6mm;text-align:center;font-size:5pt;color:#777">PROPERTY OF MIDU COMPANY LTD – DO NOT REMOVE</div></div>`;}
+function lbFit(doc,t,w){if(doc.getTextWidth(t)<=w)return t;while(t.length>1&&doc.getTextWidth(t+"...")>w)t=t.slice(0,-1);return t+"...";}
+function lbPdf(){const{jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:[60,40],orientation:"landscape",compress:true});
+ doc.setProperties({title:"MIDU Asset Labels 60x40",author:"MIDU Logistics Department",creator:"MIDU Logistics Hub"});
+ lbList().forEach((L,i)=>{if(i)doc.addPage([60,40],"landscape");
+  doc.addImage(MIDU_LABEL_LOGO,"PNG",3,3,18,4.97,"midulogo","FAST");
+  doc.setFont("helvetica","bold");doc.setFontSize(6.5);doc.setTextColor(29,40,62);doc.text("LOGISTICS DEPT",57,6.3,{align:"right"});
+  doc.setDrawColor(29,40,62);doc.setLineWidth(0.4*0.3528);doc.line(3,9,57,9);
+  const m=lbQr(L.id),n=m.length,ms=18/n;doc.setFillColor(0,0,0);
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(m[r][c]){let k=c;while(k+1<n&&m[r][k+1])k++;doc.rect(3+c*ms,11+r*ms,(k-c+1)*ms,ms+0.01,"F");c=k;}
+  let s=15;doc.setFont("helvetica","bold");doc.setFontSize(s);while(doc.getTextWidth(L.id)>34&&s>9){s--;doc.setFontSize(s);}
+  doc.setTextColor(29,40,62);doc.text(L.id,23,16.5);
+  doc.setFont("helvetica","normal");doc.setFontSize(6.5);doc.setTextColor(51,51,51);
+  const lines=doc.splitTextToSize(L.desc||"",34);if(lines.length>2){lines.length=2;lines[1]=lbFit(doc,lines[1]+"...",34);}lines.forEach((t,j)=>doc.text(t,23,21+j*3));
+  const b=lbBits(L.id);let mw=3*LB_DOT;if(b.length*mw>34)mw=2*LB_DOT;if(b.length*mw>34)mw=34/b.length;doc.setFillColor(0,0,0);
+  for(let a=0;a<b.length;a++)if(b[a]==="1"){let e=a;while(b[e+1]==="1")e++;doc.rect(23+a*mw,27.5,(e-a+1)*mw,7,"F");a=e;}
+  doc.setFont("helvetica","normal");doc.setFontSize(5);doc.setTextColor(115,115,115);doc.text("PROPERTY OF MIDU COMPANY LTD - DO NOT REMOVE",30,38.3,{align:"center"});});
+ return doc;}
+VIEWS.labels=()=>{const types=[...new Set(D.assets.map(a=>a.type).filter(Boolean))].sort();
+ return head(tr("Print asset labels","طباعة ملصقات الأصول"),tr("Zebra ZT231 · 60 × 40 mm roll · QR code + barcode. Pick assets, set copies, download the PDF and print at Actual size (100%).","طابعة Zebra ZT231 · لفة 60 × 40 مم · رمز QR + باركود. اختر الأصول وحدد عدد النسخ ثم نزّل ملف PDF واطبعه بالحجم الفعلي (100%)."))+msgBox+
+ `<div class="card"><div class="fg">${fld("lbQ",tr("Search Asset ID or description","ابحث برقم الأصل أو الوصف"),{ph:"e.g. LAP-001, laptop, PL 1"})}${sel("lbT",tr("Asset type","نوع الأصل"),[["",tr("All types","كل الأنواع")],...types])}
+ <div class="f"><label>&nbsp;</label><button class="b l" id="lbAll">${tr("Add all shown","إضافة كل المعروض")}</button></div><div class="f"><label>&nbsp;</label><span class="sub" id="lbCnt"></span></div></div>
+ <div style="max-height:320px;overflow:auto;margin-top:10px"><table class="t" id="lbRes"></table></div></div>
+ <div class="card"><h3 style="margin:0 0 8px">${tr("Labels to print","الملصقات المطلوب طباعتها")} <span id="lbSum" class="en"></span></h3><table class="t" id="lbQ2"></table>
+ <div class="btns"><button class="b l" id="lbClr">${tr("Clear list","مسح القائمة")}</button><span style="flex:1"></span><button class="b n" id="lbDl">${tr("Download labels PDF","تنزيل ملف الملصقات PDF")}</button></div>
+ <p class="sub">${tr("Printer settings: paper 60 × 40 mm, thermal transfer, resin ribbon, scale Actual size / 100%. Print one test label and scan it with the Assets app first.","إعدادات الطابعة: ورق 60 × 40 مم، نقل حراري، شريط ريزن، الحجم الفعلي 100%. اطبع ملصقاً تجريبياً وامسحه بتطبيق الأصول أولاً.")}</p></div>
+ <div class="card"><h3 style="margin:0 0 8px">${tr("Preview","معاينة")}</h3><div id="lbPv" style="display:flex;flex-wrap:wrap;gap:12px"></div></div>`;};
+BIND.labels=()=>{let shown=[];
+ const draw=()=>{const q=$("#lbQ").value.trim().toLowerCase(),t=$("#lbT").value;
+  shown=D.assets.filter(a=>(!t||a.type===t)&&(!q||[a.id,a.desc,a.type,a.loc,a.custName,a.serial].join(" ").toLowerCase().includes(q))).sort((a,b)=>a.id.localeCompare(b.id));
+  $("#lbCnt").textContent=shown.length+" "+tr("assets","أصل");
+  $("#lbRes").innerHTML=`<tr><th>${tr("Asset ID","رقم الأصل")}</th><th>${tr("Description","الوصف")}</th><th>${tr("Type","النوع")}</th><th>${tr("Location / holder","الموقع / المستلم")}</th><th></th></tr>`+
+   shown.slice(0,300).map((a,i)=>`<tr><td class="en"><b>${esc(a.id)}</b></td><td class="en">${esc(a.desc)}</td><td class="en">${esc(a.type||"")}</td><td class="en">${esc(a.custName||a.loc||"")}</td><td><button class="b sm" data-i="${i}">${LBQ.some(x=>x.id===a.id)?"✓":tr("Add","إضافة")}</button></td></tr>`).join("")+
+   (shown.length>300?`<tr><td colspan="5" class="sub">${tr("Showing the first 300 — narrow the search, or use “Add all shown”.","يتم عرض أول 300 — ضيّق البحث أو استخدم «إضافة كل المعروض».")}</td></tr>`:"");
+  $("#lbRes").querySelectorAll("button[data-i]").forEach(b=>b.onclick=()=>{add(shown[+b.dataset.i]);});};
+ const add=a=>{if(!a)return;const e=LBQ.find(x=>x.id===a.id);if(e)e.copies++;else LBQ.push({id:a.id,desc:a.desc||"",copies:1});lbSave();draw();queue();};
+ const queue=()=>{const n=lbList().length;$("#lbSum").textContent=n?`· ${n} ${tr("labels","ملصق")}`:"";
+  $("#lbQ2").innerHTML=LBQ.length?`<tr><th>#</th><th>${tr("Asset ID","رقم الأصل")}</th><th>${tr("Description","الوصف")}</th><th>${tr("Copies","النسخ")}</th><th></th></tr>`+LBQ.map((q,i)=>`<tr><td>${i+1}</td><td class="en"><b>${esc(q.id)}</b></td><td class="en">${esc(q.desc)}</td><td><input class="en" type="number" min="1" max="50" value="${q.copies}" data-i="${i}" style="width:70px"></td><td><button class="b sm" data-x="${i}">✕</button></td></tr>`).join(""):`<tr><td class="sub">${tr("No labels yet — add assets from the list above.","لا توجد ملصقات بعد — أضف أصولاً من القائمة أعلاه.")}</td></tr>`;
+  $("#lbQ2").querySelectorAll("input[data-i]").forEach(e=>e.onchange=()=>{LBQ[+e.dataset.i].copies=Math.max(1,Math.min(50,parseInt(e.value)||1));lbSave();queue();});
+  $("#lbQ2").querySelectorAll("button[data-x]").forEach(b=>b.onclick=()=>{LBQ.splice(+b.dataset.x,1);lbSave();draw();queue();});
+  const pv=$("#lbPv");if(!lbLibsOk()){pv.innerHTML=`<span class="sub">${tr("Loading the label tools…","جارٍ تحميل أدوات الملصقات…")}</span>`;setTimeout(queue,500);return;}
+  const L=lbList();pv.innerHTML=L.length?L.slice(0,12).map(lbLabelHtml).join("")+(L.length>12?`<span class="sub">+ ${L.length-12} ${tr("more","أخرى")}</span>`:""):`<span class="sub">${tr("The preview appears when you add labels.","تظهر المعاينة عند إضافة ملصقات.")}</span>`;};
+ $("#lbQ").oninput=draw;$("#lbT").onchange=draw;
+ $("#lbAll").onclick=()=>{if(shown.length>500&&!confirm(shown.length+" labels?"))return;shown.forEach(a=>{if(!LBQ.some(x=>x.id===a.id))LBQ.push({id:a.id,desc:a.desc||"",copies:1});});lbSave();draw();queue();};
+ $("#lbClr").onclick=()=>{LBQ=[];lbSave();draw();queue();};
+ $("#lbDl").onclick=async()=>{if(!LBQ.length)return msg("err",tr("Add at least one asset first.","أضف أصلاً واحداً على الأقل أولاً."));
+  if(!lbLibsOk())return msg("err",tr("The label tools are still loading. Try again in a moment.","أدوات الملصقات قيد التحميل. حاول بعد لحظة."));
+  let blob;try{blob=lbPdf().output("blob");}catch(e){return msg("err","PDF: "+esc(e.message));}
+  const n=lbList().length,name=`MIDU Asset Labels 60x40 ${today()} (${n}).pdf`;
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
+  let where="";try{if(LOCAL.connected){await LOCAL.uploadDoc("01 Warehouse & Assets/06 Asset Labels",name,blob);where=" · "+tr("copy saved in MIDU Hub Data › Documents › 01 Warehouse & Assets › 06 Asset Labels","نسخة محفوظة في MIDU Hub Data › Documents › 01 Warehouse & Assets › 06 Asset Labels");}
+   else if(M365.signedIn){await M365.uploadDoc("01 Warehouse & Assets/06 Asset Labels",name,blob);where=" · "+tr("copy saved in Hub Documents","نسخة محفوظة في مستندات المنصة");}}catch(e){console.warn(e);}
+  msg("ok",`✔ ${tr("Downloaded","تم التنزيل")}: <b class="en">${esc(name)}</b> (${n} ${tr("labels","ملصق")})${where}`);};
+ draw();queue();};
 
 /* ============================ UTILITIES ============================ */
 const utFlow=k=>`<div class="flow">${[["utDaily",tr("Daily readings","القراءات اليومية")],["utRep",tr("Weekly / monthly","أسبوعي / شهري")],["utBC",tr("Back charge","إعادة الفوترة")],["utBC",tr("Debit note","إشعار مدين")],["utReg",tr("Master register","السجل الرئيسي")]].map(([v,l],i)=>`${i?"<em>→</em>":""}<span class="${v===k?"on":""}">${l}</span>`).join("")}</div>`;

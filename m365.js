@@ -41,8 +41,8 @@ const M365_DEFAULT_RATES = [
 /* Screens each role can open (Hub Users list: Title = e-mail, Role = one or more roles separated by commas). */
 const M365_ROLES = {
   admin: "*", management: "*",
-  logistics:   ["home","grn","mds","mrs","asset","count","utDaily","utRep","utBC","utReg","pr","mcl","mreq","search"],
-  storekeeper: ["home","grn","mds","mrs","asset","count","utDaily","search"],
+  logistics:   ["home","grn","mds","mrs","asset","count","labels","utDaily","utRep","utBC","utReg","pr","mcl","mreq","search"],
+  storekeeper: ["home","grn","mds","mrs","asset","count","labels","utDaily","search"],
   procurement: ["home","pr","cqs","po","search"],
   finance:     ["home","po","fin","capex","utReg","search"],
   hr:          ["home","att","search"],
