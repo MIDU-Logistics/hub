@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611221534"></script>
-<script src="local.js?v=202611221534"></script>
+<script src="m365.js?v=202611221539"></script>
+<script src="local.js?v=202611221539"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -1459,7 +1459,7 @@ function udFilters(){const m=$("#rpM").value,f=m+"-01",l=upD(m,upDays(m));const 
  <label>${tr("Zone","المنطقة")}<select id="udZone"><option value="">${tr("All zones","كل المناطق")}</option>${zs.map(z=>`<option${UD.zone===z?" selected":""}>${z}</option>`).join("")}</select></label>
  <label>${tr("Section","القسم")}<select id="udSec"><option value="">${tr("All sections","كل الأقسام")}</option>${Object.keys(UD_SEC).map(s=>`<option${UD.sec===s?" selected":""}>${s}</option>`).join("")}</select></label>
  <label>${tr("Item","البند")}<select id="udItem"><option value="">${tr("All items","كل البنود")}</option>${Object.keys(UD_LAB).filter(c=>!UD.sec||UD_SEC[UD.sec].includes(c)).map(c=>`<option value="${c}"${UD.item===c?" selected":""}>— ${UD_LAB[c]} (all)</option>`).join("")}${its.map(i=>`<option value="${i.key}"${UD.item===i.key?" selected":""}>${esc(i.title)} · ${esc(i.cat)} (${i.key})</option>`).join("")}</select></label>
- <button class="b n sm" id="udReset" style="align-self:flex-end;background:#fff;color:#1F2A37;border:1px solid #D5DAE1">${tr("Reset filters","إعادة ضبط")}</button></div><div class="udsub" style="margin:8px 0 0">${tr("Showing","المعروض")}: ${esc(desc)}.</div></div>`;}
+ <button class="b n sm" id="udReset" style="align-self:flex-end;background:#fff;color:#1F2A37;border:1px solid #D5DAE1">${tr("Reset filters","إعادة ضبط")}</button><button class="b n sm" id="udPrint" style="align-self:flex-end">🖨 ${tr("Print this view","طباعة هذه الصفحة")}</button></div><div class="udsub" style="margin:8px 0 0" id="udDesc">${tr("Showing","المعروض")}: ${esc(desc)}.</div></div>`;}
 function udOverview(r,days){const cat=c=>r.filter(u=>u.type===c),dz=r.filter(u=>udSecOf(u.type)==="Diesel");
  const k=[udKpi("Total diesel","L",dz,days),udKpi("Generators diesel","L",cat("Generators diesel"),days),udKpi("Equipment/vehicles diesel","L",cat("Equipment diesel"),days),udKpi("Labour drinking water",udUnit("Drinking water (labour)"),cat("Drinking water (labour)"),days),
   udKpi("Potable water supply",udUnit("Potable water"),cat("Potable water"),days),udKpi("Sewage vacuum",udUnit("Sewage"),cat("Sewage"),days),udKpi("Concrete trucks","trips",cat("Concrete trucks"),days),udKpi("Concrete vacuum","trips",cat("Concrete vacuum"),days)].join("");
@@ -1518,8 +1518,8 @@ function udConcrete(r,days){const cat=c=>r.filter(u=>u.type===c);
  const wt=`<table class="udt"><tr><th>Zone</th>${W.map(w=>`<th class="n">${w.lab}</th>`).join("")}<th class="n">Total</th></tr>${zs.map(z=>{const rr=sel.filter(u=>u._z===z);return `<tr><td><i class="udsw" style="background:${UD_ZC[z]}"></i>${z}</td>${W.map(w=>`<td class="n">${udN(udSum(rr.filter(u=>u.date>=w.s&&u.date<=w.e)))}</td>`).join("")}<td class="n"><b>${udN(udSum(rr))}</b></td></tr>`;}).join("")}<tr class="udtot"><td>Total</td>${W.map(w=>`<td class="n">${udN(udSum(sel.filter(u=>u.date>=w.s&&u.date<=w.e)))}</td>`).join("")}<td class="n">${udN(udSum(sel))}</td></tr></table>`;
  return `<div class="udg4">${k}</div><div class="udc"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><h3>Concrete per day</h3><p class="udsub">Stacked by zone. Click a day to filter to it.</p></div>${tog}</div>${st}</div>
  <div class="udg2">${udCard("Concrete by zone","Type picked above. Click a zone to filter to it.",zb)}${udCard("Weekly by zone","Type picked above, one column per week (Saturday to Friday).",wt)}</div>`;}
-function udData(r){const cols=[["date","Date"],["item","Key"],["title","Item"],["type","Category"],["_z","Zone"],["qty","Qty"],["unit","Unit"],["ref","Reference"]];
- const s=r.slice().sort((a,b)=>{const x=a[UD.sort]??"",y=b[UD.sort]??"";return (x<y?-1:x>y?1:0)*UD.dir;}),P=50,pg=Math.min(UD.page,Math.max(0,Math.ceil(s.length/P)-1)),sl=s.slice(pg*P,pg*P+P);
+function udData(r,all){const cols=[["date","Date"],["item","Key"],["title","Item"],["type","Category"],["_z","Zone"],["qty","Qty"],["unit","Unit"],["ref","Reference"]];
+ const s=r.slice().sort((a,b)=>{const x=a[UD.sort]??"",y=b[UD.sort]??"";return (x<y?-1:x>y?1:0)*UD.dir;}),P=all?1e9:50,pg=Math.min(UD.page,Math.max(0,Math.ceil(s.length/P)-1)),sl=s.slice(pg*P,pg*P+P);
  return udCard("All line items","One row for each reading saved in the Hub. Click a header to sort.",`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><button class="b n sm" id="udCsv">${tr("Copy filtered rows as CSV","نسخ الصفوف كـ CSV")}</button><span class="udsub" style="margin:0">${s.length} rows</span><span style="flex:1"></span><button class="b sm" id="udPrev" ${pg?"":"disabled"}>‹ Previous</button><span class="udsub" style="margin:0">Page ${pg+1} of ${Math.max(1,Math.ceil(s.length/P))}</span><button class="b sm" id="udNext" ${(pg+1)*P<s.length?"":"disabled"}>Next ›</button></div>
  <table class="udt"><tr>${cols.map(([k,l])=>`<th data-sort="${k}" style="cursor:pointer"${k==="qty"?' class="n"':""}>${l}${UD.sort===k?(UD.dir>0?" ▲":" ▼"):""}</th>`).join("")}</tr>${sl.map(u=>`<tr><td>${udDay(u.date)}</td><td>${u.item}</td><td>${esc(u.title||u._it?.title||"")}</td><td>${esc(u.type)}</td><td>${u._z}</td><td class="n">${udN(u.qty)}</td><td>${esc(u.unit||"")}</td><td>${esc(u.ref||"")}</td></tr>`).join("")}</table>`);}
 const UD_CSS=`<style>.udw{font-size:13px}.udw h3{font-size:15px;font-weight:600;margin:0 0 3px;color:#1F2A37}.udsub{font-size:11.5px;color:#6B7280;margin:0 0 10px}.udc{background:#fff;border:1px solid #E3E6EA;border-radius:10px;padding:14px 16px;margin-bottom:14px;min-width:0}
@@ -1550,6 +1550,9 @@ BIND.utRep=()=>{UD_OLD_BIND();
  const bindF=()=>{const set=(k,v)=>{UD[k]=v;UD.page=0;draw();};
   $("#udFrom").onchange=e=>set("from",e.target.value);$("#udTo").onchange=e=>set("to",e.target.value);$("#udZone").onchange=e=>set("zone",e.target.value);
   $("#udSec").onchange=e=>{UD.item="";set("sec",e.target.value);};$("#udItem").onchange=e=>set("item",e.target.value);
+  $("#udPrint").onclick=()=>{const tl={ov:"Overview",dz:"Diesel",ws:"Water & services",cc:"Concrete",da:"Data"}[UD.tab],m=$("#rpM").value;
+   const body=UD.tab==="da"?udData(udRows(),true):$("#udBody").innerHTML;
+   dsPrint("MIDU utilities – "+tl+" – "+monthName(m).replace("-"," "),$("#udDesc").textContent,body,"Utilities dashboard "+tl+" ("+m+")");};
   $("#udReset").onclick=()=>{Object.assign(UD,{from:"",to:"",zone:"",sec:"",item:"",page:0});draw();};
   document.querySelectorAll("#udBody [data-day]").forEach(el=>el.onclick=()=>{UD.from=UD.to=el.dataset.day;if(el.dataset.it)UD.item=el.dataset.it;draw();});
   document.querySelectorAll("#udBody [data-zone]").forEach(el=>el.onclick=()=>set("zone",el.dataset.zone));
@@ -1571,7 +1574,13 @@ const dsAst=a=>a.status||(a.cust?"In Use":"In Stock");
 const dsWhName=k=>(typeof WH!=="undefined"&&WH[k]&&WH[k].name)||k||"—";
 const dsPrStage=s=>s>=6?"Paid":s>=5?"Invoiced":s>=4.5?"Received":s>=4?"PO issued":s>=3?"CQS approved":s>=2.5?"CQS in progress":s>=2?"PD approved":"Waiting PD approval";
 function dsTile(v,l,sub,go,warn){return `<div class="udk dsk${go?" dsgo":""}"${go?` data-go="${go}"`:""} style="${warn?"border-color:#F2C2BE;background:#FFF8F7":""}"><div class="udkl">${l}</div><div class="udkv" style="${warn?"color:#C0392B":""}">${v}</div>${sub?`<div class="udks">${sub}</div>`:""}</div>`;}
-function dsHead(t,sub,right){return UD_CSS+DS_CSS+`<div class="udw"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1 class="udtitle">${t}</h1><p class="udsub" style="font-size:13px;margin:4px 0 12px">${sub}</p></div>${right||""}</div>`;}
+function dsHead(t,sub,right){return UD_CSS+DS_CSS+`<div class="udw" id="dsRoot"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1 class="udtitle" id="dsT">${t}</h1><p class="udsub" id="dsS" style="font-size:13px;margin:4px 0 12px">${sub}</p></div><div style="display:flex;gap:8px;align-items:center">${right||""}<button class="b n sm" id="dsPrintBtn">🖨 ${tr("Print this dashboard","طباعة اللوحة")}</button></div></div>`;}
+/* print the dashboard as it is on screen (filters / dates included), A4 landscape in colour */
+function dsPrint(title,sub,body,fname){const who=(typeof LOCAL!=="undefined"&&LOCAL.user)?(LOCAL.user.name||LOCAL.user):"";const now=new Date();
+ const h=`<div class="doc xl" style="font-family:Inter,'Plus Jakarta Sans',Arial,sans-serif;color:#1F2A37;padding:4px 6px"><style>@page{size:A4 landscape;margin:8mm}@media print{body>*:not(#ov){display:none!important}}.dsp .udc,.dsp .udk,.dsp tr{break-inside:avoid;page-break-inside:avoid}.dsp .udg4,.dsp .udg6{grid-template-columns:repeat(4,minmax(0,1fr))!important}.dsp .udg6{grid-template-columns:repeat(6,minmax(0,1fr))!important}.dsp .udg2{grid-template-columns:repeat(2,minmax(0,1fr))!important}.dsp .dsg3{grid-template-columns:repeat(3,minmax(0,1fr))!important}.dsp .dsact,.dsp .dsft,.dsp button,.dsp .udtog,.dsp #udPrev,.dsp #udNext,.dsp #udCsv{display:none!important}.dsp .udc{padding:10px 12px;margin-bottom:10px}.dsp a{color:inherit;text-decoration:none}</style>
+ ${UD_CSS}${DS_CSS}<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1F2A44;padding-bottom:6px;margin-bottom:10px"><div><div style="font-family:Georgia,'Times New Roman',serif;font-size:22px">${esc(title)}</div><div style="font-size:11px;color:#4B5563;margin-top:3px">${esc(sub)}</div></div><div style="text-align:end"><img src="${LOGO}" style="height:22px"><div style="font-size:9.5px;color:#6B7280;margin-top:4px">Printed ${now.toISOString().slice(0,10)} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}${who?" · "+esc(who):""}</div></div></div>
+ <div class="udw dsp">${body}</div></div>`;openModal(title,h,fname||title);}
+function dsBindPrint(){const b=$("#dsPrintBtn");if(!b)return;b.onclick=()=>{const r=$("#dsRoot").cloneNode(true);r.querySelectorAll("style").forEach(x=>x.remove());const hd=r.firstElementChild;if(hd)hd.remove();dsPrint($("#dsT").textContent,$("#dsS").textContent,r.innerHTML,$("#dsT").textContent);};}
 function dsActions(list){const l=list.filter(([v])=>dsCan(v));return l.length?`<div class="dsact">${l.map(([v,lab,ic,col])=>`<button class="dsbtn" data-go="${v}"><span style="background:${col}">${ic}</span>${lab}</button>`).join("")}</div>`:"";}
 const DS_CSS=`<style>.dsgo{cursor:pointer;transition:box-shadow .15s,border-color .15s}.dsgo:hover{border-color:#9AA6B8;box-shadow:0 2px 8px rgba(20,30,50,.08)}
 .dsact{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}.dsbtn{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #E3E6EA;border-radius:9px;padding:7px 12px 7px 7px;font:inherit;font-size:13px;cursor:pointer;color:#1F2A37}.dsbtn:hover{border-color:#9AA6B8}.dsbtn span{width:24px;height:24px;border-radius:6px;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:13px}
@@ -1625,7 +1634,7 @@ VIEWS.home=()=>{const d=new Date(today()+"T12:00:00Z"),dl=`${["Sunday","Monday",
   ${canHR?mod("☺","#BE185D",tr("HR attendance","الحضور"),"Face terminals TAT-001…003 (ZKTeco)",[[H.present,"present today"],[H.late,"late",H.late],[H.absent,"absent",H.absent]],hrChart,goHR,[["att","Attendance"]]):""}
   ${canMT?mod("⚒","#475569",tr("Maintenance","الصيانة"),"Monthly checklist · maintenance requests",[[M.open.length,"open requests"],[M.high,"high priority",M.high],[M.done?"Done":"Due","monthly checklist",!M.done]],mtChart,goMT,[["mcl","Checklist"],["mreq","Requests"]]):""}
   </div></div>`;};
-BIND.home=()=>{bindDocBtns();const b=$("#loadSample");if(b&&typeof loadSample==="function")b.onclick=loadSample;};
+BIND.home=()=>{bindDocBtns();dsBindPrint();const b=$("#loadSample");if(b&&typeof loadSample==="function")b.onclick=loadSample;};
 /* ---------- WAREHOUSE & ASSETS ---------- */
 VIEWS.dashWH=()=>{const W=dsWhFig(),m=month(),md=dsMonthDays(m).filter(x=>x<=today());
  const byT={};W.as.forEach(a=>byT[a.type||"—"]=(byT[a.type||"—"]||0)+1);const byS={};W.as.forEach(a=>{const s=dsAst(a);byS[s]=(byS[s]||0)+1;});
@@ -1642,7 +1651,7 @@ VIEWS.dashWH=()=>{const W=dsWhFig(),m=month(),md=dsMonthDays(m).filter(x=>x<=tod
  ${udCard("Assets by type","The 12 largest asset types.",udHbar(Object.keys(byT).sort((a,b)=>byT[b]-byT[a]).slice(0,12).map(t=>({lab:t,v:byT[t],col:"#714B67"})),"assets"))}</div>
  <div class="udg2">${udCard("Stock lines by warehouse","",udHbar(Object.keys(byW).sort((a,b)=>byW[b]-byW[a]).map(w=>({lab:w,v:byW[w],col:"#1E9E6A"})),"lines"))}
  ${udCard("Recent documents","The last 10 warehouse documents. Click a number to open it.",dsTable([["No."],["Type"],["Date"],["Party"],["Lines",1]],rec.map(d=>`<tr><td><a href="#" data-doc="${esc(d.no)}" onclick="return false">${esc(d.no)}</a></td><td>${esc(d.type)}</td><td>${esc(d.date||"")}</td><td>${esc(d.party||d.to||"")}</td><td class="n">${(d.lines||[]).length}</td></tr>`)))}</div></div>`;};
-BIND.dashWH=()=>bindDocBtns();
+BIND.dashWH=()=>{bindDocBtns();dsBindPrint();};
 /* ---------- PROCUREMENT & FINANCE ---------- */
 VIEWS.dashPF=()=>{const P=dsPfFig(),m=month();const st={};D.prs.forEach(p=>{const s=dsPrStage(prStage(p));st[s]=(st[s]||0)+1;});
  const ORDER=["Waiting PD approval","PD approved","CQS in progress","CQS approved","PO issued","Received","Invoiced","Paid"];
@@ -1656,7 +1665,7 @@ VIEWS.dashPF=()=>{const P=dsPfFig(),m=month();const st={};D.prs.forEach(p=>{cons
  ${udCard("PO value by cost center","All POs and petty cash, SAR.",udHbar(Object.keys(byCC).sort((a,b)=>byCC[b]-byCC[a]).map(c=>({lab:c,v:Math.round(byCC[c]),col:"#B45309"})),"SAR"))}</div>
  <div class="udg2">${udCard("Budget vs actual","Per cost center, SAR.",dsTable([["Cost center"],["CAPEX budget",1],["CAPEX actual",1],["OPEX budget",1],["OPEX actual",1]],bud))}
  ${udCard("Recent POs","The last 10 purchase orders and petty cash vouchers.",dsTable([["No."],["Date"],["Supplier"],["Cost center"],["Value",1],["Status"]],pos.map(p=>{const inv=D.invs.find(i=>i.po===p.no);return `<tr><td>${esc(p.no)}</td><td>${esc(p.date||"")}</td><td>${esc(p.sup||"")}</td><td>${esc(p.cc||"")}</td><td class="n">${money(poTotal(p))}</td><td>${inv&&inv.paid?"Paid":inv?"Invoiced":poFull(p)?"Received":"Open"}</td></tr>`;})))}</div></div>`;};
-BIND.dashPF=()=>bindDocBtns();
+BIND.dashPF=()=>{bindDocBtns();dsBindPrint();};
 /* ---------- HR ---------- */
 VIEWS.dashHR=()=>{const H=dsHrFig(),days=dsLastDays(30),A={};days.forEach(x=>A[x]=attDay(x));
  const byD={};D.emps.forEach(e=>byD[e.dept||"—"]=(byD[e.dept||"—"]||0)+1);
@@ -1668,7 +1677,7 @@ VIEWS.dashHR=()=>{const H=dsHrFig(),days=dsLastDays(30),A={};days.forEach(x=>A[x
  ${udCard("Attendance, last 30 days","Present on time, late, absent and on leave per day (weekends are empty).",udStack(days,[{k:"p",lab:"Present on time",col:"#1E9E6A"},{k:"l",lab:"Late",col:"#D9961A"},{k:"a",lab:"Absent",col:"#D2463C"},{k:"v",lab:"On leave",col:"#2F6FDE"}],(x,k)=>A[x].filter(y=>k==="l"?y.late:k==="a"?["absent","absentPending"].includes(y.st):k==="v"?y.st==="leave":(y.in&&!y.late)).length,{leg:1,w:1240,h:220}))}
  <div class="dsg3">${udCard("Most absences (30 days)","",udHbar(Object.keys(ab).sort((a,b)=>ab[b]-ab[a]).slice(0,8).map(n=>({lab:n,v:ab[n],col:"#D2463C"})),"days"))}${udCard("Most late arrivals (30 days)","",udHbar(Object.keys(lt).sort((a,b)=>lt[b]-lt[a]).slice(0,8).map(n=>({lab:n,v:lt[n],col:"#D9961A"})),"days"))}${udCard("Employees by department","",udHbar(Object.keys(byD).sort((a,b)=>byD[b]-byD[a]).map(d=>({lab:d,v:byD[d],col:"#BE185D"})),"staff"))}</div>
  ${udCard("Requests waiting for HR","Leave and time-correction requests with status Pending.",dsTable([["No."],["Employee"],["Type"],["Dates"],["Reason"]],pend.map(q=>{const e=D.emps.find(x=>x.no===q.emp)||{};return `<tr><td>${esc(q.no)}</td><td>${esc(e.name||q.emp)}</td><td>${esc(q.type)}${q.leaveType?" – "+esc(q.leaveType):""}</td><td>${esc(q.date||((q.from||"")+(q.to?" → "+q.to:"")))}</td><td>${esc(q.reason||"")}</td></tr>`;}),"No request is waiting."))}</div>`;};
-BIND.dashHR=()=>bindDocBtns();
+BIND.dashHR=()=>{bindDocBtns();dsBindPrint();};
 /* ---------- MAINTENANCE ---------- */
 VIEWS.dashMT=()=>{const M=dsMtFig(),m=month();const by=(f)=>{const o={};D.mreq.filter(r=>r.status!=="Closed").forEach(r=>{const k=r[f]||"—";o[k]=(o[k]||0)+1;});return o;};
  const pr=by("prio"),ct=by("cat"),st={};D.mreq.forEach(r=>st[r.status||"Open"]=(st[r.status||"Open"]||0)+1);const PC={High:"#D2463C",Urgent:"#7F1D1D",Medium:"#D9961A",Low:"#1E9E6A"};
@@ -1678,7 +1687,7 @@ VIEWS.dashMT=()=>{const M=dsMtFig(),m=month();const by=(f)=>{const o={};D.mreq.f
  <div class="dsg3">${udCard("Requests by status","",udHbar(Object.keys(st).map(s=>({lab:s,v:st[s],col:s==="Closed"?"#9AA6B8":"#475569"})),"req."))}${udCard("Open by priority","",udHbar(Object.keys(pr).map(s=>({lab:s,v:pr[s],col:PC[s]||"#475569"})),"req."))}${udCard("Open by category","",udHbar(Object.keys(ct).sort((a,b)=>ct[b]-ct[a]).map(s=>({lab:s,v:ct[s],col:"#475569"})),"req."))}</div>
  <div class="udg2">${udCard("Open requests","",dsTable([["No."],["Date"],["Location"],["Priority"],["Status"],["Assigned to"]],M.open.map(r=>`<tr><td>${esc(r.no)}</td><td>${esc(r.date||"")}</td><td>${esc(r.loc||"")}</td><td>${esc(r.prio||"")}</td><td>${esc(r.status||"")}</td><td>${esc(r.to||"")}</td></tr>`),"No open request."))}
  ${udCard("Recent monthly checklists","",dsTable([["No."],["Month"],["Location"],["By"],["Not OK",1]],last.map(c=>`<tr><td>${esc(c.no)}</td><td>${esc(c.month)}</td><td>${esc(c.loc||"")}</td><td>${esc(c.by||"")}</td><td class="n">${(c.res||[]).filter(x=>x.s==="Not OK").length}</td></tr>`),"No checklist saved yet."))}</div></div>`;};
-BIND.dashMT=()=>bindDocBtns();
+BIND.dashMT=()=>{bindDocBtns();dsBindPrint();};
 
 const mrDoc_old=q=>gdoc({title:"MAINTENANCE REQUEST",no:q.no,date:q.date,meta:[["Requested by",q.by],["Location",q.loc],["Asset ID",q.asset],["Asset",D.assets.find(a=>a.id===q.asset)?.desc||""],["Category",q.cat],["Priority",q.prio],["Assigned to",q.to],["Status",q.status]],cols:["Problem description","Action taken","Completed on"],rows:[[q.desc,"",""]],sig:["Requested by","Maintenance technician","Logistics approval"]});
 const mclDoc_old=x=>gdoc({title:"MONTHLY MAINTENANCE CHECKLIST",no:x.no,date:x.date,meta:[["Month",x.month],["Location",x.loc],["Checked by",x.by]],cols:["#","Category","Check point","Result","Remarks"],rows:x.res.map(r=>[r.i+1,MCL_T[r.i][0],MCL_T[r.i][1],r.s,r.rem]),sig:["Checked by","Maintenance supervisor","Logistics approval"]});
