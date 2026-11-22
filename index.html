@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611221623"></script>
-<script src="local.js?v=202611221623"></script>
+<script src="m365.js?v=202611221632"></script>
+<script src="local.js?v=202611221632"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -845,8 +845,8 @@ BIND.utReg=()=>{bindDocBtns();document.querySelectorAll("[data-st]").forEach(s=>
  document.querySelectorAll("[data-pd]").forEach(s=>s.onchange=()=>{const d=D.dns[+s.dataset.pd];d.paid=Math.min(+s.value||0,dnTotal(d));if(d.paid>=dnTotal(d))d.status="Paid";persist();render();toast("✔");});};
 
 /* ============================ PROCUREMENT & FINANCE ============================ */
-const prStage=p=>{if(p.status==="Deleted")return -1;if(p.status==="Draft")return 0;if(p.status==="PD")return p.pd?1.5:1;const c=D.cqs.find(x=>x.pr===p.no),po=D.pos.find(x=>x.pr===p.no);if(po){const inv=D.invs.find(i=>i.po===po.no);if(inv&&inv.paid)return 6;if(inv)return 5;if(poFull(po))return 4.5;return 4;}if(c&&c.approved)return 3;if(c)return 2.5;if(p.pd)return 2;return 1;};
-const STG=()=>({"-1":[tr("Deleted","محذوف"),"r"],0:[tr("Draft — can be edited","مسودة — قابلة للتعديل"),""],1.5:[tr("PD approved — send to Procurement","اعتمده مدير المشروع — أرسله للمشتريات"),"g"],1:[tr("Submitted — awaiting PD","مُرسل — بانتظار مدير المشروع"),""],2:[tr("PD approved — get quotations","اعتمده مدير المشروع — اطلب عروض"),"b"],2.5:[tr("CQS in progress","المقارنة قيد التنفيذ"),"a"],3:[tr("CQS approved — prepare PO","اعتُمدت المقارنة — جهّز أمر الشراء"),"b"],4:[tr("PO issued — awaiting delivery","صدر أمر الشراء — بانتظار التوريد"),"a"],4.5:[tr("Fully received","استُلم بالكامل"),"g"],5:[tr("Invoiced","مفوتر"),"p"],6:[tr("Paid","مدفوع"),"g"]});
+const prStage=p=>{if(p.status==="Deleted")return -1;if(p.status==="Draft")return 0;if(p.status==="PD")return p.pd?1.5:1;if(p.status==="Rejected")return 0.5;const c=D.cqs.find(x=>x.pr===p.no),po=D.pos.find(x=>x.pr===p.no);if(po){const inv=D.invs.find(i=>i.po===po.no);if(inv&&inv.paid)return 6;if(inv)return 5;if(poFull(po))return 4.5;return 4;}if(c&&c.approved)return 3;if(c)return 2.5;if(p.pd)return 2;return 1;};
+const STG=()=>({"-1":[tr("Deleted","محذوف"),"r"],0:[tr("Draft — can be edited","مسودة — قابلة للتعديل"),""],0.5:[tr("Not approved by PD — returned to you","غير معتمد من مدير المشروع — أُعيد إليك"),"r"],1.5:[tr("PD approved — send to Procurement","اعتمده مدير المشروع — أرسله للمشتريات"),"g"],1:[tr("Submitted — awaiting PD","مُرسل — بانتظار مدير المشروع"),""],2:[tr("PD approved — get quotations","اعتمده مدير المشروع — اطلب عروض"),"b"],2.5:[tr("CQS in progress","المقارنة قيد التنفيذ"),"a"],3:[tr("CQS approved — prepare PO","اعتُمدت المقارنة — جهّز أمر الشراء"),"b"],4:[tr("PO issued — awaiting delivery","صدر أمر الشراء — بانتظار التوريد"),"a"],4.5:[tr("Fully received","استُلم بالكامل"),"g"],5:[tr("Invoiced","مفوتر"),"p"],6:[tr("Paid","مدفوع"),"g"]});
 const prFlow=k=>`<div class="flow">${[["pr","PR"],["cqs","CQS"],["po",tr("PO / petty cash","أمر شراء / نثرية")],["grn","GRN"],["fin",tr("Invoice & payment","الفاتورة والسداد")]].map(([v,l],i)=>`${i?"<em>→</em>":""}<span class="${v===k?"on":""}">${l}</span>`).join("")}</div>`;
 VIEWS.pr=()=>head(tr("Purchase requests (PR)","طلبات الشراء (PR)"),tr("Logistics raises the PR; the Project Director approves; Procurement takes it from there.","اللوجستيات ترفع الطلب، ومدير المشروع يعتمده، ثم تتولاه المشتريات."))+prFlow("pr")+msgBox+
  `<div class="card"><h2>${tr("New purchase request","طلب شراء جديد")}</h2><div class="fg">${fld("pNo",tr("PR No.","رقم الطلب"),{ro:true,val:seqNo("PR-26-",D.prs.map(p=>p.no))})}${fld("pDate",tr("Date","التاريخ"),{type:"date",val:today(),req:true})}${sel("pCc",tr("Cost center","مركز التكلفة"),CC,{req:true})}${fld("pNeed",tr("Required date (on site)","تاريخ الاحتياج (في الموقع)"),{type:"date",req:true})}
@@ -1572,7 +1572,7 @@ const dsMonthDays=m=>{const n=upDays(m),a=[];for(let i=1;i<=n;i++)a.push(upD(m,i
 const dsLastDays=n=>{const a=[];for(let i=n-1;i>=0;i--)a.push(addDays(today(),-i));return a;};
 const dsAst=a=>a.status||(a.cust?"In Use":"In Stock");
 const dsWhName=k=>(typeof WH!=="undefined"&&WH[k]&&WH[k].name)||k||"—";
-const dsPrStage=s=>s<0?"Deleted":s===0?"Draft (not sent)":s===1.5?"PD approved, not sent":s>=6?"Paid":s>=5?"Invoiced":s>=4.5?"Received":s>=4?"PO issued":s>=3?"CQS approved":s>=2.5?"CQS in progress":s>=2?"PD approved":"Waiting PD approval";
+const dsPrStage=s=>s<0?"Deleted":s===0?"Draft (not sent)":s===0.5?"Not approved by PD":s===1.5?"PD approved, not sent":s>=6?"Paid":s>=5?"Invoiced":s>=4.5?"Received":s>=4?"PO issued":s>=3?"CQS approved":s>=2.5?"CQS in progress":s>=2?"PD approved":"Waiting PD approval";
 function dsTile(v,l,sub,go,warn){return `<div class="udk dsk${go?" dsgo":""}"${go?` data-go="${go}"`:""} style="${warn?"border-color:#F2C2BE;background:#FFF8F7":""}"><div class="udkl">${l}</div><div class="udkv" style="${warn?"color:#C0392B":""}">${v}</div>${sub?`<div class="udks">${sub}</div>`:""}</div>`;}
 function dsHead(t,sub,right){return UD_CSS+DS_CSS+`<div class="udw" id="dsRoot"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1 class="udtitle" id="dsT">${t}</h1><p class="udsub" id="dsS" style="font-size:13px;margin:4px 0 12px">${sub}</p></div><div style="display:flex;gap:8px;align-items:center">${right||""}<button class="b n sm" id="dsPrintBtn">🖨 ${tr("Print this dashboard","طباعة اللوحة")}</button></div></div>`;}
 /* print the dashboard as it is on screen (filters / dates included), A4 landscape in colour */
@@ -1654,7 +1654,7 @@ VIEWS.dashWH=()=>{const W=dsWhFig(),m=month(),md=dsMonthDays(m).filter(x=>x<=tod
 BIND.dashWH=()=>{bindDocBtns();dsBindPrint();};
 /* ---------- PROCUREMENT & FINANCE ---------- */
 VIEWS.dashPF=()=>{const P=dsPfFig(),m=month();const st={};D.prs.filter(p=>prStage(p)>=0).forEach(p=>{const s=dsPrStage(prStage(p));st[s]=(st[s]||0)+1;});
- const ORDER=["Draft (not sent)","Waiting PD approval","PD approved, not sent","PD approved","CQS in progress","CQS approved","PO issued","Received","Invoiced","Paid"];
+ const ORDER=["Not approved by PD","Draft (not sent)","Waiting PD approval","PD approved, not sent","PD approved","CQS in progress","CQS approved","PO issued","Received","Invoiced","Paid"];
  const byCC={};D.pos.forEach(p=>byCC[p.cc||"—"]=(byCC[p.cc||"—"]||0)+poTotal(p));
  const bud=CC.map(c=>{const b=D.budget[c]||{};return `<tr><td>${esc(c)}</td><td class="n">${money(b.CAPEX||0)}</td><td class="n">${money(actual(c,"CAPEX"))}</td><td class="n">${money(b.OPEX||0)}</td><td class="n">${money(actual(c,"OPEX"))}</td></tr>`;});
  const pos=D.pos.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,10);
@@ -1697,10 +1697,21 @@ function hubPrintDoc(){const b=$("#mBody");if(!b)return window.print();const css
 
 /* ===== PR: Draft → edit / delete → print & sign → Send to Procurement; Purpose; Priority; Arabic allowed in Purpose and item text ===== */
 let PR_EDIT=null;
+/* Signatures: PNG files in MIDU Hub Data/Signatures/<Full Name>.png (never in the public page) */
+const PR_PD="Najed Fakhreddine",SIG={};
+const prUser=()=>(typeof LOCAL!=="undefined"&&LOCAL.user)||"";
+const prIsPD=()=>prUser().trim().toLowerCase()===PR_PD.toLowerCase();
+async function sigLoad(name){if(!name)return null;const k=name.trim().toLowerCase();if(k in SIG)return SIG[k];SIG[k]=null;
+ try{if(typeof subDir!=="function"||typeof LOCAL==="undefined"||!LOCAL.dir)return null;const d=await subDir("Signatures");let fh=null;
+  for await(const [n,h] of d.entries()){if(h.kind==="file"&&/\.png$/i.test(n)&&n.replace(/\.png$/i,"").trim().toLowerCase()===k){fh=h;break;}}
+  if(!fh)return null;const f=await fh.getFile();SIG[k]=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(f);});}catch(e){}return SIG[k];}
+const sigImg=name=>{const u=name&&SIG[name.trim().toLowerCase()];return u?`<img src="${u}" style="max-height:46px;max-width:96%;display:block;margin:0 auto">`:"";};
+const prLegacyOpen=p=>!p.status&&!p.pd&&!D.cqs.some(c=>c.pr===p.no)&&!D.pos.some(o=>o.pr===p.no);
 const prActive=p=>p.status!=="Deleted";
 function prBtns(p){const pr=`<button class="b l sm" data-doc="${p.no}">${tr("Print","طباعة")}</button>`;
  if(p.status==="Draft")return `<button class="b l sm" data-pe="${p.no}">✎ ${tr("Edit","تعديل")}</button> <button class="b r sm" data-pdel="${p.no}">✕ ${tr("Delete","حذف")}</button> ${pr} <button class="b sm" style="background:#0E7490" data-ptopd="${p.no}">➜ ${tr("Send to PD for approval","إرسال لمدير المشروع")}</button>`;
- if(p.status==="PD"&&!p.pd)return `<button class="b g sm" data-pd="${p.no}">${tr("PD approve","اعتماد مدير المشروع")}</button> <button class="b l sm" data-pback="${p.no}">↩ ${tr("Back to draft","إرجاع لمسودة")}</button> ${pr}`;
+ if((p.status==="PD"&&!p.pd)||prLegacyOpen(p))return `<button class="b g sm" data-pd="${p.no}">${prIsPD()?tr("Approve (PD)","اعتماد"):tr("Record PD approval","تسجيل اعتماد مدير المشروع")}</button> <button class="b r sm" data-prej="${p.no}">✕ ${prIsPD()?tr("Not approve","عدم الاعتماد"):tr("Record not approved","تسجيل عدم الاعتماد")}</button> <button class="b l sm" data-pback="${p.no}">↩ ${tr("Back to draft","إرجاع لمسودة")}</button> <button class="b r sm" data-pdel="${p.no}">${tr("Delete","حذف")}</button> ${pr}`;
+ if(p.status==="Rejected")return `${pr} <button class="b l sm" data-pback="${p.no}">✎ ${tr("Edit & resubmit","تعديل وإعادة إرسال")}</button> <button class="b r sm" data-pdel="${p.no}">✕ ${tr("Delete","حذف")}</button>`;
  if(p.status==="PD"&&p.pd)return `${pr} <button class="b sm" style="background:#7C3AED" data-psend="${p.no}">➜ ${tr("Send to Procurement","إرسال للمشتريات")}</button>`;
  return `${p.pd?"":`<button class="b g sm" data-pd="${p.no}">${tr("PD approve","اعتماد مدير المشروع")}</button> `}${pr}`;}
 function prLinesFromTable(tb){const lines=[];for(const r of [...tb.querySelectorAll("tr")].slice(1)){const v=r.querySelector("[data-k=item]").value.trim();if(!v)continue;const q=+r.querySelector("[data-k=qty]").value;if(!(q>0)){msg("err",ERR.qty());return null;}const i=parseItem(v);
@@ -1712,17 +1723,26 @@ function prDlg(p,toPD){const v=money(p.lines.reduce((a,l)=>a+l.qty*l.est,0));
  <label style="display:flex;gap:8px;align-items:center;margin-bottom:14px"><input type="checkbox" id="psChk" style="width:auto"> ${toPD?tr("I have checked and signed this PR","راجعت الطلب ووقّعته"):tr("The PR is signed by me and by the Project Director","الطلب موقّع مني ومن مدير المشروع")}</label>
  <button class="b" id="psGo" style="background:${toPD?"#0E7490":"#7C3AED"}">➜ ${toPD?tr("Send to PD for approval","إرسال لمدير المشروع"):tr("Send to Procurement","إرسال للمشتريات")}</button> <span id="psErr" style="color:#D2463C;font-size:13px;margin-inline-start:8px"></span></div>`,"");
  $("#psGo").onclick=()=>{if(!$("#psChk").checked){$("#psErr").textContent=tr("Tick the box first.","ضع علامة في المربع أولاً.");return;}
-  const who=(typeof LOCAL!=="undefined"&&LOCAL.user)||p.req;if(toPD){p.status="PD";p.toPdOn=today();p.toPdBy=who;}else{p.status="Sent";p.sentOn=today();p.sentBy=who;}
+  const who=(typeof LOCAL!=="undefined"&&LOCAL.user)||p.req;if(toPD){p.status="PD";p.toPdOn=today();p.toPdBy=who;p.prepSigned=true;}else{p.status="Sent";p.sentOn=today();p.sentBy=who;}
   persist();$("#ov").classList.remove("on");render();toast("✔ "+p.no+" "+(toPD?tr("sent to the Project Director","أُرسل لمدير المشروع"):tr("sent to Procurement","أُرسل للمشتريات")));};}
+function prRejDlg(p){openModal(tr("PR not approved","الطلب غير معتمد"),`<div style="padding:18px 22px;font-size:14px;line-height:1.6"><p style="margin:0 0 10px"><b>${esc(p.no)}</b> · ${esc(p.cc)}</p>
+ <label style="display:block;margin-bottom:6px">${tr("Reason (sent back to Logistics with the not-approved copy)","السبب (يُعاد إلى اللوجستيات مع النسخة غير المعتمدة)")} <span style="color:#D2463C">*</span></label>
+ <textarea id="prjR" data-ar="1" rows="3" style="width:100%;box-sizing:border-box"></textarea>
+ <div style="margin-top:12px"><button class="b r" id="prjGo">✕ ${tr("Not approved – return to Logistics","غير معتمد – إعادة إلى اللوجستيات")}</button> <span id="prjE" style="color:#D2463C;font-size:13px;margin-inline-start:8px"></span></div></div>`,"");
+ $("#prjGo").onclick=()=>{const r=$("#prjR").value.trim();if(!r){$("#prjE").textContent=tr("Write the reason first.","اكتب السبب أولاً.");return;}
+  Object.assign(p,{status:"Rejected",pd:false,rejDate:today(),rejBy:prUser()||PR_PD,rejReason:r,rejSigned:prIsPD()});persist();$("#ov").classList.remove("on");render();toast("✔ "+p.no+" "+tr("returned to Logistics as not approved","أُعيد إلى اللوجستيات غير معتمد"));};}
 const PR_OLD_BIND=BIND.pr;
-BIND.pr=()=>{PR_OLD_BIND();const tb=$("#pLines");const ar=()=>{const j=$("#pJust");if(j)j.dataset.ar=1;tb.querySelectorAll("[data-k=item]").forEach(x=>x.dataset.ar=1);};ar();$("#pAdd").addEventListener("click",ar);
- document.querySelectorAll("[data-pd]").forEach(b=>b.onclick=()=>{const p=D.prs.find(x=>x.no===b.dataset.pd);p.pd=true;p.pdDate=today();persist();render();toast("✔");});
+BIND.pr=()=>{PR_OLD_BIND();[...new Set(D.prs.flatMap(p=>[p.req,p.pdBy]).concat([prUser(),PR_PD]).filter(Boolean))].forEach(n=>sigLoad(n));const tb=$("#pLines");const ar=()=>{const j=$("#pJust");if(j)j.dataset.ar=1;tb.querySelectorAll("[data-k=item]").forEach(x=>x.dataset.ar=1);};ar();$("#pAdd").addEventListener("click",ar);
+ document.querySelectorAll("[data-pd]").forEach(b=>b.onclick=()=>{const p=D.prs.find(x=>x.no===b.dataset.pd);p.pd=true;p.pdDate=today();p.pdBy=prUser()||"";
+  if(prIsPD()){p.pdSigned=true;p.status="Sent";p.sentOn=today();p.sentBy="Auto – after PD approval";persist();render();toast("✔ "+p.no+" "+tr("approved and sent to Procurement","اعتُمد وأُرسل للمشتريات"));return;}
+  if(!p.status)p.status="PD";p.pdSigned=false;persist();render();toast("✔ "+tr("PD approval recorded","تم تسجيل اعتماد مدير المشروع"));});
  document.querySelectorAll("[data-pe]").forEach(b=>b.onclick=()=>{PR_EDIT=b.dataset.pe;render();$("#main").scrollTop=0;});
  document.querySelectorAll("[data-pdel]").forEach(b=>b.onclick=()=>{if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent=tr("Click again to delete","اضغط مرة أخرى للحذف");setTimeout(()=>{if(b.isConnected){b.dataset.sure="";b.textContent="✕ "+tr("Delete","حذف");}},4000);return;}
   const p=D.prs.find(x=>x.no===b.dataset.pdel);p.status="Deleted";p.deletedOn=today();if(PR_EDIT===p.no)PR_EDIT=null;persist();render();toast("✔ "+p.no+" "+tr("deleted","حُذف"));});
  document.querySelectorAll("[data-ptopd]").forEach(b=>b.onclick=()=>prDlg(D.prs.find(x=>x.no===b.dataset.ptopd),true));
  document.querySelectorAll("[data-psend]").forEach(b=>b.onclick=()=>prDlg(D.prs.find(x=>x.no===b.dataset.psend),false));
- document.querySelectorAll("[data-pback]").forEach(b=>b.onclick=()=>{const p=D.prs.find(x=>x.no===b.dataset.pback);p.status="Draft";persist();render();toast("✔ "+p.no+" "+tr("is a draft again","أصبح مسودة مجدداً"));});
+ document.querySelectorAll("[data-prej]").forEach(b=>b.onclick=()=>prRejDlg(D.prs.find(x=>x.no===b.dataset.prej)));
+ document.querySelectorAll("[data-pback]").forEach(b=>b.onclick=()=>{const p=D.prs.find(x=>x.no===b.dataset.pback);if(p.status==="Rejected"){(p.history=p.history||[]).push({rejDate:p.rejDate,rejBy:p.rejBy,rejReason:p.rejReason});delete p.rejSigned;p.prepSigned=false;}p.status="Draft";persist();render();toast("✔ "+p.no+" "+tr("is a draft again","أصبح مسودة مجدداً"));});
  if(!PR_EDIT)return;const p=D.prs.find(x=>x.no===PR_EDIT);if(!p||p.status!=="Draft"){PR_EDIT=null;return;}
  $("#pNo").value=p.no;$("#pDate").value=p.date||"";$("#pCc").value=p.cc||"";$("#pNeed").value=p.need||"";$("#pReq").value=p.req||"";$("#pJust").value=p.just||"";if($("#pPrio"))$("#pPrio").value=p.prio||"Normal";
  [...tb.querySelectorAll("tr")].slice(1).forEach(r=>r.remove());(p.lines||[]).forEach(l=>{const r=pRow();tb.appendChild(r);const it=l.code&&item(l.code);r.querySelector("[data-k=item]").value=it?itemLabel(it):l.desc;r.querySelector("[data-k=qty]").value=l.qty;r.querySelector("[data-k=est]").value=l.est;r.querySelector("[data-k=cls]").value=l.cls||"OPEX";});ar();
@@ -1736,7 +1756,7 @@ function prDoc(p){const L=p.lines||[],tot=L.reduce((a,l)=>a+l.qty*l.est,0),c=D.c
  const N="#1F3864",B="1px solid #000",F="font-family:Calibri,Carlito,'Segoe UI',Arial,sans-serif";
  const td=(v,x)=>`<td style="border:${B};padding:1px 4px;font-size:8.5pt;vertical-align:middle;${x||""}" dir="auto">${v===undefined||v===null?"":v}</td>`;
  const lab=(en,ar,x)=>td(`<span><b>${en}</b>${ar?` / <span dir="rtl">${ar}</span>`:""}</span>`,x);
- const st=prStage(p),S=STG()[st],stTxt=(S?S[0]:"")+(o?" – "+o.no:c?" – "+c.no:"");
+ const st=prStage(p),S=STG()[st],rej=p.status==="Rejected",stTxt=rej?"NOT APPROVED by the Project Director – "+(p.rejReason||""):(S?S[0]:"")+(o?" – "+o.no:c?" – "+c.no:"");
  const rows=Array.from({length:Math.max(15,L.length)},(_,i)=>{const l=L[i];if(!l)return `<tr style="height:20px">${td(i+1,"text-align:center")}${td("")}${td("")}${td("")}${td("")}${td("")}${td("")}${td("")}</tr>`;
   return `<tr style="height:20px">${td(i+1,"text-align:center")}${td(esc(l.code||""))}${td(esc(l.desc))}${td(esc(it(l.code).kind||(l.cls==="CAPEX"?"Asset":"Consumable")))}${td(esc(l.unit||it(l.code).unit||"Pcs"))}${td(l.qty)}${td(ppM(l.est))}${td(ppM(l.qty*l.est))}</tr>`;}).join("");
  const th=(en,ar,x)=>`<td style="border:${B};background:${N};color:#fff;font-weight:700;font-size:8.5pt;text-align:center;padding:2px;${x||""}">${en}<br><span dir="rtl">${ar}</span></td>`;
@@ -1757,13 +1777,13 @@ function prDoc(p){const L=p.lines||[],tot=L.reduce((a,l)=>a+l.qty*l.est,0),c=D.c
  <tr style="height:40px">${th("#","")}${th("Item Code","رمز الصنف")}${th("Description","الوصف")}${th("Type","النوع")}${th("Unit","الوحدة")}${th("Qty","الكمية")}${th("Est. Unit Price","السعر التقديري")}${th("Est. Total (SAR)","الإجمالي")}</tr>${rows}
  <tr><td colspan="4"></td>${td("<b>Est. Total excl. VAT</b>",'" colspan="3')}${td("<b>"+ppM(tot)+"</b>")}</tr>
  <tr><td></td>${td("<b>Quotations needed</b>")}${td(tot>=5000?"3 quotations + CQS":"1 quotation")}<td colspan="5"></td></tr>
- <tr><td></td>${td("<b>Status</b>")}${td(esc(stTxt),'" colspan="6')}</tr>
+ <tr><td></td>${td("<b>Status</b>")}${td(esc(stTxt),(rej?"color:#C00000;font-weight:700;":"")+'" colspan="6')}</tr>
  <tr style="height:14px"><td colspan="8"></td></tr>
  <tr style="height:40px"><td style="border:${B}"></td>${sh("Prepared by (Logistics)","مقدم الطلب")}${sh("Direct Manager - Project Director","المدير المباشر - مدير المشروع",3)}${sh("Received by Procurement","استلام المشتريات",3)}</tr>
  <tr>${sl("Name","الاسم")}${td(esc(p.req||"Azzam El Masri"))}${td("Najed Fakhreddine",'" colspan="3')}${td("Raghad Ahmad Altowirgi",'" colspan="3')}</tr>
- <tr>${sl("Status","الحالة")}${td(sent?"Submitted":"Draft")}${td(p.pd?"Approved":"",'" colspan="3')}${td("",'" colspan="3')}</tr>
- <tr>${sl("Date","التاريخ")}${td(ppD(p.date))}${td(ppD(p.pdDate||""),'" colspan="3')}${td("",'" colspan="3')}</tr>
- <tr style="height:53px">${sl("Signature","التوقيع")}${td("")}${td("",'" colspan="3')}${td("",'" colspan="3')}</tr>
+ <tr>${sl("Status","الحالة")}${td(sent?"Submitted":"Draft")}${td(rej?"<b style='color:#C00000'>Not approved</b>":p.pd?"Approved":"",'" colspan="3')}${td("",'" colspan="3')}</tr>
+ <tr>${sl("Date","التاريخ")}${td(ppD(p.date))}${td(ppD(rej?p.rejDate:(p.pdDate||"")),'" colspan="3')}${td("",'" colspan="3')}</tr>
+ <tr style="height:53px">${sl("Signature","التوقيع")}${td(p.prepSigned?sigImg(p.req):"","padding:1px")}${td(rej?(p.rejSigned?sigImg(p.rejBy):""):p.pdSigned?sigImg(p.pdBy):"",'padding:1px" colspan="3')}${td("",'" colspan="3')}</tr>
  <tr style="height:20px"><td colspan="8"></td></tr>
  <tr><td colspan="8" style="font-size:7.5pt;text-align:center">info@midu.com.sa &nbsp; | &nbsp; www.midu.com.sa</td></tr></table></div>`;}
 
