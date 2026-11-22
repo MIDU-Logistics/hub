@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611221550"></script>
-<script src="local.js?v=202611221550"></script>
+<script src="m365.js?v=202611221604"></script>
+<script src="local.js?v=202611221604"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -125,7 +125,7 @@ table.t tr.tot td{background:var(--soft2);font-weight:700}
 .seg label:last-child{border:0}.seg input{display:none}
 .seg input:checked+span{font-weight:700}
 .seg label:has(input:checked){background:var(--navy);color:#fff}
-@media print{body{background:#fff!important}body *{visibility:hidden!important}#mBody,#mBody *{visibility:visible!important}#mBody{position:absolute;left:0;top:0;width:100%}.ov{position:static;background:none;padding:0;display:block}.mbox{box-shadow:none;max-width:none}.mbar,#mHint{display:none}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body>*:not(#ov){display:none!important}@page{size:A4;margin:10mm}}
+@media print{body{background:#fff!important}body *{visibility:hidden!important}#mBody,#mBody *{visibility:visible!important}#mBody{position:absolute;left:0;top:0;width:100%}.ov{position:static;background:none;padding:0;display:block}.mbox{box-shadow:none;max-width:none}.mbar,#mHint{display:none}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body>*:not(#ov){display:none!important}html,body{height:auto!important}#mBody{position:static!important}.ov{position:static!important;overflow:visible!important;height:auto!important}@page{size:A4;margin:10mm}}
 </style>
 </head>
 <body>
@@ -1689,6 +1689,12 @@ VIEWS.dashMT=()=>{const M=dsMtFig(),m=month();const by=(f)=>{const o={};D.mreq.f
  ${udCard("Recent monthly checklists","",dsTable([["No."],["Month"],["Location"],["By"],["Not OK",1]],last.map(c=>`<tr><td>${esc(c.no)}</td><td>${esc(c.month)}</td><td>${esc(c.loc||"")}</td><td>${esc(c.by||"")}</td><td class="n">${(c.res||[]).filter(x=>x.s==="Not OK").length}</td></tr>`),"No checklist saved yet."))}</div></div>`;};
 BIND.dashMT=()=>{bindDocBtns();dsBindPrint();};
 
+/* Print / Save as PDF: print only the document, in its own frame (no blank pages from the screen behind) */
+function hubPrintDoc(){const b=$("#mBody");if(!b)return window.print();const css=[...document.querySelectorAll("style")].map(x=>x.outerHTML).join("");
+ const f=document.createElement("iframe");f.setAttribute("aria-hidden","true");f.style.cssText="position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+ f.srcdoc=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc($("#mTitle").textContent||"MIDU")}</title>${css}<style>html,body{height:auto!important;background:#fff!important;margin:0}body *{visibility:visible!important}#mBody{position:static!important;width:auto!important}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}</style></head><body><div id="ov" style="display:block;position:static;background:none;padding:0"><div id="mBody">${b.innerHTML}</div></div></body></html>`;
+ f.onload=()=>{setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print();}catch(e){window.print();}setTimeout(()=>f.remove(),60000);},300);};document.body.appendChild(f);}
+
 const mrDoc_old=q=>gdoc({title:"MAINTENANCE REQUEST",no:q.no,date:q.date,meta:[["Requested by",q.by],["Location",q.loc],["Asset ID",q.asset],["Asset",D.assets.find(a=>a.id===q.asset)?.desc||""],["Category",q.cat],["Priority",q.prio],["Assigned to",q.to],["Status",q.status]],cols:["Problem description","Action taken","Completed on"],rows:[[q.desc,"",""]],sig:["Requested by","Maintenance technician","Logistics approval"]});
 const mclDoc_old=x=>gdoc({title:"MONTHLY MAINTENANCE CHECKLIST",no:x.no,date:x.date,meta:[["Month",x.month],["Location",x.loc],["Checked by",x.by]],cols:["#","Category","Check point","Result","Remarks"],rows:x.res.map(r=>[r.i+1,MCL_T[r.i][0],MCL_T[r.i][1],r.s,r.rem]),sig:["Checked by","Maintenance supervisor","Logistics approval"]});
 function findDoc(no){const w=D.docs.find(d=>d.no===no);if(w)return w;const p=D.prs.find(x=>x.no===no);if(p)return{no,html:prDoc(p)};const c=D.cqs.find(x=>x.no===no);if(c)return{no,html:cqsDoc(c)};const o=D.pos.find(x=>x.no===no);if(o)return{no,html:poDoc(o)};
@@ -1697,7 +1703,7 @@ function clearanceHtml_old(e){const h=holdings(e.iqama),ok=!h.length;const tb=a=
  return gdoc({title:"EMPLOYEE CLEARANCE — WAREHOUSE & ASSETS",no:"CLR-"+e.no+"-"+today().replace(/-/g,""),date:today(),meta:[["Employee",e.name],["Iqama / ID",e.iqama],["Employee No.",e.no],["Department",e.dept]],extra:`<div class="big" style="background:${ok?"#DDF2E8;color:#13704A":"#F8DCDA;color:#9C2B23"}">${ok?"CLEARED":"NOT CLEARED — "+h.length+" item(s) to return"}</div><h4>Assets held</h4>${tb(h.filter(x=>x.asset))}<h4>Warehouse items held</h4>`,cols:["Item / Asset","Description","Qty","Issued on (MDS)"],rows:h.filter(x=>!x.asset).map(x=>[x.code,item(x.code)?.desc||"",x.qty,x.doc]),sig:["Employee","Logistics","HR"]});}
 let DLAPI=null;(async()=>{try{if(window.claude&&claude.use)DLAPI=await claude.use("downloads");}catch(e){}})();
 function openModal(title,html,fname){$("#mTitle").textContent=title;$("#mBody").innerHTML=html;$("#ov").classList.add("on");
- $("#mDl").style.display=DLAPI?"inline-block":"none";$("#mPr").style.display=DLAPI?"none":"inline-block";$("#mPr").textContent=tr("Print / Save as PDF","طباعة / حفظ PDF");$("#mPr").onclick=()=>{try{window.print()}catch(e){}};
+ $("#mDl").style.display=DLAPI?"inline-block":"none";$("#mPr").style.display=DLAPI?"none":"inline-block";$("#mPr").textContent=tr("Print / Save as PDF","طباعة / حفظ PDF");$("#mPr").onclick=()=>{try{hubPrintDoc()}catch(e){window.print()}};
  $("#mHint").textContent=DLAPI?tr("Use “Download for printing”, open the file and print.","استخدم «تنزيل للطباعة» ثم افتح الملف واطبعه."):tr("Prints only this document. Choose “Save as PDF” as the printer to keep a PDF copy.","يطبع هذا المستند فقط. اختر «Save as PDF» كطابعة لحفظ نسخة PDF.");
  $("#mDrive").style.display=GAS?"inline-block":"none";$("#mDrive").textContent=tr("Save PDF to OneDrive","حفظ PDF في OneDrive");
  $("#mDrive").onclick=()=>{$("#mDrive").disabled=true;GAS.withSuccessHandler(r=>{$("#mDrive").disabled=false;$("#mHint").innerHTML=`✔ ${tr("Saved in OneDrive","حُفظ في OneDrive")}: <a href="${r.url}" target="_blank">${esc(r.path)}</a>`;}).withFailureHandler(e=>{$("#mDrive").disabled=false;toast("✖ "+e.message);}).savePdf(docPage(html,fname),fname,pdfFolder(fname));};
