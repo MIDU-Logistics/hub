@@ -81,7 +81,7 @@ LOCAL.disconnect = async function () { try { await idb("readwrite", s => s.delet
 /* ---------- Hub users (folder mode): name + role + PIN in data/hub-users.json ----------
    A simple screen lock until IT enables Microsoft sign-in: it keeps each person on the
    screens of their role. It is not strong security — the shared folder still holds all files. */
-LOCAL.users = []; LOCAL.roles = null;
+LOCAL.users = []; LOCAL.roles = null; LOCAL.readOnly = false;
 async function pinHash(name, pin) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("midu-hub|" + String(name).trim().toLowerCase() + "|" + pin));
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
@@ -113,6 +113,7 @@ LOCAL.signIn = async function (force) {
   const active = LOCAL.users.filter(u => u.active !== false);
   const done = u => {
     LOCAL.user = u.name; LOCAL.roles = String(u.role || "").toLowerCase().split(/[,;]/).map(s => s.trim()).filter(Boolean);
+    LOCAL.readOnly = LOCAL.roles.length > 0 && LOCAL.roles.every(r => r === "viewer");
     try { sessionStorage.setItem("midu-hub-session", u.name); localStorage.setItem("midu-hub-user", u.name); } catch (e) {}
     const o = document.getElementById("hubLock"); if (o) o.remove();
   };
@@ -218,6 +219,7 @@ async function localGetAll() {
   return out;
 }
 async function localUpsertMany(payload) {
+  if (LOCAL.readOnly) throw new Error("View only — this user cannot save changes.");
   const dataDir = await subDir("data"), now = new Date().toISOString(), result = {}, others = [];
   for (const name of Object.keys(payload || {})) {
     if (!KEYS[name] || name === "uitems" || name === "assetTypes") continue;          // reference lists are read-only here too
@@ -238,6 +240,7 @@ async function localUpsertMany(payload) {
   return result;
 }
 async function localSaveBlob(path, name, blob) {
+  if (LOCAL.readOnly) throw new Error("View only — this user cannot save files.");
   const d = await subDir("Documents/" + path, true);
   await writeFileTo(d, name, blob);
   return { url: URL.createObjectURL(blob), path: "MIDU Hub Data/Documents/" + path + "/" + name };

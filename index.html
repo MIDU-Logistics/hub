@@ -17,8 +17,8 @@
 <script src="vendor/jspdf.umd.min.js" defer></script>
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
-<script src="m365.js?v=202611221333"></script>
-<script src="local.js?v=202611221333"></script>
+<script src="m365.js?v=202611221344"></script>
+<script src="local.js?v=202611221344"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -237,7 +237,7 @@ if(!GAS){try{const s=localStorage.getItem(KEY); if(s) D=JSON.parse(s);}catch(e){
 UT=(D.rates&&D.rates.length)?D.rates:UT0;
 function syncState(st,txt){const e=document.getElementById("sync");if(!e)return;e.style.display=GAS?"inline-flex":"none";
  e.textContent={loading:"⟳ "+tr("Loading…","جارٍ التحميل…"),saving:"⟳ "+tr("Saving…","جارٍ الحفظ…"),ok:"✔ "+(LOCAL.connected?tr("Saved to MIDU Hub Data","محفوظ في MIDU Hub Data"):tr("Saved to SharePoint","محفوظ في SharePoint")),err:"✖ "+tr("Not saved","لم يُحفظ")+(txt?": "+txt:"")}[st]||"";e.className="sync "+st;}
-function persist(){if(!GAS){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}return;}
+function persist(){if(typeof LOCAL!=="undefined"&&LOCAL.connected&&LOCAL.readOnly){toast("👁 "+tr("View only — changes are not saved.","عرض فقط — لا يتم حفظ التغييرات."));loadServer(()=>render());return;}if(!GAS){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}return;}
  if(!LASTLOAD){syncState("err",tr("data not loaded yet","البيانات لم تُحمّل بعد"));return;}
  const out={},sent={};for(const k in KEYS){const ch=rowsOf(k).filter(r=>SNAP[k]?.[KEYS[k](r)]!==JSON.stringify(r));if(ch.length){out[k]=ch;sent[k]=ch.map(r=>[KEYS[k](r),JSON.stringify(r)]);}}
  if(!Object.keys(out).length)return;syncState("saving");
@@ -340,7 +340,7 @@ function hubErr(text,detail){let b=document.getElementById("hubErr");if(!b){b=do
  b.innerHTML=`<b>${esc(tr("The folder could not be opened","تعذر فتح المجلد"))}</b><div style="margin:6px 0">${esc(text)}</div><div class="en" style="font-size:12px;color:#7a4a46">${esc(detail||"")}</div><button class="b sm" style="margin-top:8px;background:#9C2B23" onclick="this.parentNode.remove()">${esc(tr("Close","إغلاق"))}</button>`;}
 function drawAcct(){const a=$("#acct");if(!a)return;const btn=(id,txt,bg)=>`<button class="b sm" id="${id}" style="background:${bg}">${txt}</button>`;
  if(M365.signedIn)a.innerHTML=`<span class="en" title="${esc(M365.user.email)}" style="color:#C9D3E6">${esc(M365.user.name)}</span>`+btn("sOut",tr("Sign out","تسجيل الخروج"),"var(--navy2)");
- else if(LOCAL.connected)a.innerHTML=`<span class="en" style="color:#C9D3E6" title="${esc(tr("Shared folder mode","وضع المجلد المشترك"))}">📁 MIDU Hub Data · ${esc(LOCAL.user)}${LOCAL.roles&&LOCAL.roles.length?" · "+esc(LOCAL.roles.join(", ")):""}</span>`+btn("lUser",tr("Change user","تغيير المستخدم"),"var(--navy2)")+(M365.can("users")?btn("lOut",tr("Close folder","إغلاق المجلد"),"var(--navy2)"):"");
+ else if(LOCAL.connected)a.innerHTML=`<span class="en" style="color:#C9D3E6" title="${esc(tr("Shared folder mode","وضع المجلد المشترك"))}">📁 MIDU Hub Data · ${esc(LOCAL.user)}${LOCAL.roles&&LOCAL.roles.length?" · "+esc(LOCAL.roles.join(", ")):""}${LOCAL.readOnly?` <b style="color:#FDE68A">👁 ${tr("View only","عرض فقط")}</b>`:""}</span>`+btn("lUser",tr("Change user","تغيير المستخدم"),"var(--navy2)")+(M365.can("users")?btn("lOut",tr("Close folder","إغلاق المجلد"),"var(--navy2)"):"");
  else if(LOCAL.supported&&!M365.configured())a.innerHTML=`<span style="color:#9FB4DA">${tr("Demo","تجريبي")}</span>`+btn("lIn",tr("Open MIDU Hub Data folder","فتح مجلد MIDU Hub Data"),"#1E9E6A");
  else if(M365.configured())a.innerHTML=(M365.error?`<span style="color:#FFB4AC" title="${esc(M365.error)}">✖</span>`:"")+btn("sIn",tr("Sign in with Microsoft","تسجيل الدخول بحساب Microsoft"),"#0078D4");
  else a.innerHTML=`<span style="color:#9FB4DA" title="${esc(tr("Microsoft sign-in starts once IT has registered the app.","يبدأ تسجيل الدخول بعد تسجيل التطبيق من قسم تقنية المعلومات."))}">${tr("Demo","تجريبي")}</span>`;
@@ -538,7 +538,7 @@ BIND.labels=()=>{let shown=[];
  draw();queue();};
 
 /* ============================ HUB USERS (folder mode) ============================ */
-const HUB_ROLES=[["admin","Admin – all screens"],["utilities","Utilities"],["assets","Assets Management"],["storekeeper","Storekeeper – GRN, MDS, MRS"],["procurement","Procurement"],["finance","Finance"],["hr","HR"],["maintenance","Maintenance"],["management","Management (PD / CEO) – all screens except Hub users"]];
+const HUB_ROLES=[["admin","Admin – all screens"],["utilities","Utilities"],["assets","Assets Management"],["storekeeper","Storekeeper – GRN, MDS, MRS"],["procurement","Procurement"],["finance","Finance"],["hr","HR"],["maintenance","Maintenance"],["management","Management (PD / CEO) – all screens except Hub users"],["viewer","View only – sees every screen, cannot save (e.g. IT)"]];
 VIEWS.users=()=>{if(!LOCAL.connected)return head(tr("Hub users","مستخدمو المنصة"),tr("When the Hub is signed in with Microsoft, users and roles are managed in the SharePoint list “Hub Users”.","عند تسجيل الدخول بحساب Microsoft تُدار الصلاحيات في قائمة SharePoint «Hub Users»."));
  return head(tr("Hub users","مستخدمو المنصة"),tr("Each person opens the Hub with their name and PIN and sees only the screens of their role. This is a simple lock for the shared folder; real Microsoft-account permissions come when IT enables sign-in.","يفتح كل شخص المنصة باسمه ورمزه ويرى شاشات دوره فقط. هذا قفل بسيط للمجلد المشترك؛ الصلاحيات الفعلية بحساب Microsoft تأتي عند تفعيل تسجيل الدخول من قسم تقنية المعلومات."))+msgBox+
  `<div class="card"><div class="fg">${fld("uN",tr("Full name","الاسم الكامل"),{req:true,ph:"e.g. Mazhar Ashraf"})}<div class="f" style="grid-column:span 2"><label>${tr("Roles (tick one or more)","الأدوار (اختر واحداً أو أكثر)")}</label><div id="uR" style="display:flex;flex-wrap:wrap;gap:6px 14px;padding-top:4px">${HUB_ROLES.map(([v,l])=>`<label style="font-weight:400;display:flex;gap:5px;align-items:center;white-space:nowrap"><input type="checkbox" value="${v}">${esc(l)}</label>`).join("")}</div></div><div class="f"><label>&nbsp;</label><button class="b n" id="uAdd">${tr("Add user","إضافة مستخدم")}</button></div></div>
