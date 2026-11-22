@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611221632"></script>
-<script src="local.js?v=202611221632"></script>
+<script src="m365.js?v=202611221642"></script>
+<script src="local.js?v=202611221642"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -1714,8 +1714,36 @@ function prBtns(p){const pr=`<button class="b l sm" data-doc="${p.no}">${tr("Pri
  if(p.status==="Rejected")return `${pr} <button class="b l sm" data-pback="${p.no}">✎ ${tr("Edit & resubmit","تعديل وإعادة إرسال")}</button> <button class="b r sm" data-pdel="${p.no}">✕ ${tr("Delete","حذف")}</button>`;
  if(p.status==="PD"&&p.pd)return `${pr} <button class="b sm" style="background:#7C3AED" data-psend="${p.no}">➜ ${tr("Send to Procurement","إرسال للمشتريات")}</button>`;
  return `${p.pd?"":`<button class="b g sm" data-pd="${p.no}">${tr("PD approve","اعتماد مدير المشروع")}</button> `}${pr}`;}
-function prLinesFromTable(tb){const lines=[];for(const r of [...tb.querySelectorAll("tr")].slice(1)){const v=r.querySelector("[data-k=item]").value.trim();if(!v)continue;const q=+r.querySelector("[data-k=qty]").value;if(!(q>0)){msg("err",ERR.qty());return null;}const i=parseItem(v);
- lines.push({code:i?i.code:"",desc:i?i.desc:v,qty:q,est:+r.querySelector("[data-k=est]").value||0,cls:r.querySelector("[data-k=cls]").value});}if(!lines.length){msg("err",ERR.lines());return null;}return lines;}
+/* New items in a PR: proposed item code MIDU-DDD-CCC-NNN from the storekeeper categories (whref.json) */
+const AR_ANY=/[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
+function prReservedCodes(exceptNo){const x=D.items.map(i=>({code:i.code}));D.prs.filter(p=>p.status!=="Deleted"&&p.no!==exceptNo).forEach(p=>(p.lines||[]).forEach(l=>{if(l.newItem&&l.code)x.push({code:l.code});}));return x;}
+function prNewBox(r){const td=r.querySelector("td");const box=document.createElement("div");box.className="prnew";box.style.cssText="display:none;margin-top:6px;padding:8px;border:1px dashed #D9961A;border-radius:8px;background:#FFFBF0";
+ const cats=WR().cats||[];
+ box.innerHTML=`<div style="font-size:12px;color:#8A5A00;margin-bottom:6px"><b>${tr("New item – not in the item list","صنف جديد – غير موجود في قائمة الأصناف")}</b> · ${tr("Item code","رمز الصنف")}: <b data-k="ncode">${tr("pick a category","اختر الفئة")}</b></div>
+ <div style="display:grid;grid-template-columns:1.4fr 1.6fr .7fr;gap:6px">
+ <input class="en" data-k="nen" lang="en" autocomplete="off" placeholder="${tr("Item name in English *","اسم الصنف بالإنجليزية *")}">
+ <select data-k="ncat"><option value="">${tr("Category *","الفئة *")}</option>${cats.map(c=>`<option value="${esc(c.key)}">${esc(c.label||c.key)}</option>`).join("")}</select>
+ <select data-k="nunit">${UNITS().map(u=>`<option>${esc(u)}</option>`).join("")}</select></div>`;
+ td.appendChild(box);const inp=r.querySelector("[data-k=item]");inp.dataset.ar=1;
+ const upd=()=>{const v=inp.value.trim(),known=v&&parseItem(v);box.style.display=v&&!known?"block":"none";r._isNew=!!(v&&!known);if(!r._isNew)return;
+  const en=box.querySelector("[data-k=nen]");if((!en.value||en.dataset.auto==="1")&&!AR_ANY.test(v)){en.value=v;en.dataset.auto="1";}
+  const ck=box.querySelector("[data-k=ncat]").value;let code="";
+  if(ck){if(r._code&&r._cat===ck)code=r._code;else{const tb=r.parentNode,prev=[...(tb?tb.querySelectorAll("tr"):[])].filter(x=>x!==r&&x._isNew&&x._newCode).map(x=>({code:x._newCode}));const nc=newCodes(ck,prReservedCodes(PR_EDIT).concat(prev));code=nc?nc.code:"";r._code=code;r._cat=ck;}}
+  r._newCode=code;box.querySelector("[data-k=ncode]").textContent=code||tr("pick a category","اختر الفئة");};
+ box.querySelector("[data-k=nen]").addEventListener("input",e=>{e.target.dataset.auto="";});const us=box.querySelector("[data-k=nunit]");if([...us.options].some(o=>o.value==="Pcs"))us.value="Pcs";inp.addEventListener("input",upd);inp.addEventListener("change",upd);box.querySelector("[data-k=ncat]").addEventListener("change",upd);r._upd=upd;return r;}
+const PR_OLD_ROW=pRow;pRow=function(){return prNewBox(PR_OLD_ROW());};
+function prLinesFromTable(tb){const lines=[];for(const r of [...tb.querySelectorAll("tr")].slice(1)){const inp=r.querySelector("[data-k=item]");if(!inp)continue;const v=inp.value.trim();if(!v)continue;if(r._upd)r._upd();const q=+r.querySelector("[data-k=qty]").value;if(!(q>0)){msg("err",ERR.qty());return null;}
+ const est=+r.querySelector("[data-k=est]").value||0,cls=r.querySelector("[data-k=cls]").value,i=parseItem(v);
+ if(i){lines.push({code:i.code,desc:i.desc,qty:q,est,cls});continue;}
+ const box=r.querySelector(".prnew"),en=box.querySelector("[data-k=nen]").value.trim(),ck=box.querySelector("[data-k=ncat]").value;
+ if(!en||AR_ANY.test(en)){msg("err",tr("New item “","الصنف الجديد “")+esc(v)+tr("”: write the item name in English.","”: اكتب اسم الصنف بالإنجليزية."));box.querySelector("[data-k=nen]").focus();return null;}
+ if(!ck||!r._newCode){msg("err",tr("New item “","الصنف الجديد “")+esc(v)+tr("”: pick a category so the item code can be created.","”: اختر الفئة ليُنشأ رمز الصنف."));box.querySelector("[data-k=ncat]").focus();return null;}
+ const c=WR().cats.find(x=>x.key===ck)||{};
+ lines.push({code:r._newCode,desc:en,descAr:AR_ANY.test(v)?v:"",unit:box.querySelector("[data-k=nunit]").value,kind:cls==="CAPEX"?"Asset":"Consumable",cat:ck,dept:c.dept||"",newItem:true,qty:q,est,cls});}
+ if(!lines.length){msg("err",ERR.lines());return null;}return lines;}
+/* when the PR leaves Logistics, its new items join the item list (so CQS / PO / GRN find the code) */
+function prAddNewItems(p){(p.lines||[]).filter(l=>l.newItem&&l.code&&!item(l.code)).forEach(l=>{const c=WR().cats.find(x=>x.key===l.cat)||{};
+ D.items.push({code:l.code,desc:l.desc,descAr:l.descAr||"",unit:l.unit||"Pcs",kind:l.kind||"Consumable",min:0,price:l.est||0,dept:c.dept||l.dept||"",cat:c.ccc?c.ccc+" – "+c.name:"",created:today(),createdBy:prUser()||p.req,src:p.no});});}
 function prDlg(p,toPD){const v=money(p.lines.reduce((a,l)=>a+l.qty*l.est,0));
  openModal(toPD?tr("Send PR to the Project Director","إرسال الطلب لمدير المشروع"):tr("Send PR to Procurement","إرسال الطلب للمشتريات"),`<div style="padding:18px 22px;font-size:14px;line-height:1.6">
  <p style="margin:0 0 10px"><b>${esc(p.no)}</b> · ${esc(p.cc)} · ${v} SAR</p>
@@ -1723,7 +1751,7 @@ function prDlg(p,toPD){const v=money(p.lines.reduce((a,l)=>a+l.qty*l.est,0));
  <label style="display:flex;gap:8px;align-items:center;margin-bottom:14px"><input type="checkbox" id="psChk" style="width:auto"> ${toPD?tr("I have checked and signed this PR","راجعت الطلب ووقّعته"):tr("The PR is signed by me and by the Project Director","الطلب موقّع مني ومن مدير المشروع")}</label>
  <button class="b" id="psGo" style="background:${toPD?"#0E7490":"#7C3AED"}">➜ ${toPD?tr("Send to PD for approval","إرسال لمدير المشروع"):tr("Send to Procurement","إرسال للمشتريات")}</button> <span id="psErr" style="color:#D2463C;font-size:13px;margin-inline-start:8px"></span></div>`,"");
  $("#psGo").onclick=()=>{if(!$("#psChk").checked){$("#psErr").textContent=tr("Tick the box first.","ضع علامة في المربع أولاً.");return;}
-  const who=(typeof LOCAL!=="undefined"&&LOCAL.user)||p.req;if(toPD){p.status="PD";p.toPdOn=today();p.toPdBy=who;p.prepSigned=true;}else{p.status="Sent";p.sentOn=today();p.sentBy=who;}
+  const who=(typeof LOCAL!=="undefined"&&LOCAL.user)||p.req;if(toPD){p.status="PD";p.toPdOn=today();p.toPdBy=who;p.prepSigned=true;prAddNewItems(p);}else{p.status="Sent";p.sentOn=today();p.sentBy=who;}
   persist();$("#ov").classList.remove("on");render();toast("✔ "+p.no+" "+(toPD?tr("sent to the Project Director","أُرسل لمدير المشروع"):tr("sent to Procurement","أُرسل للمشتريات")));};}
 function prRejDlg(p){openModal(tr("PR not approved","الطلب غير معتمد"),`<div style="padding:18px 22px;font-size:14px;line-height:1.6"><p style="margin:0 0 10px"><b>${esc(p.no)}</b> · ${esc(p.cc)}</p>
  <label style="display:block;margin-bottom:6px">${tr("Reason (sent back to Logistics with the not-approved copy)","السبب (يُعاد إلى اللوجستيات مع النسخة غير المعتمدة)")} <span style="color:#D2463C">*</span></label>
@@ -1743,9 +1771,12 @@ BIND.pr=()=>{PR_OLD_BIND();[...new Set(D.prs.flatMap(p=>[p.req,p.pdBy]).concat([
  document.querySelectorAll("[data-psend]").forEach(b=>b.onclick=()=>prDlg(D.prs.find(x=>x.no===b.dataset.psend),false));
  document.querySelectorAll("[data-prej]").forEach(b=>b.onclick=()=>prRejDlg(D.prs.find(x=>x.no===b.dataset.prej)));
  document.querySelectorAll("[data-pback]").forEach(b=>b.onclick=()=>{const p=D.prs.find(x=>x.no===b.dataset.pback);if(p.status==="Rejected"){(p.history=p.history||[]).push({rejDate:p.rejDate,rejBy:p.rejBy,rejReason:p.rejReason});delete p.rejSigned;p.prepSigned=false;}p.status="Draft";persist();render();toast("✔ "+p.no+" "+tr("is a draft again","أصبح مسودة مجدداً"));});
- if(!PR_EDIT)return;const p=D.prs.find(x=>x.no===PR_EDIT);if(!p||p.status!=="Draft"){PR_EDIT=null;return;}
+ if(!PR_EDIT){const card0=$("#main").querySelector(".card");$("#pSave").onclick=()=>{if(!checkReq(card0))return msg("err",ERR.req());const lines=prLinesFromTable(tb);if(!lines)return;
+  const p={no:seqNo("PR-26-",D.prs.map(p=>p.no)),date:$("#pDate").value,cc:$("#pCc").value,req:$("#pReq").value.trim(),need:$("#pNeed").value,just:$("#pJust").value.trim(),prio:$("#pPrio").value,status:"Draft",pd:false,lines};
+  D.prs.push(p);persist();delete KEEP.pr;render();saved(p.no,prDoc(p));};return;}
+ const p=D.prs.find(x=>x.no===PR_EDIT);if(!p||p.status!=="Draft"){PR_EDIT=null;return;}
  $("#pNo").value=p.no;$("#pDate").value=p.date||"";$("#pCc").value=p.cc||"";$("#pNeed").value=p.need||"";$("#pReq").value=p.req||"";$("#pJust").value=p.just||"";if($("#pPrio"))$("#pPrio").value=p.prio||"Normal";
- [...tb.querySelectorAll("tr")].slice(1).forEach(r=>r.remove());(p.lines||[]).forEach(l=>{const r=pRow();tb.appendChild(r);const it=l.code&&item(l.code);r.querySelector("[data-k=item]").value=it?itemLabel(it):l.desc;r.querySelector("[data-k=qty]").value=l.qty;r.querySelector("[data-k=est]").value=l.est;r.querySelector("[data-k=cls]").value=l.cls||"OPEX";});ar();
+ [...tb.querySelectorAll("tr")].slice(1).forEach(r=>r.remove());(p.lines||[]).forEach(l=>{const r=pRow();tb.appendChild(r);const it=l.code&&item(l.code);r.querySelector("[data-k=item]").value=it&&!l.newItem?itemLabel(it):(l.descAr||l.desc);if(l.newItem){const bx=r.querySelector(".prnew");bx.querySelector("[data-k=nen]").value=l.desc;bx.querySelector("[data-k=ncat]").value=l.cat||"";bx.querySelector("[data-k=nunit]").value=l.unit||"Pcs";r._code=l.code;r._cat=l.cat;}if(r._upd)r._upd();r.querySelector("[data-k=qty]").value=l.qty;r.querySelector("[data-k=est]").value=l.est;r.querySelector("[data-k=cls]").value=l.cls||"OPEX";});ar();
  const card=$("#main").querySelector(".card");card.style.outline="2px solid #7C3AED";card.querySelector("h2").textContent=tr("Edit draft PR ","تعديل مسودة الطلب ")+p.no;
  const sv=$("#pSave");sv.textContent=tr("Save changes","حفظ التعديلات");const cx=document.createElement("button");cx.className="b l";cx.textContent=tr("Cancel edit","إلغاء التعديل");cx.onclick=()=>{PR_EDIT=null;render();};sv.before(cx);cx.style.marginInlineEnd="8px";
  sv.onclick=()=>{if(!checkReq(card))return msg("err",ERR.req());const lines=prLinesFromTable(tb);if(!lines)return;
@@ -1758,7 +1789,7 @@ function prDoc(p){const L=p.lines||[],tot=L.reduce((a,l)=>a+l.qty*l.est,0),c=D.c
  const lab=(en,ar,x)=>td(`<span><b>${en}</b>${ar?` / <span dir="rtl">${ar}</span>`:""}</span>`,x);
  const st=prStage(p),S=STG()[st],rej=p.status==="Rejected",stTxt=rej?"NOT APPROVED by the Project Director – "+(p.rejReason||""):(S?S[0]:"")+(o?" – "+o.no:c?" – "+c.no:"");
  const rows=Array.from({length:Math.max(15,L.length)},(_,i)=>{const l=L[i];if(!l)return `<tr style="height:20px">${td(i+1,"text-align:center")}${td("")}${td("")}${td("")}${td("")}${td("")}${td("")}${td("")}</tr>`;
-  return `<tr style="height:20px">${td(i+1,"text-align:center")}${td(esc(l.code||""))}${td(esc(l.desc))}${td(esc(it(l.code).kind||(l.cls==="CAPEX"?"Asset":"Consumable")))}${td(esc(l.unit||it(l.code).unit||"Pcs"))}${td(l.qty)}${td(ppM(l.est))}${td(ppM(l.qty*l.est))}</tr>`;}).join("");
+  return `<tr style="height:20px">${td(i+1,"text-align:center")}${td(esc(l.code||""))}${td(esc(l.desc)+(l.descAr?` – <span dir="rtl">${esc(l.descAr)}</span>`:""))}${td(esc(it(l.code).kind||(l.cls==="CAPEX"?"Asset":"Consumable")))}${td(esc(l.unit||it(l.code).unit||"Pcs"))}${td(l.qty)}${td(ppM(l.est))}${td(ppM(l.qty*l.est))}</tr>`;}).join("");
  const th=(en,ar,x)=>`<td style="border:${B};background:${N};color:#fff;font-weight:700;font-size:8.5pt;text-align:center;padding:2px;${x||""}">${en}<br><span dir="rtl">${ar}</span></td>`;
  const sh=(en,ar,cs)=>`<td colspan="${cs||1}" style="border:${B};background:#F2F2F2;font-weight:700;font-size:8.5pt;text-align:center;padding:2px">${en}<br><span dir="rtl">${ar}</span></td>`;
  const sl=(en,ar)=>`<td style="border:${B};font-size:7.5pt;font-weight:700;padding:1px 4px">${en} / <span dir="rtl">${ar}</span></td>`;
