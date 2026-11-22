@@ -40,7 +40,7 @@ const M365_DEFAULT_RATES = [
 
 /* Screens each role can open (Hub Users list: Title = e-mail, Role = one or more roles separated by commas). */
 const M365_ROLES = {
-  admin: "*", management: "*",
+  admin: "*", management: "*", viewer: "*",   // viewer = every screen, nothing saved (folder mode)
   utilities:   ["home","utDaily","utRep","utBC","utReg","search"],
   assets:      ["home","asset","assetReg","labels","count","search"],
   logistics:   ["home","grn","mds","mrs","asset","assetReg","count","labels","utDaily","utRep","utBC","utReg","pr","mcl","mreq","search"],   // older role name
