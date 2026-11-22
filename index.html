@@ -17,8 +17,8 @@
 <script src="vendor/jspdf.umd.min.js" defer></script>
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
-<script src="m365.js?v=202611221313"></script>
-<script src="local.js?v=202611221313"></script>
+<script src="m365.js?v=202611221327"></script>
+<script src="local.js?v=202611221327"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -538,7 +538,7 @@ BIND.labels=()=>{let shown=[];
  draw();queue();};
 
 /* ============================ HUB USERS (folder mode) ============================ */
-const HUB_ROLES=[["admin","Admin – all screens"],["logistics","Logistics"],["storekeeper","Storekeeper – GRN, MDS, MRS"],["procurement","Procurement"],["finance","Finance"],["hr","HR"],["maintenance","Maintenance"],["management","Management – all screens"]];
+const HUB_ROLES=[["admin","Admin – all screens"],["logistics","Logistics"],["storekeeper","Storekeeper – GRN, MDS, MRS"],["procurement","Procurement"],["finance","Finance"],["hr","HR"],["maintenance","Maintenance"],["management","Management (PD / CEO) – all screens except Hub users"]];
 VIEWS.users=()=>{if(!LOCAL.connected)return head(tr("Hub users","مستخدمو المنصة"),tr("When the Hub is signed in with Microsoft, users and roles are managed in the SharePoint list “Hub Users”.","عند تسجيل الدخول بحساب Microsoft تُدار الصلاحيات في قائمة SharePoint «Hub Users»."));
  return head(tr("Hub users","مستخدمو المنصة"),tr("Each person opens the Hub with their name and PIN and sees only the screens of their role. This is a simple lock for the shared folder; real Microsoft-account permissions come when IT enables sign-in.","يفتح كل شخص المنصة باسمه ورمزه ويرى شاشات دوره فقط. هذا قفل بسيط للمجلد المشترك؛ الصلاحيات الفعلية بحساب Microsoft تأتي عند تفعيل تسجيل الدخول من قسم تقنية المعلومات."))+msgBox+
  `<div class="card"><div class="fg">${fld("uN",tr("Full name","الاسم الكامل"),{req:true,ph:"e.g. Mazhar Ashraf"})}<div class="f" style="grid-column:span 2"><label>${tr("Roles (tick one or more)","الأدوار (اختر واحداً أو أكثر)")}</label><div id="uR" style="display:flex;flex-wrap:wrap;gap:6px 14px;padding-top:4px">${HUB_ROLES.map(([v,l])=>`<label style="font-weight:400;display:flex;gap:5px;align-items:center;white-space:nowrap"><input type="checkbox" value="${v}">${esc(l)}</label>`).join("")}</div></div><div class="f"><label>&nbsp;</label><button class="b n" id="uAdd">${tr("Add user","إضافة مستخدم")}</button></div></div>
@@ -548,7 +548,7 @@ BIND.users=()=>{if(!LOCAL.connected)return;
   <td><div data-r="${i}" style="display:flex;flex-wrap:wrap;gap:4px 12px">${HUB_ROLES.map(([v,l])=>`<label style="display:flex;gap:4px;align-items:center;white-space:nowrap;font-size:12px"><input type="checkbox" value="${v}" ${String(u.role).split(/[,;]/).map(x=>x.trim()).includes(v)?"checked":""}>${esc(l.split(" – ")[0])}</label>`).join("")}</div></td>
   <td>${u.pinHash?tag(tr("Set","مُعيّن"),"g"):tag(tr("Chosen at first sign-in","يُختار عند أول دخول"),"a")}</td><td>${u.active===false?tag(tr("Disabled","موقوف"),"r"):tag(tr("Active","نشط"),"g")}</td>
   <td><button class="b sm" data-p="${i}">${tr("Reset PIN","إعادة تعيين الرمز")}</button> <button class="b sm" data-a="${i}">${u.active===false?tr("Enable","تفعيل"):tr("Disable","إيقاف")}</button></td></tr>`).join("");
-  const save=async(u,t)=>{if(u.name===LOCAL.user&&(u.active===false||!/admin|management/.test(u.role)))return msg("err",tr("You cannot remove your own admin access.","لا يمكنك إزالة صلاحية المسؤول عن نفسك."));await LOCAL.writeUsers([u]);msg("ok","✔ "+esc(t));draw();};
+  const save=async(u,t)=>{if(u.name===LOCAL.user&&(u.active===false||!/admin/.test(u.role)))return msg("err",tr("You cannot remove your own admin access.","لا يمكنك إزالة صلاحية المسؤول عن نفسك."));await LOCAL.writeUsers([u]);msg("ok","✔ "+esc(t));draw();};
   $("#uTab").querySelectorAll("div[data-r]").forEach(d=>d.onchange=()=>{const r=[...d.querySelectorAll("input:checked")].map(x=>x.value).join(",");if(!r){draw();return msg("err",tr("Tick at least one role.","اختر دوراً واحداً على الأقل."));}const u={...LOCAL.users[+d.dataset.r],role:r};save(u,u.name+" → "+r);});
   $("#uTab").querySelectorAll("button[data-p]").forEach(b=>b.onclick=()=>{const u={...LOCAL.users[+b.dataset.p]};delete u.pinHash;save(u,tr("PIN reset — ","تمت إعادة تعيين الرمز — ")+u.name+tr(" chooses a new PIN at the next sign-in."," سيختار رمزاً جديداً عند الدخول التالي."));});
   $("#uTab").querySelectorAll("button[data-a]").forEach(b=>b.onclick=()=>{const u={...LOCAL.users[+b.dataset.a]};u.active=u.active===false;save(u,u.name+": "+(u.active?tr("enabled","مفعّل"):tr("disabled","موقوف")));});};

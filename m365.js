@@ -188,7 +188,7 @@ M365.connect = async function () {
   }
 };
 M365.can = view => {
-  if (!M365.signedIn && typeof LOCAL !== "undefined" && LOCAL.connected && LOCAL.roles) return LOCAL.roles.some(r => M365_ROLES[r] === "*" || (M365_ROLES[r] || []).indexOf(view) > -1);
+  if (!M365.signedIn && typeof LOCAL !== "undefined" && LOCAL.connected && LOCAL.roles) return view === "users" ? LOCAL.roles.indexOf("admin") > -1 : LOCAL.roles.some(r => M365_ROLES[r] === "*" || (M365_ROLES[r] || []).indexOf(view) > -1);
   if (!M365.signedIn || M365.roles === "*") return true;
   return M365.roles.some(r => M365_ROLES[r] === "*" || (M365_ROLES[r] || []).indexOf(view) > -1);
 };
