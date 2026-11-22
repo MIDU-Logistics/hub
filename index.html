@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611221530"></script>
-<script src="local.js?v=202611221530"></script>
+<script src="m365.js?v=202611221534"></script>
+<script src="local.js?v=202611221534"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -318,14 +318,14 @@ function saved(no,doc,cls=""){msg("ok",`✔ ${tr("Saved","تم الحفظ")}: <b
 const NAV=()=>[
  [null,"home","⌂","#1B273D",tr("Home","الرئيسية")],
  [tr("Warehouse & Assets","المستودع والأصول")],
- [1,"grn","⬇","#1E9E6A",tr("Receive (GRN)","استلام (GRN)")],[1,"mds","⬆","#2F6FDE",tr("Issue (MDS)","صرف (MDS)")],[1,"mrs","↩","#138A8A",tr("Return (MRS)","إرجاع (MRS)")],[1,"asset","＋","#714B67",tr("New asset","أصل جديد")],[1,"assetReg","☷","#714B67",tr("Asset register","سجل الأصول")],[1,"count","☑","#D9961A",tr("Stock count","جرد")],[1,"labels","▦","#714B67",tr("Print asset labels","طباعة ملصقات الأصول")],
+ [1,"dashWH","◧","#1E9E6A",tr("Dashboard","لوحة المعلومات")], [1,"grn","⬇","#1E9E6A",tr("Receive (GRN)","استلام (GRN)")],[1,"mds","⬆","#2F6FDE",tr("Issue (MDS)","صرف (MDS)")],[1,"mrs","↩","#138A8A",tr("Return (MRS)","إرجاع (MRS)")],[1,"asset","＋","#714B67",tr("New asset","أصل جديد")],[1,"assetReg","☷","#714B67",tr("Asset register","سجل الأصول")],[1,"count","☑","#D9961A",tr("Stock count","جرد")],[1,"labels","▦","#714B67",tr("Print asset labels","طباعة ملصقات الأصول")],
  [tr("Utilities","الخدمات (Utilities)")],
- [1,"utDaily","⛽","#0E7490",tr("Daily readings","القراءات اليومية")],[1,"utRep","▤","#0E7490",tr("Weekly & monthly","أسبوعي وشهري")],[1,"utBC","₪","#0E7490",tr("Back charge & debit notes","إعادة الفوترة وإشعارات المدين")],[1,"utReg","☰","#0E7490",tr("Master back-charge register","السجل الرئيسي لإعادة الفوترة")],
+ [1,"utRep","◧","#0E7490",tr("Dashboard & reports","لوحة المعلومات والتقارير")],[1,"utDaily","⛽","#0E7490",tr("Daily readings","القراءات اليومية")],[1,"utBC","₪","#0E7490",tr("Back charge & debit notes","إعادة الفوترة وإشعارات المدين")],[1,"utReg","☰","#0E7490",tr("Master back-charge register","السجل الرئيسي لإعادة الفوترة")],
  [tr("Procurement & Finance","المشتريات والمالية")],
- [1,"pr","✎","#7C3AED",tr("Purchase requests (PR)","طلبات الشراء (PR)")],[1,"cqs","⚖","#7C3AED",tr("Comparative quotations (CQS)","مقارنة العروض (CQS)")],[1,"po","✉","#7C3AED",tr("PO & petty cash","أمر الشراء والعهدة النثرية")],[1,"fin","﷼","#7C3AED",tr("Finance — invoices & payment","المالية — الفواتير والسداد")],
+ [1,"dashPF","◧","#7C3AED",tr("Dashboard","لوحة المعلومات")], [1,"pr","✎","#7C3AED",tr("Purchase requests (PR)","طلبات الشراء (PR)")],[1,"cqs","⚖","#7C3AED",tr("Comparative quotations (CQS)","مقارنة العروض (CQS)")],[1,"po","✉","#7C3AED",tr("PO & petty cash","أمر الشراء والعهدة النثرية")],[1,"fin","﷼","#7C3AED",tr("Finance — invoices & payment","المالية — الفواتير والسداد")],
  [tr("Budget","الميزانية")],[1,"capex","◔","#B45309",tr("CAPEX & OPEX","CAPEX و OPEX")],
- [tr("HR","الموارد البشرية")],[1,"att","☺","#BE185D",tr("Attendance (biometric)","الحضور (البصمة)")],
- [tr("Maintenance","الصيانة")],[1,"mcl","✓","#475569",tr("Monthly checklist","قائمة الفحص الشهرية")],[1,"mreq","⚒","#475569",tr("Maintenance requests","طلبات الصيانة")],
+ [tr("HR","الموارد البشرية")],[1,"dashHR","◧","#BE185D",tr("Dashboard","لوحة المعلومات")],[1,"att","☺","#BE185D",tr("Attendance (biometric)","الحضور (البصمة)")],
+ [tr("Maintenance","الصيانة")],[1,"dashMT","◧","#475569",tr("Dashboard","لوحة المعلومات")],[1,"mcl","✓","#475569",tr("Monthly checklist","قائمة الفحص الشهرية")],[1,"mreq","⚒","#475569",tr("Maintenance requests","طلبات الصيانة")],
  [tr("Tools","أدوات")],[1,"search","⌕","#2C3B57",tr("Search","بحث")],[1,"forms","🖨","#2C3B57",tr("Blank forms","النماذج الفارغة")],[1,"users","☷","#2C3B57",tr("Hub users","مستخدمو المنصة")]];
 let view="home";
 function navAllowed(){const n=NAV().filter(x=>x.length===1||M365.can(x[1]));return n.filter((x,i)=>x.length>1||(n[i+1]&&n[i+1].length>1));}
@@ -1561,6 +1561,124 @@ BIND.utRep=()=>{UD_OLD_BIND();
    (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("✔ "+rows.length+" rows copied")).catch(()=>openModal("CSV","<textarea style='width:100%;height:60vh'>"+esc(t)+"</textarea>","rows"));};};
  document.querySelectorAll(".udtabs button").forEach(b=>b.onclick=()=>{UD.tab=b.dataset.tab;draw();});
  $("#rpM").addEventListener("change",()=>{UD.from="";UD.to="";draw();});draw();};
+
+/* ===== Dashboards: Home summary + one dashboard per category (same look as the Utilities dashboard) ===== */
+const DS_MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const dsCan=v=>typeof M365==="undefined"||M365.can(v);
+const dsMonthDays=m=>{const n=upDays(m),a=[];for(let i=1;i<=n;i++)a.push(upD(m,i));return a;};
+const dsLastDays=n=>{const a=[];for(let i=n-1;i>=0;i--)a.push(addDays(today(),-i));return a;};
+const dsAst=a=>a.status||(a.cust?"In Use":"In Stock");
+const dsWhName=k=>(typeof WH!=="undefined"&&WH[k]&&WH[k].name)||k||"—";
+const dsPrStage=s=>s>=6?"Paid":s>=5?"Invoiced":s>=4.5?"Received":s>=4?"PO issued":s>=3?"CQS approved":s>=2.5?"CQS in progress":s>=2?"PD approved":"Waiting PD approval";
+function dsTile(v,l,sub,go,warn){return `<div class="udk dsk${go?" dsgo":""}"${go?` data-go="${go}"`:""} style="${warn?"border-color:#F2C2BE;background:#FFF8F7":""}"><div class="udkl">${l}</div><div class="udkv" style="${warn?"color:#C0392B":""}">${v}</div>${sub?`<div class="udks">${sub}</div>`:""}</div>`;}
+function dsHead(t,sub,right){return UD_CSS+DS_CSS+`<div class="udw"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1 class="udtitle">${t}</h1><p class="udsub" style="font-size:13px;margin:4px 0 12px">${sub}</p></div>${right||""}</div>`;}
+function dsActions(list){const l=list.filter(([v])=>dsCan(v));return l.length?`<div class="dsact">${l.map(([v,lab,ic,col])=>`<button class="dsbtn" data-go="${v}"><span style="background:${col}">${ic}</span>${lab}</button>`).join("")}</div>`:"";}
+const DS_CSS=`<style>.dsgo{cursor:pointer;transition:box-shadow .15s,border-color .15s}.dsgo:hover{border-color:#9AA6B8;box-shadow:0 2px 8px rgba(20,30,50,.08)}
+.dsact{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}.dsbtn{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #E3E6EA;border-radius:9px;padding:7px 12px 7px 7px;font:inherit;font-size:13px;cursor:pointer;color:#1F2A37}.dsbtn:hover{border-color:#9AA6B8}.dsbtn span{width:24px;height:24px;border-radius:6px;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:13px}
+.dsmod{display:flex;flex-direction:column;gap:10px}.dsmh{display:flex;align-items:center;gap:10px}.dsmh .ic{width:34px;height:34px;border-radius:9px;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:none}.dsmh b{font-size:15px}.dsmh .d{font-size:11.5px;color:#6B7280}
+.dsms{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.dsms div{background:#F7F8FA;border-radius:8px;padding:7px 9px}.dsms b{display:block;font-family:Georgia,'Times New Roman',serif;font-size:19px;font-weight:400;color:#111827}.dsms span{font-size:11px;color:#4B5563}.dsms .w b{color:#C0392B}
+.dsft{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto}.dsft .b{font-size:12px}.dsg3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}@media(max-width:1200px){.dsg3{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:760px){.dsg3{grid-template-columns:1fr}}
+.dsk .udkv{font-size:24px}.dsempty{font-size:12px;color:#6B7280;padding:6px 0}</style>`;
+const dsTable=(cols,rows,empty)=>rows.length?`<table class="udt"><tr>${cols.map(c=>`<th${c[1]?' class="n"':""}>${c[0]}</th>`).join("")}</tr>${rows.join("")}</table>`:`<div class="dsempty">${empty||tr("Nothing to show.","لا يوجد ما يُعرض.")}</div>`;
+/* ---------- figures per category ---------- */
+function dsWhFig(){const s=site(),inS=x=>s==="ALL"||x.wh===s,m=month();
+ const low=D.items.filter(i=>i.min>0&&totalStock(i.code)<i.min),docsM=D.docs.filter(d=>d.date&&d.date.startsWith(m)&&inS(d)&&!d.cancelled),as=D.assets.filter(inS);
+ return {low,docsM,as,stock:D.stock.filter(inS),today:D.docs.filter(d=>d.date===today()&&inS(d)&&!d.cancelled).length,inUse:as.filter(a=>dsAst(a)==="In Use").length,inStock:as.filter(a=>dsAst(a)==="In Stock").length};}
+function dsUtFig(){const m=month(),r=D.ut.filter(u=>u.date.startsWith(m)),dz=r.filter(u=>/diesel/i.test(u.type));
+ return {m,r,amt:r.reduce((a,u)=>a+u.qty*utRate(u.type).rate,0),diesel:dz.reduce((a,u)=>a+u.qty,0),trucks:r.filter(u=>u.type==="Concrete trucks").reduce((a,u)=>a+u.qty,0),last:r.map(u=>u.date).sort().pop(),out:D.dns.reduce((a,d)=>a+dnTotal(d)-(d.paid||0),0),openDN:D.dns.filter(d=>dnTotal(d)-(d.paid||0)>0.5).length};}
+function dsPfFig(){const m=month(),open=D.prs.filter(p=>prStage(p)<4),blocked=D.invs.filter(i=>!i.paid&&!poFull(D.pos.find(p=>p.no===i.po)||{lines:[]})),unpaid=D.invs.filter(i=>!i.paid);
+ const capA=sumClass("CAPEX"),capB=Object.values(D.budget).reduce((a,b)=>a+(b.CAPEX||0),0),opA=sumClass("OPEX"),opB=Object.values(D.budget).reduce((a,b)=>a+(b.OPEX||0),0);
+ return {open,blocked,unpaid,unpaidAmt:unpaid.reduce((a,i)=>a+(+i.amt||0),0),poM:D.pos.filter(p=>p.date&&p.date.startsWith(m)),capA,capB,opA,opB,waitPD:D.prs.filter(p=>prStage(p)<2).length};}
+function dsHrFig(){const a=attDay(today());const c=k=>a.filter(x=>k.includes(x.st)).length;
+ return {a,present:c(["present","corrected","onDuty","late","early","lateEarly","missingOut"]),late:a.filter(x=>x.late).length,absent:c(["absent","absentPending"]),leave:c(["leave"]),notYet:c(["notYet"]),pend:(D.areq||[]).filter(q=>q.status==="Pending").length};}
+function dsMtFig(){const m=month(),open=D.mreq.filter(r=>r.status!=="Closed");return {open,high:open.filter(r=>/high|urgent/i.test(r.prio||"")).length,done:D.mcl.some(x=>x.month===m),closedM:D.mreq.filter(r=>r.status==="Closed"&&(r.date||"").startsWith(m)).length};}
+/* ---------- HOME ---------- */
+VIEWS.home=()=>{const d=new Date(today()+"T12:00:00Z"),dl=`${["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][d.getUTCDay()]} ${d.getUTCDate()} ${DS_MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+ const W=dsWhFig(),U=dsUtFig(),P=dsPfFig(),H=dsHrFig(),M=dsMtFig();
+ const canWH=["dashWH","grn","mds","mrs","asset","assetReg","count","labels"].some(dsCan),canUT=dsCan("utRep")||dsCan("utDaily"),canPF=["dashPF","pr","cqs","po","fin","capex"].some(dsCan),canHR=dsCan("att")||dsCan("dashHR"),canMT=["dashMT","mcl","mreq"].some(dsCan);
+ const goWH=dsCan("dashWH")?"dashWH":"",goPF=dsCan("dashPF")?"dashPF":"",goHR=dsCan("dashHR")?"dashHR":"",goMT=dsCan("dashMT")?"dashMT":"",goUT=dsCan("utRep")?"utRep":"";
+ const tiles=[canWH&&dsTile(int(W.as.length),tr("Assets registered","أصول مسجلة"),`${int(W.inUse)} in use · ${int(W.inStock)} in stock`,goWH),
+  canWH&&dsTile(W.low.length,tr("Items below minimum","أصناف تحت الحد الأدنى"),`${int(W.stock.length)} stock lines`,goWH,W.low.length),
+  canUT&&dsTile(int(U.diesel)+" <small>L</small>",tr("Diesel this month","الديزل هذا الشهر"),U.last?`${int(U.r.length)} readings, up to ${+U.last.slice(8)} ${DS_MON[+U.last.slice(5,7)-1]}`:"No readings yet",goUT),
+  canUT&&dsTile(money(U.out),tr("Back charge outstanding (SAR)","إعادة فوترة غير محصّلة (ريال)"),`${U.openDN} debit notes open`,dsCan("utReg")?"utReg":goUT),
+  canPF&&dsTile(P.open.length,tr("Open purchase requests","طلبات شراء مفتوحة"),`${P.blocked.length} invoices blocked`,goPF,P.blocked.length),
+  canHR&&dsTile(`${H.present}/${D.emps.length}`,tr("Present today","الحاضرون اليوم"),`${H.late} late · ${H.absent} absent · ${H.leave} on leave`,goHR),
+  canMT&&dsTile(M.open.length,tr("Open maintenance requests","طلبات صيانة مفتوحة"),M.done?"Checklist done this month":"Monthly checklist due",goMT,!M.done)].filter(Boolean);
+ const mod=(ic,c,t,d,stats,chart,go,links)=>`<div class="udc dsmod"><div class="dsmh"><span class="ic" style="background:${c}">${ic}</span><div style="flex:1"><b>${t}</b><div class="d">${d}</div></div>${go?`<button class="b n sm" data-go="${go}">${tr("Open dashboard","فتح اللوحة")} ›</button>`:""}</div>
+  <div class="dsms">${stats.map(([v,l,w])=>`<div class="${w?"w":""}"><b>${v}</b><span>${l}</span></div>`).join("")}</div>${chart||""}<div class="dsft">${links.filter(([v])=>dsCan(v)).map(([v,l])=>`<button class="b l sm" data-go="${v}">${l}</button>`).join("")}</div></div>`;
+ const md=dsMonthDays(month()).filter(x=>x<=today());
+ const whChart=udStack(md,[{k:"GRN",lab:"Received",col:"#1E9E6A"},{k:"MDS",lab:"Issued",col:"#2F6FDE"},{k:"MRS",lab:"Returned",col:"#138A8A"}],(x,k)=>W.docsM.filter(d=>d.date===x&&d.type===k).length,{h:120,leg:1});
+ const utChart=udStack(md,[{k:"g",lab:"Generators",col:"#5B6876"},{k:"e",lab:"Equipment",col:"#C9A227"}],(x,k)=>U.r.filter(u=>u.date===x&&(k==="g"?u.type==="Generators diesel":u.type==="Equipment diesel")).reduce((a,u)=>a+u.qty,0),{h:120,leg:1});
+ const hrDays=dsLastDays(14),hrA={};hrDays.forEach(x=>hrA[x]=attDay(x));
+ const hrChart=udStack(hrDays,[{k:"p",lab:"Present",col:"#1E9E6A"},{k:"l",lab:"Late",col:"#D9961A"},{k:"a",lab:"Absent",col:"#D2463C"}],(x,k)=>hrA[x].filter(y=>k==="l"?y.late:k==="a"?["absent","absentPending"].includes(y.st):(y.in&&!y.late)).length,{h:120,leg:1});
+ const prSt={};D.prs.forEach(p=>{const s=dsPrStage(prStage(p));prSt[s]=(prSt[s]||0)+1;});
+ const pfChart=udHbar(Object.keys(prSt).map(s=>({lab:s,v:prSt[s],col:"#7C3AED"})),"PRs");
+ const mtSt={};D.mreq.forEach(r=>mtSt[r.status||"Open"]=(mtSt[r.status||"Open"]||0)+1);
+ const mtChart=udHbar(Object.keys(mtSt).map(s=>({lab:s,v:mtSt[s],col:s==="Closed"?"#9AA6B8":"#475569"})),"req.");
+ const sum=[canWH&&`${W.today} warehouse documents today`,canUT&&U.last&&`${int(U.diesel)} L diesel so far this month`,canPF&&`${P.open.length} open PRs`,canHR&&`${H.present} of ${D.emps.length} present today`].filter(Boolean).join(" · ");
+ return (GAS&&DBEMPTY?`<div class="banner"><b>${tr("The database is empty.","قاعدة البيانات فارغة.")}</b><button class="b sm" id="loadSample">${tr("Load sample data","تحميل البيانات التجريبية")}</button></div>`:"")+
+  dsHead(tr("MIDU Logistics, ","MIDU اللوجستية، ")+dl,(sum||tr("One place for every logistics task.","مكان واحد لكل مهام اللوجستيات."))+". "+tr("Click a figure to open its dashboard, or pick a task below.","اضغط على أي رقم لفتح لوحته، أو اختر مهمة بالأسفل."))+
+  `<div class="udg4" style="grid-template-columns:repeat(${Math.min(tiles.length,4)},minmax(0,1fr))">${tiles.join("")}</div><div class="dsg3">
+  ${canWH?mod("▦","#1E9E6A",tr("Warehouse & Assets","المستودع والأصول"),"GRN · MDS · MRS · assets · counts",[[int(W.stock.length),"stock lines"],[W.low.length,"below minimum",W.low.length],[W.docsM.length,"documents this month"]],whChart,goWH,[["grn","Receive"],["mds","Issue"],["mrs","Return"],["asset","New asset"],["assetReg","Asset register"],["labels","Labels"]]):""}
+  ${canUT?mod("⛽","#0E7490",tr("Utilities","الخدمات"),"Daily → weekly → monthly → back charge → debit note",[[int(U.r.length),"readings this month"],[money(U.amt),"SAR this month"],[int(U.trucks),"concrete truck trips"]],utChart,goUT,[["utDaily","Daily readings"],["utBC","Back charge"],["utReg","Register"]]):""}
+  ${canPF?mod("✎","#7C3AED",tr("Procurement & Finance","المشتريات والمالية"),"PR → CQS → PO / petty cash → invoice → payment",[[P.open.length,"open PRs"],[P.blocked.length,"invoices blocked",P.blocked.length],[P.capB?Math.round(P.capA/P.capB*100)+"%":"—","CAPEX used"]],pfChart,goPF,[["pr","New PR"],["cqs","CQS"],["po","PO"],["fin","Finance"],["capex","CAPEX & OPEX"]]):""}
+  ${canHR?mod("☺","#BE185D",tr("HR attendance","الحضور"),"Face terminals TAT-001…003 (ZKTeco)",[[H.present,"present today"],[H.late,"late",H.late],[H.absent,"absent",H.absent]],hrChart,goHR,[["att","Attendance"]]):""}
+  ${canMT?mod("⚒","#475569",tr("Maintenance","الصيانة"),"Monthly checklist · maintenance requests",[[M.open.length,"open requests"],[M.high,"high priority",M.high],[M.done?"Done":"Due","monthly checklist",!M.done]],mtChart,goMT,[["mcl","Checklist"],["mreq","Requests"]]):""}
+  </div></div>`;};
+BIND.home=()=>{bindDocBtns();const b=$("#loadSample");if(b&&typeof loadSample==="function")b.onclick=loadSample;};
+/* ---------- WAREHOUSE & ASSETS ---------- */
+VIEWS.dashWH=()=>{const W=dsWhFig(),m=month(),md=dsMonthDays(m).filter(x=>x<=today());
+ const byT={};W.as.forEach(a=>byT[a.type||"—"]=(byT[a.type||"—"]||0)+1);const byS={};W.as.forEach(a=>{const s=dsAst(a);byS[s]=(byS[s]||0)+1;});
+ const SC={"In Use":"#2F6FDE","In Stock":"#1E9E6A","Under Maintenance":"#D9961A","Damaged":"#D2463C","Lost":"#7F1D1D","Disposed":"#9AA6B8"};
+ const byW={};W.stock.forEach(s=>byW[dsWhName(s.wh)]=(byW[dsWhName(s.wh)]||0)+1);
+ const cnt=t=>W.docsM.filter(d=>d.type===t).length;
+ const rec=D.docs.filter(d=>!d.cancelled&&(site()==="ALL"||d.wh===site())).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.no||"").localeCompare(a.no||"")).slice(0,10);
+ return dsHead(tr("Warehouse & Assets","المستودع والأصول"),`${monthName(m)} · ${W.docsM.length} documents this month, ${W.today} today.`)+
+ dsActions([["grn","Receive (GRN)","⬇","#1E9E6A"],["mds","Issue (MDS)","⬆","#2F6FDE"],["mrs","Return (MRS)","↩","#138A8A"],["asset","New asset","＋","#714B67"],["assetReg","Asset register","☷","#714B67"],["count","Stock count","☑","#D9961A"],["labels","Print asset labels","▦","#714B67"],["forms","Blank forms","🖨","#2C3B57"]])+
+ `<div class="udg4">${dsTile(int(W.as.length),"Assets registered",`${int(W.inUse)} in use · ${int(W.inStock)} in stock`,dsCan("assetReg")?"assetReg":"")}${dsTile(int(W.stock.length),"Stock lines",`${D.items.length} item codes`)}${dsTile(W.low.length,"Items below minimum",W.low.length?"Reorder needed":"All above minimum","",W.low.length)}${dsTile(W.docsM.length,"Documents this month",`${cnt("GRN")} received · ${cnt("MDS")} issued · ${cnt("MRS")} returned`)}</div>
+ <div class="udg2">${udCard("Documents per day","Receipts, issues and returns saved this month.",udStack(md,[{k:"GRN",lab:"Received (GRN)",col:"#1E9E6A"},{k:"MDS",lab:"Issued (MDS)",col:"#2F6FDE"},{k:"MRS",lab:"Returned (MRS)",col:"#138A8A"}],(x,k)=>W.docsM.filter(d=>d.date===x&&d.type===k).length,{leg:1}))}
+ ${udCard("Items below minimum","Stock on hand compared with the minimum level.",dsTable([["Code"],["Description"],["On hand",1],["Minimum",1]],W.low.slice(0,12).map(i=>`<tr><td>${esc(i.code)}</td><td>${esc(i.desc||"")}</td><td class="n" style="color:#C0392B"><b>${int(totalStock(i.code))}</b></td><td class="n">${int(i.min)}</td></tr>`),"No item is below its minimum."))}</div>
+ <div class="udg2">${udCard("Assets by status","Status from the asset register (holder set = In Use).",udHbar(Object.keys(byS).sort((a,b)=>byS[b]-byS[a]).map(s=>({lab:s,v:byS[s],col:SC[s]||"#5B6876"})),"assets"))}
+ ${udCard("Assets by type","The 12 largest asset types.",udHbar(Object.keys(byT).sort((a,b)=>byT[b]-byT[a]).slice(0,12).map(t=>({lab:t,v:byT[t],col:"#714B67"})),"assets"))}</div>
+ <div class="udg2">${udCard("Stock lines by warehouse","",udHbar(Object.keys(byW).sort((a,b)=>byW[b]-byW[a]).map(w=>({lab:w,v:byW[w],col:"#1E9E6A"})),"lines"))}
+ ${udCard("Recent documents","The last 10 warehouse documents. Click a number to open it.",dsTable([["No."],["Type"],["Date"],["Party"],["Lines",1]],rec.map(d=>`<tr><td><a href="#" data-doc="${esc(d.no)}" onclick="return false">${esc(d.no)}</a></td><td>${esc(d.type)}</td><td>${esc(d.date||"")}</td><td>${esc(d.party||d.to||"")}</td><td class="n">${(d.lines||[]).length}</td></tr>`)))}</div></div>`;};
+BIND.dashWH=()=>bindDocBtns();
+/* ---------- PROCUREMENT & FINANCE ---------- */
+VIEWS.dashPF=()=>{const P=dsPfFig(),m=month();const st={};D.prs.forEach(p=>{const s=dsPrStage(prStage(p));st[s]=(st[s]||0)+1;});
+ const ORDER=["Waiting PD approval","PD approved","CQS in progress","CQS approved","PO issued","Received","Invoiced","Paid"];
+ const byCC={};D.pos.forEach(p=>byCC[p.cc||"—"]=(byCC[p.cc||"—"]||0)+poTotal(p));
+ const bud=CC.map(c=>{const b=D.budget[c]||{};return `<tr><td>${esc(c)}</td><td class="n">${money(b.CAPEX||0)}</td><td class="n">${money(actual(c,"CAPEX"))}</td><td class="n">${money(b.OPEX||0)}</td><td class="n">${money(actual(c,"OPEX"))}</td></tr>`;});
+ const pos=D.pos.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,10);
+ return dsHead(tr("Procurement & Finance","المشتريات والمالية"),`${monthName(m)} · ${P.poM.length} POs this month worth ${money(P.poM.reduce((a,p)=>a+poTotal(p),0))} SAR.`)+
+ dsActions([["pr","Purchase requests","✎","#7C3AED"],["cqs","Comparative quotations","⚖","#7C3AED"],["po","PO & petty cash","✉","#7C3AED"],["fin","Finance — invoices","﷼","#7C3AED"],["capex","CAPEX & OPEX","◔","#B45309"]])+
+ `<div class="udg4">${dsTile(P.open.length,"Open purchase requests",`${P.waitPD} waiting PD approval`,dsCan("pr")?"pr":"")}${dsTile(P.blocked.length,"Invoices blocked","Goods not fully received",dsCan("fin")?"fin":"",P.blocked.length)}${dsTile(money(P.unpaidAmt),"Unpaid invoices (SAR)",`${P.unpaid.length} invoices`,dsCan("fin")?"fin":"")}${dsTile(P.capB||P.opB?`${P.capB?Math.round(P.capA/P.capB*100):0}% / ${P.opB?Math.round(P.opA/P.opB*100):0}%`:"—","CAPEX / OPEX used",P.capB||P.opB?`${money(P.capA+P.opA)} of ${money(P.capB+P.opB)} SAR`:"No budget entered yet",dsCan("capex")?"capex":"")}</div>
+ <div class="udg2">${udCard("Purchase requests by stage","Where each PR is in PR → CQS → PO → receipt → invoice → payment.",udHbar(ORDER.filter(s=>st[s]).map(s=>({lab:s,v:st[s],col:"#7C3AED"})),"PRs"))}
+ ${udCard("PO value by cost center","All POs and petty cash, SAR.",udHbar(Object.keys(byCC).sort((a,b)=>byCC[b]-byCC[a]).map(c=>({lab:c,v:Math.round(byCC[c]),col:"#B45309"})),"SAR"))}</div>
+ <div class="udg2">${udCard("Budget vs actual","Per cost center, SAR.",dsTable([["Cost center"],["CAPEX budget",1],["CAPEX actual",1],["OPEX budget",1],["OPEX actual",1]],bud))}
+ ${udCard("Recent POs","The last 10 purchase orders and petty cash vouchers.",dsTable([["No."],["Date"],["Supplier"],["Cost center"],["Value",1],["Status"]],pos.map(p=>{const inv=D.invs.find(i=>i.po===p.no);return `<tr><td>${esc(p.no)}</td><td>${esc(p.date||"")}</td><td>${esc(p.sup||"")}</td><td>${esc(p.cc||"")}</td><td class="n">${money(poTotal(p))}</td><td>${inv&&inv.paid?"Paid":inv?"Invoiced":poFull(p)?"Received":"Open"}</td></tr>`;})))}</div></div>`;};
+BIND.dashPF=()=>bindDocBtns();
+/* ---------- HR ---------- */
+VIEWS.dashHR=()=>{const H=dsHrFig(),days=dsLastDays(30),A={};days.forEach(x=>A[x]=attDay(x));
+ const byD={};D.emps.forEach(e=>byD[e.dept||"—"]=(byD[e.dept||"—"]||0)+1);
+ const ab={};days.forEach(x=>A[x].forEach(y=>{if(["absent","absentPending"].includes(y.st)){ab[y.e.name]=(ab[y.e.name]||0)+1;}}));
+ const lt={};days.forEach(x=>A[x].forEach(y=>{if(y.late)lt[y.e.name]=(lt[y.e.name]||0)+1;}));
+ const pend=(D.areq||[]).filter(q=>q.status==="Pending");
+ return dsHead(tr("HR attendance","الحضور"),`Today: ${H.present} present, ${H.late} late, ${H.absent} absent, ${H.leave} on leave${H.notYet?`, ${H.notYet} not in yet`:""}.`)+dsActions([["att","Attendance (biometric)","☺","#BE185D"]])+
+ `<div class="udg4">${dsTile(`${H.present}/${D.emps.length}`,"Present today","",dsCan("att")?"att":"")}${dsTile(H.late,"Late today","","",H.late)}${dsTile(H.absent,"Absent today",`${H.leave} on leave`,"",H.absent)}${dsTile(H.pend,"Requests waiting for HR","Leave and time corrections",dsCan("att")?"att":"",H.pend)}</div>
+ ${udCard("Attendance, last 30 days","Present on time, late, absent and on leave per day (weekends are empty).",udStack(days,[{k:"p",lab:"Present on time",col:"#1E9E6A"},{k:"l",lab:"Late",col:"#D9961A"},{k:"a",lab:"Absent",col:"#D2463C"},{k:"v",lab:"On leave",col:"#2F6FDE"}],(x,k)=>A[x].filter(y=>k==="l"?y.late:k==="a"?["absent","absentPending"].includes(y.st):k==="v"?y.st==="leave":(y.in&&!y.late)).length,{leg:1,w:1240,h:220}))}
+ <div class="dsg3">${udCard("Most absences (30 days)","",udHbar(Object.keys(ab).sort((a,b)=>ab[b]-ab[a]).slice(0,8).map(n=>({lab:n,v:ab[n],col:"#D2463C"})),"days"))}${udCard("Most late arrivals (30 days)","",udHbar(Object.keys(lt).sort((a,b)=>lt[b]-lt[a]).slice(0,8).map(n=>({lab:n,v:lt[n],col:"#D9961A"})),"days"))}${udCard("Employees by department","",udHbar(Object.keys(byD).sort((a,b)=>byD[b]-byD[a]).map(d=>({lab:d,v:byD[d],col:"#BE185D"})),"staff"))}</div>
+ ${udCard("Requests waiting for HR","Leave and time-correction requests with status Pending.",dsTable([["No."],["Employee"],["Type"],["Dates"],["Reason"]],pend.map(q=>{const e=D.emps.find(x=>x.no===q.emp)||{};return `<tr><td>${esc(q.no)}</td><td>${esc(e.name||q.emp)}</td><td>${esc(q.type)}${q.leaveType?" – "+esc(q.leaveType):""}</td><td>${esc(q.date||((q.from||"")+(q.to?" → "+q.to:"")))}</td><td>${esc(q.reason||"")}</td></tr>`;}),"No request is waiting."))}</div>`;};
+BIND.dashHR=()=>bindDocBtns();
+/* ---------- MAINTENANCE ---------- */
+VIEWS.dashMT=()=>{const M=dsMtFig(),m=month();const by=(f)=>{const o={};D.mreq.filter(r=>r.status!=="Closed").forEach(r=>{const k=r[f]||"—";o[k]=(o[k]||0)+1;});return o;};
+ const pr=by("prio"),ct=by("cat"),st={};D.mreq.forEach(r=>st[r.status||"Open"]=(st[r.status||"Open"]||0)+1);const PC={High:"#D2463C",Urgent:"#7F1D1D",Medium:"#D9961A",Low:"#1E9E6A"};
+ const last=D.mcl.slice().sort((a,b)=>(b.month||"").localeCompare(a.month||"")).slice(0,6);
+ return dsHead(tr("Maintenance","الصيانة"),`${monthName(m)} · ${M.open.length} open requests, monthly checklist ${M.done?"done":"due"}.`)+dsActions([["mreq","Maintenance requests","⚒","#475569"],["mcl","Monthly checklist","✓","#475569"],["forms","Blank forms","🖨","#2C3B57"]])+
+ `<div class="udg4">${dsTile(M.open.length,"Open requests","",dsCan("mreq")?"mreq":"")}${dsTile(M.high,"High priority open","","",M.high)}${dsTile(M.closedM,"Closed this month","")}${dsTile(M.done?"Done":"Due","Monthly checklist",monthName(m),dsCan("mcl")?"mcl":"",!M.done)}</div>
+ <div class="dsg3">${udCard("Requests by status","",udHbar(Object.keys(st).map(s=>({lab:s,v:st[s],col:s==="Closed"?"#9AA6B8":"#475569"})),"req."))}${udCard("Open by priority","",udHbar(Object.keys(pr).map(s=>({lab:s,v:pr[s],col:PC[s]||"#475569"})),"req."))}${udCard("Open by category","",udHbar(Object.keys(ct).sort((a,b)=>ct[b]-ct[a]).map(s=>({lab:s,v:ct[s],col:"#475569"})),"req."))}</div>
+ <div class="udg2">${udCard("Open requests","",dsTable([["No."],["Date"],["Location"],["Priority"],["Status"],["Assigned to"]],M.open.map(r=>`<tr><td>${esc(r.no)}</td><td>${esc(r.date||"")}</td><td>${esc(r.loc||"")}</td><td>${esc(r.prio||"")}</td><td>${esc(r.status||"")}</td><td>${esc(r.to||"")}</td></tr>`),"No open request."))}
+ ${udCard("Recent monthly checklists","",dsTable([["No."],["Month"],["Location"],["By"],["Not OK",1]],last.map(c=>`<tr><td>${esc(c.no)}</td><td>${esc(c.month)}</td><td>${esc(c.loc||"")}</td><td>${esc(c.by||"")}</td><td class="n">${(c.res||[]).filter(x=>x.s==="Not OK").length}</td></tr>`),"No checklist saved yet."))}</div></div>`;};
+BIND.dashMT=()=>bindDocBtns();
 
 const mrDoc_old=q=>gdoc({title:"MAINTENANCE REQUEST",no:q.no,date:q.date,meta:[["Requested by",q.by],["Location",q.loc],["Asset ID",q.asset],["Asset",D.assets.find(a=>a.id===q.asset)?.desc||""],["Category",q.cat],["Priority",q.prio],["Assigned to",q.to],["Status",q.status]],cols:["Problem description","Action taken","Completed on"],rows:[[q.desc,"",""]],sig:["Requested by","Maintenance technician","Logistics approval"]});
 const mclDoc_old=x=>gdoc({title:"MONTHLY MAINTENANCE CHECKLIST",no:x.no,date:x.date,meta:[["Month",x.month],["Location",x.loc],["Checked by",x.by]],cols:["#","Category","Check point","Result","Remarks"],rows:x.res.map(r=>[r.i+1,MCL_T[r.i][0],MCL_T[r.i][1],r.s,r.rem]),sig:["Checked by","Maintenance supervisor","Logistics approval"]});
