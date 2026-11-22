@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611221604"></script>
-<script src="local.js?v=202611221604"></script>
+<script src="m365.js?v=202611221623"></script>
+<script src="local.js?v=202611221623"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -293,7 +293,7 @@ const empDl=()=>dl("empL",D.emps.map(e=>`${e.name} | ${e.iqama}`));
 
 /* English-only enforcement */
 const AR_RE=/[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]/g;const AR_DIG="٠١٢٣٤٥٦٧٨٩",FA_DIG="۰۱۲۳۴۵۶۷۸۹";
-function enforce(el){let v=el.value,b=v;v=v.replace(/[٠-٩]/g,d=>AR_DIG.indexOf(d)).replace(/[۰-۹]/g,d=>FA_DIG.indexOf(d));
+function enforce(el){if(el.dataset.ar)return;let v=el.value,b=v;v=v.replace(/[٠-٩]/g,d=>AR_DIG.indexOf(d)).replace(/[۰-۹]/g,d=>FA_DIG.indexOf(d));
  const had=AR_RE.test(v);AR_RE.lastIndex=0;if(had){v=v.replace(AR_RE,"");showTip(el,tr("English only — Arabic letters are not allowed in data fields","الإدخال بالإنجليزية فقط — الحروف العربية غير مسموحة في حقول البيانات"));}
  if(el.dataset.upper)v=v.toUpperCase();if(v!==b){el.value=v;}}
 function showTip(el,msg){const f=el.closest(".f,td")||el.parentElement;let tp=f.querySelector(".tip");if(!tp){tp=document.createElement("div");tp.className="tip";f.style.position="relative";f.appendChild(tp);}
@@ -845,26 +845,26 @@ BIND.utReg=()=>{bindDocBtns();document.querySelectorAll("[data-st]").forEach(s=>
  document.querySelectorAll("[data-pd]").forEach(s=>s.onchange=()=>{const d=D.dns[+s.dataset.pd];d.paid=Math.min(+s.value||0,dnTotal(d));if(d.paid>=dnTotal(d))d.status="Paid";persist();render();toast("✔");});};
 
 /* ============================ PROCUREMENT & FINANCE ============================ */
-const prStage=p=>{const c=D.cqs.find(x=>x.pr===p.no),po=D.pos.find(x=>x.pr===p.no);if(po){const inv=D.invs.find(i=>i.po===po.no);if(inv&&inv.paid)return 6;if(inv)return 5;if(poFull(po))return 4.5;return 4;}if(c&&c.approved)return 3;if(c)return 2.5;if(p.pd)return 2;return 1;};
-const STG=()=>({1:[tr("Submitted — awaiting PD","مُرسل — بانتظار مدير المشروع"),""],2:[tr("PD approved — get quotations","اعتمده مدير المشروع — اطلب عروض"),"b"],2.5:[tr("CQS in progress","المقارنة قيد التنفيذ"),"a"],3:[tr("CQS approved — prepare PO","اعتُمدت المقارنة — جهّز أمر الشراء"),"b"],4:[tr("PO issued — awaiting delivery","صدر أمر الشراء — بانتظار التوريد"),"a"],4.5:[tr("Fully received","استُلم بالكامل"),"g"],5:[tr("Invoiced","مفوتر"),"p"],6:[tr("Paid","مدفوع"),"g"]});
+const prStage=p=>{if(p.status==="Deleted")return -1;if(p.status==="Draft")return 0;if(p.status==="PD")return p.pd?1.5:1;const c=D.cqs.find(x=>x.pr===p.no),po=D.pos.find(x=>x.pr===p.no);if(po){const inv=D.invs.find(i=>i.po===po.no);if(inv&&inv.paid)return 6;if(inv)return 5;if(poFull(po))return 4.5;return 4;}if(c&&c.approved)return 3;if(c)return 2.5;if(p.pd)return 2;return 1;};
+const STG=()=>({"-1":[tr("Deleted","محذوف"),"r"],0:[tr("Draft — can be edited","مسودة — قابلة للتعديل"),""],1.5:[tr("PD approved — send to Procurement","اعتمده مدير المشروع — أرسله للمشتريات"),"g"],1:[tr("Submitted — awaiting PD","مُرسل — بانتظار مدير المشروع"),""],2:[tr("PD approved — get quotations","اعتمده مدير المشروع — اطلب عروض"),"b"],2.5:[tr("CQS in progress","المقارنة قيد التنفيذ"),"a"],3:[tr("CQS approved — prepare PO","اعتُمدت المقارنة — جهّز أمر الشراء"),"b"],4:[tr("PO issued — awaiting delivery","صدر أمر الشراء — بانتظار التوريد"),"a"],4.5:[tr("Fully received","استُلم بالكامل"),"g"],5:[tr("Invoiced","مفوتر"),"p"],6:[tr("Paid","مدفوع"),"g"]});
 const prFlow=k=>`<div class="flow">${[["pr","PR"],["cqs","CQS"],["po",tr("PO / petty cash","أمر شراء / نثرية")],["grn","GRN"],["fin",tr("Invoice & payment","الفاتورة والسداد")]].map(([v,l],i)=>`${i?"<em>→</em>":""}<span class="${v===k?"on":""}">${l}</span>`).join("")}</div>`;
 VIEWS.pr=()=>head(tr("Purchase requests (PR)","طلبات الشراء (PR)"),tr("Logistics raises the PR; the Project Director approves; Procurement takes it from there.","اللوجستيات ترفع الطلب، ومدير المشروع يعتمده، ثم تتولاه المشتريات."))+prFlow("pr")+msgBox+
  `<div class="card"><h2>${tr("New purchase request","طلب شراء جديد")}</h2><div class="fg">${fld("pNo",tr("PR No.","رقم الطلب"),{ro:true,val:seqNo("PR-26-",D.prs.map(p=>p.no))})}${fld("pDate",tr("Date","التاريخ"),{type:"date",val:today(),req:true})}${sel("pCc",tr("Cost center","مركز التكلفة"),CC,{req:true})}${fld("pNeed",tr("Required date (on site)","تاريخ الاحتياج (في الموقع)"),{type:"date",req:true})}
- ${fld("pReq",tr("Requested by","مقدّم الطلب"),{val:"Azzam El Masri",req:true})}${fld("pJust",tr("Justification","المبرر"),{req:true,w:"w2"})}</div>
+ ${fld("pReq",tr("Requested by","مقدّم الطلب"),{val:"Azzam El Masri",req:true})}${fld("pJust",tr("Purpose","دواعي الشراء"),{req:true,w:"w2"})}${sel("pPrio",tr("Priority","الأولوية"),["Normal","Urgent"])}</div>
  <table class="t" id="pLines" style="margin-top:14px"><tr><th style="width:44%">${tr("Item (code or free text)","الصنف (كود أو وصف)")}</th><th style="width:10%">${tr("Qty","الكمية")}</th><th style="width:14%">${tr("Est. unit price","السعر التقديري")}</th><th style="width:14%">CAPEX / OPEX</th><th></th></tr></table>
  <div class="btns"><button class="b l" id="pAdd">${tr("+ Add line","+ إضافة سطر")}</button><span style="flex:1"></span><button class="b" style="background:#7C3AED" id="pSave">${tr("Submit PR","إرسال الطلب")}</button></div></div>
  <div class="card"><h2>${tr("Requests and where they are","الطلبات وأين وصلت")}</h2><table class="t"><tr><th>PR</th><th>${tr("Date","التاريخ")}</th><th>${tr("Cost center","مركز التكلفة")}</th><th class="num">${tr("Est. value","القيمة التقديرية")}</th><th>${tr("Stage","المرحلة")}</th><th></th></tr>
- ${D.prs.slice().reverse().map(p=>{const s=STG()[prStage(p)];return `<tr><td class="en"><b>${p.no}</b></td><td class="en">${p.date}</td><td class="en">${p.cc}</td><td class="num">${money(p.lines.reduce((a,l)=>a+l.qty*l.est,0))}</td><td>${tag(s[0],s[1])}</td><td>${p.pd?"":`<button class="b g sm" data-pd="${p.no}">${tr("PD approve","اعتماد مدير المشروع")}</button> `}<button class="b l sm" data-doc="${p.no}">${tr("Print","طباعة")}</button></td></tr>`;}).join("")}</table></div>${dl("itemL",D.items.map(itemLabel))}`;
+ ${D.prs.filter(prActive).slice().reverse().map(p=>{const s=STG()[prStage(p)];return `<tr><td class="en"><b>${p.no}</b></td><td class="en">${p.date}</td><td class="en">${p.cc}</td><td class="num">${money(p.lines.reduce((a,l)=>a+l.qty*l.est,0))}</td><td>${tag(s[0],s[1])}</td><td style="white-space:nowrap">${prBtns(p)}</td></tr>`;}).join("")}</table></div>${dl("itemL",D.items.map(itemLabel))}`;
 function pRow(){const r=document.createElement("tr");r.innerHTML=`<td><input class="en" list="itemL" data-k="item" lang="en" autocomplete="off"></td><td><input class="en" type="number" min="1" value="1" data-k="qty"></td><td><input class="en" type="number" min="0" data-k="est"></td><td><select data-k="cls"><option>OPEX</option><option>CAPEX</option></select></td><td><button class="b r sm" data-k="del">✕</button></td>`;
  r.querySelector("[data-k=item]").addEventListener("change",e=>{const i=parseItem(e.target.value);if(i){r.querySelector("[data-k=est]").value=i.price;r.querySelector("[data-k=cls]").value=i.kind==="Asset"?"CAPEX":"OPEX";}});r.querySelector("[data-k=del]").onclick=()=>r.remove();return r;}
 BIND.pr=()=>{const tb=$("#pLines");tb.appendChild(pRow());$("#pAdd").onclick=()=>tb.appendChild(pRow());bindDocBtns();
  document.querySelectorAll("[data-pd]").forEach(b=>b.onclick=()=>{D.prs.find(p=>p.no===b.dataset.pd).pd=true;persist();render();toast("✔");});
  $("#pSave").onclick=()=>{if(!checkReq($("#main").querySelector(".card")))return msg("err",ERR.req());const lines=[];
   for(const r of [...tb.querySelectorAll("tr")].slice(1)){const v=r.querySelector("[data-k=item]").value.trim();if(!v)continue;const q=+r.querySelector("[data-k=qty]").value;if(!(q>0))return msg("err",ERR.qty());const i=parseItem(v);lines.push({code:i?i.code:"",desc:i?i.desc:v,qty:q,est:+r.querySelector("[data-k=est]").value||0,cls:r.querySelector("[data-k=cls]").value});}
-  if(!lines.length)return msg("err",ERR.lines());const p={no:seqNo("PR-26-",D.prs.map(p=>p.no)),date:$("#pDate").value,cc:$("#pCc").value,req:$("#pReq").value.trim(),need:$("#pNeed").value,just:$("#pJust").value.trim(),pd:false,lines};
+  if(!lines.length)return msg("err",ERR.lines());const p={no:seqNo("PR-26-",D.prs.map(p=>p.no)),date:$("#pDate").value,cc:$("#pCc").value,req:$("#pReq").value.trim(),need:$("#pNeed").value,just:$("#pJust").value.trim(),prio:$("#pPrio").value,status:"Draft",pd:false,lines};
   D.prs.push(p);persist();delete KEEP.pr;render();saved(p.no,prDoc(p));};};
 
-VIEWS.cqs=()=>{const ready=D.prs.filter(p=>p.pd&&!D.cqs.some(c=>c.pr===p.no)&&!D.pos.some(o=>o.pr===p.no));
+VIEWS.cqs=()=>{const ready=D.prs.filter(p=>p.pd&&p.status!=="Draft"&&p.status!=="Deleted"&&p.status!=="PD"&&!D.cqs.some(c=>c.pr===p.no)&&!D.pos.some(o=>o.pr===p.no));
  return head(tr("Comparative quotations (CQS)","مقارنة عروض الأسعار (CQS)"),tr("Enter up to 3 quotations. The system checks compliance and recommends the lowest compliant offer.","أدخل حتى 3 عروض. يفحص النظام المطابقة ويوصي بأقل عرض مطابق."))+prFlow("cqs")+msgBox+
  `<div class="card"><h2>${tr("New CQS","مقارنة جديدة")}</h2><div class="fg">${fld("qNo",tr("CQS No.","رقم المقارنة"),{ro:true,val:seqNo("CQS-26-",D.cqs.map(c=>c.no))})}${sel("qPr",tr("Purchase request","طلب الشراء"),ready.length?ready.map(p=>[p.no,`${p.no} — ${p.cc}`]):[["",tr("No approved PR waiting","لا يوجد طلب معتمد بالانتظار")]],{req:true,w:"w2"})}</div>
  <table class="t" id="qTab" style="margin-top:14px"><tr><th>${tr("Supplier","المورد")}</th><th>${tr("Total price (SAR, excl. VAT)","السعر الإجمالي (قبل الضريبة)")}</th><th>${tr("Delivery (days)","التوريد (أيام)")}</th><th>${tr("Warranty (months)","الضمان (أشهر)")}</th><th>${tr("Meets spec?","مطابق للمواصفات؟")}</th><th>${tr("Valid quote?","عرض ساري؟")}</th></tr>
@@ -1282,7 +1282,7 @@ function whDoc(d){const T={GRN:"MATERIAL RECEIVING NOTE (GRN)",MDS:"MATERIAL DIS
  if(d.type==="MRS")return gdoc({title:T,no:d.no,date:d.date,meta:[["Returned by",d.party],["Employee / Iqama",d.iqama],["Returned to",WH[d.wh].name+" › "+d.loc]],cols:["#","Item / Asset ID","Description","Qty","Condition"],rows:d.lines.map((l,i)=>[i+1,l.asset||l.code,item(l.code)?.desc||"",l.qty,l.cond]),sig:["Returned by","Received by (storekeeper)","Logistics approval"],stamp:"RECEIVED",right:[3]});
  if(d.type==="SC")return gdoc({title:T,no:d.no,date:d.date,meta:[["Location",WH[d.wh].name+" › "+d.loc],["Status","Pending approval"]],cols:["#","Item code","Description","Counted","System","Difference"],rows:d.lines.map((l,i)=>[i+1,l.code,item(l.code)?.desc||"",l.qty,l.sys,(l.qty-l.sys>0?"+":"")+(l.qty-l.sys)]),sig:["Counted by","Checked by","Approved by (Finance)"],right:[3,4,5]});
  const a=d.asset||D.assets.find(x=>x.id===d.lines[0].asset);return gdoc({title:T,no:d.no,date:d.date,meta:[["Receiver",d.party],["Employee / Iqama",d.iqama],["Ownership",a.own]],cols:["Asset ID","Description","Brand","Model","Serial","Item code"],rows:[[a.id,a.desc,a.brand,a.model,a.serial,a.itemCode]],sig:["Receiver","Logistics","HR"]});}
-const prDoc_old=p=>gdoc({title:"PURCHASE REQUEST (PR)",no:p.no,date:p.date,meta:[["Cost center",p.cc],["Requested by",p.req],["Required date",p.need],["Justification",p.just]],cols:["#","Item code","Description","Qty","Est. unit price","Est. total","Class"],rows:p.lines.map((l,i)=>[i+1,l.code||"—",l.desc,l.qty,money(l.est),money(l.qty*l.est),l.cls]),totals:[["Estimated total (SAR)",money(p.lines.reduce((a,l)=>a+l.qty*l.est,0))]],sig:["Requested by (Logistics)","Approved by (Project Director)","Received by (Procurement)"],right:[3,4,5]});
+const prDoc_old=p=>gdoc({title:"PURCHASE REQUEST (PR)",no:p.no,date:p.date,meta:[["Cost center",p.cc],["Requested by",p.req],["Required date",p.need],["Purpose",p.just]],cols:["#","Item code","Description","Qty","Est. unit price","Est. total","Class"],rows:p.lines.map((l,i)=>[i+1,l.code||"—",l.desc,l.qty,money(l.est),money(l.qty*l.est),l.cls]),totals:[["Estimated total (SAR)",money(p.lines.reduce((a,l)=>a+l.qty*l.est,0))]],sig:["Requested by (Logistics)","Approved by (Project Director)","Received by (Procurement)"],right:[3,4,5]});
 const cqsDoc_old=c=>gdoc({title:"COMPARATIVE QUOTATION SHEET (CQS)",no:c.no,date:c.date,meta:[["Purchase request",c.pr],["Selected supplier",c.sel]],cols:["Supplier","Price (SAR)","Delivery (days)","Warranty (months)","Meets spec","Valid","Compliant"],rows:c.quotes.map(q=>[q.sup,money(q.price),q.days,q.war,q.spec?"Yes":"No",q.valid?"Yes":"No",q.spec&&q.valid?"Yes":"No"]),sig:["Prepared by (Procurement)","Project Director","Finance Manager"],right:[1,2,3]});
 function poDoc_old(p){const sub=poTotal(p);return gdoc({title:p.kind==="PC"?"PETTY CASH VOUCHER":"PURCHASE ORDER",no:p.no,date:p.date,meta:[["Supplier",p.sup],["Cost center",p.cc],["PR",p.pr],["CQS",p.cqs]],cols:["#","Item code","Description","Qty","Unit price","Amount","Class"],rows:p.lines.map((l,i)=>[i+1,l.code||"—",l.desc,l.qty,money(l.price),money(l.qty*l.price),l.cls]),totals:[["Subtotal (SAR)",money(sub)],["VAT 15%",money(sub*.15)],["Total (SAR)",money(sub*1.15)]],sig:p.kind==="PC"?["Paid to / received by","Logistics","Finance"]:["Project Director","Finance Manager","CEO"],right:[3,4,5],foot:p.kind==="PC"?"Petty cash limit SAR 5,000":"Payment only after full receipt (3-way match)"});}
 /* ============================ UTILITIES PRINTS (same layout as the Excel files) ============================ */
@@ -1572,7 +1572,7 @@ const dsMonthDays=m=>{const n=upDays(m),a=[];for(let i=1;i<=n;i++)a.push(upD(m,i
 const dsLastDays=n=>{const a=[];for(let i=n-1;i>=0;i--)a.push(addDays(today(),-i));return a;};
 const dsAst=a=>a.status||(a.cust?"In Use":"In Stock");
 const dsWhName=k=>(typeof WH!=="undefined"&&WH[k]&&WH[k].name)||k||"—";
-const dsPrStage=s=>s>=6?"Paid":s>=5?"Invoiced":s>=4.5?"Received":s>=4?"PO issued":s>=3?"CQS approved":s>=2.5?"CQS in progress":s>=2?"PD approved":"Waiting PD approval";
+const dsPrStage=s=>s<0?"Deleted":s===0?"Draft (not sent)":s===1.5?"PD approved, not sent":s>=6?"Paid":s>=5?"Invoiced":s>=4.5?"Received":s>=4?"PO issued":s>=3?"CQS approved":s>=2.5?"CQS in progress":s>=2?"PD approved":"Waiting PD approval";
 function dsTile(v,l,sub,go,warn){return `<div class="udk dsk${go?" dsgo":""}"${go?` data-go="${go}"`:""} style="${warn?"border-color:#F2C2BE;background:#FFF8F7":""}"><div class="udkl">${l}</div><div class="udkv" style="${warn?"color:#C0392B":""}">${v}</div>${sub?`<div class="udks">${sub}</div>`:""}</div>`;}
 function dsHead(t,sub,right){return UD_CSS+DS_CSS+`<div class="udw" id="dsRoot"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1 class="udtitle" id="dsT">${t}</h1><p class="udsub" id="dsS" style="font-size:13px;margin:4px 0 12px">${sub}</p></div><div style="display:flex;gap:8px;align-items:center">${right||""}<button class="b n sm" id="dsPrintBtn">🖨 ${tr("Print this dashboard","طباعة اللوحة")}</button></div></div>`;}
 /* print the dashboard as it is on screen (filters / dates included), A4 landscape in colour */
@@ -1595,9 +1595,9 @@ function dsWhFig(){const s=site(),inS=x=>s==="ALL"||x.wh===s,m=month();
  return {low,docsM,as,stock:D.stock.filter(inS),today:D.docs.filter(d=>d.date===today()&&inS(d)&&!d.cancelled).length,inUse:as.filter(a=>dsAst(a)==="In Use").length,inStock:as.filter(a=>dsAst(a)==="In Stock").length};}
 function dsUtFig(){const m=month(),r=D.ut.filter(u=>u.date.startsWith(m)),dz=r.filter(u=>/diesel/i.test(u.type));
  return {m,r,amt:r.reduce((a,u)=>a+u.qty*utRate(u.type).rate,0),diesel:dz.reduce((a,u)=>a+u.qty,0),trucks:r.filter(u=>u.type==="Concrete trucks").reduce((a,u)=>a+u.qty,0),last:r.map(u=>u.date).sort().pop(),out:D.dns.reduce((a,d)=>a+dnTotal(d)-(d.paid||0),0),openDN:D.dns.filter(d=>dnTotal(d)-(d.paid||0)>0.5).length};}
-function dsPfFig(){const m=month(),open=D.prs.filter(p=>prStage(p)<4),blocked=D.invs.filter(i=>!i.paid&&!poFull(D.pos.find(p=>p.no===i.po)||{lines:[]})),unpaid=D.invs.filter(i=>!i.paid);
+function dsPfFig(){const m=month(),open=D.prs.filter(p=>prStage(p)>=0&&prStage(p)<4),blocked=D.invs.filter(i=>!i.paid&&!poFull(D.pos.find(p=>p.no===i.po)||{lines:[]})),unpaid=D.invs.filter(i=>!i.paid);
  const capA=sumClass("CAPEX"),capB=Object.values(D.budget).reduce((a,b)=>a+(b.CAPEX||0),0),opA=sumClass("OPEX"),opB=Object.values(D.budget).reduce((a,b)=>a+(b.OPEX||0),0);
- return {open,blocked,unpaid,unpaidAmt:unpaid.reduce((a,i)=>a+(+i.amt||0),0),poM:D.pos.filter(p=>p.date&&p.date.startsWith(m)),capA,capB,opA,opB,waitPD:D.prs.filter(p=>prStage(p)<2).length};}
+ return {open,blocked,unpaid,unpaidAmt:unpaid.reduce((a,i)=>a+(+i.amt||0),0),poM:D.pos.filter(p=>p.date&&p.date.startsWith(m)),capA,capB,opA,opB,waitPD:D.prs.filter(p=>prStage(p)>=1&&prStage(p)<2).length};}
 function dsHrFig(){const a=attDay(today());const c=k=>a.filter(x=>k.includes(x.st)).length;
  return {a,present:c(["present","corrected","onDuty","late","early","lateEarly","missingOut"]),late:a.filter(x=>x.late).length,absent:c(["absent","absentPending"]),leave:c(["leave"]),notYet:c(["notYet"]),pend:(D.areq||[]).filter(q=>q.status==="Pending").length};}
 function dsMtFig(){const m=month(),open=D.mreq.filter(r=>r.status!=="Closed");return {open,high:open.filter(r=>/high|urgent/i.test(r.prio||"")).length,done:D.mcl.some(x=>x.month===m),closedM:D.mreq.filter(r=>r.status==="Closed"&&(r.date||"").startsWith(m)).length};}
@@ -1620,7 +1620,7 @@ VIEWS.home=()=>{const d=new Date(today()+"T12:00:00Z"),dl=`${["Sunday","Monday",
  const utChart=udStack(md,[{k:"g",lab:"Generators",col:"#5B6876"},{k:"e",lab:"Equipment",col:"#C9A227"}],(x,k)=>U.r.filter(u=>u.date===x&&(k==="g"?u.type==="Generators diesel":u.type==="Equipment diesel")).reduce((a,u)=>a+u.qty,0),{h:120,leg:1});
  const hrDays=dsLastDays(14),hrA={};hrDays.forEach(x=>hrA[x]=attDay(x));
  const hrChart=udStack(hrDays,[{k:"p",lab:"Present",col:"#1E9E6A"},{k:"l",lab:"Late",col:"#D9961A"},{k:"a",lab:"Absent",col:"#D2463C"}],(x,k)=>hrA[x].filter(y=>k==="l"?y.late:k==="a"?["absent","absentPending"].includes(y.st):(y.in&&!y.late)).length,{h:120,leg:1});
- const prSt={};D.prs.forEach(p=>{const s=dsPrStage(prStage(p));prSt[s]=(prSt[s]||0)+1;});
+ const prSt={};D.prs.filter(p=>prStage(p)>=0).forEach(p=>{const s=dsPrStage(prStage(p));prSt[s]=(prSt[s]||0)+1;});
  const pfChart=udHbar(Object.keys(prSt).map(s=>({lab:s,v:prSt[s],col:"#7C3AED"})),"PRs");
  const mtSt={};D.mreq.forEach(r=>mtSt[r.status||"Open"]=(mtSt[r.status||"Open"]||0)+1);
  const mtChart=udHbar(Object.keys(mtSt).map(s=>({lab:s,v:mtSt[s],col:s==="Closed"?"#9AA6B8":"#475569"})),"req.");
@@ -1653,8 +1653,8 @@ VIEWS.dashWH=()=>{const W=dsWhFig(),m=month(),md=dsMonthDays(m).filter(x=>x<=tod
  ${udCard("Recent documents","The last 10 warehouse documents. Click a number to open it.",dsTable([["No."],["Type"],["Date"],["Party"],["Lines",1]],rec.map(d=>`<tr><td><a href="#" data-doc="${esc(d.no)}" onclick="return false">${esc(d.no)}</a></td><td>${esc(d.type)}</td><td>${esc(d.date||"")}</td><td>${esc(d.party||d.to||"")}</td><td class="n">${(d.lines||[]).length}</td></tr>`)))}</div></div>`;};
 BIND.dashWH=()=>{bindDocBtns();dsBindPrint();};
 /* ---------- PROCUREMENT & FINANCE ---------- */
-VIEWS.dashPF=()=>{const P=dsPfFig(),m=month();const st={};D.prs.forEach(p=>{const s=dsPrStage(prStage(p));st[s]=(st[s]||0)+1;});
- const ORDER=["Waiting PD approval","PD approved","CQS in progress","CQS approved","PO issued","Received","Invoiced","Paid"];
+VIEWS.dashPF=()=>{const P=dsPfFig(),m=month();const st={};D.prs.filter(p=>prStage(p)>=0).forEach(p=>{const s=dsPrStage(prStage(p));st[s]=(st[s]||0)+1;});
+ const ORDER=["Draft (not sent)","Waiting PD approval","PD approved, not sent","PD approved","CQS in progress","CQS approved","PO issued","Received","Invoiced","Paid"];
  const byCC={};D.pos.forEach(p=>byCC[p.cc||"—"]=(byCC[p.cc||"—"]||0)+poTotal(p));
  const bud=CC.map(c=>{const b=D.budget[c]||{};return `<tr><td>${esc(c)}</td><td class="n">${money(b.CAPEX||0)}</td><td class="n">${money(actual(c,"CAPEX"))}</td><td class="n">${money(b.OPEX||0)}</td><td class="n">${money(actual(c,"OPEX"))}</td></tr>`;});
  const pos=D.pos.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,10);
@@ -1692,8 +1692,80 @@ BIND.dashMT=()=>{bindDocBtns();dsBindPrint();};
 /* Print / Save as PDF: print only the document, in its own frame (no blank pages from the screen behind) */
 function hubPrintDoc(){const b=$("#mBody");if(!b)return window.print();const css=[...document.querySelectorAll("style")].map(x=>x.outerHTML).join("");
  const f=document.createElement("iframe");f.setAttribute("aria-hidden","true");f.style.cssText="position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
- f.srcdoc=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc($("#mTitle").textContent||"MIDU")}</title>${css}<style>html,body{height:auto!important;background:#fff!important;margin:0}body *{visibility:visible!important}#mBody{position:static!important;width:auto!important}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}</style></head><body><div id="ov" style="display:block;position:static;background:none;padding:0"><div id="mBody">${b.innerHTML}</div></div></body></html>`;
+ f.srcdoc=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc($("#mTitle").textContent||"MIDU")}</title>${css}<style>html,body{height:auto!important;background:#fff!important;margin:0}body *{visibility:visible!important}#mBody{position:static!important;width:auto!important}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}</style></head><body><div id="ov" style="display:block;position:static;background:none;padding:0"><div id="mBody">${b.innerHTML}</div></div><style>@page{margin:0}#mBody{padding:9mm 9mm!important;box-decoration-break:clone;-webkit-box-decoration-break:clone}</style></body></html>`;
  f.onload=()=>{setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print();}catch(e){window.print();}setTimeout(()=>f.remove(),60000);},300);};document.body.appendChild(f);}
+
+/* ===== PR: Draft → edit / delete → print & sign → Send to Procurement; Purpose; Priority; Arabic allowed in Purpose and item text ===== */
+let PR_EDIT=null;
+const prActive=p=>p.status!=="Deleted";
+function prBtns(p){const pr=`<button class="b l sm" data-doc="${p.no}">${tr("Print","طباعة")}</button>`;
+ if(p.status==="Draft")return `<button class="b l sm" data-pe="${p.no}">✎ ${tr("Edit","تعديل")}</button> <button class="b r sm" data-pdel="${p.no}">✕ ${tr("Delete","حذف")}</button> ${pr} <button class="b sm" style="background:#0E7490" data-ptopd="${p.no}">➜ ${tr("Send to PD for approval","إرسال لمدير المشروع")}</button>`;
+ if(p.status==="PD"&&!p.pd)return `<button class="b g sm" data-pd="${p.no}">${tr("PD approve","اعتماد مدير المشروع")}</button> <button class="b l sm" data-pback="${p.no}">↩ ${tr("Back to draft","إرجاع لمسودة")}</button> ${pr}`;
+ if(p.status==="PD"&&p.pd)return `${pr} <button class="b sm" style="background:#7C3AED" data-psend="${p.no}">➜ ${tr("Send to Procurement","إرسال للمشتريات")}</button>`;
+ return `${p.pd?"":`<button class="b g sm" data-pd="${p.no}">${tr("PD approve","اعتماد مدير المشروع")}</button> `}${pr}`;}
+function prLinesFromTable(tb){const lines=[];for(const r of [...tb.querySelectorAll("tr")].slice(1)){const v=r.querySelector("[data-k=item]").value.trim();if(!v)continue;const q=+r.querySelector("[data-k=qty]").value;if(!(q>0)){msg("err",ERR.qty());return null;}const i=parseItem(v);
+ lines.push({code:i?i.code:"",desc:i?i.desc:v,qty:q,est:+r.querySelector("[data-k=est]").value||0,cls:r.querySelector("[data-k=cls]").value});}if(!lines.length){msg("err",ERR.lines());return null;}return lines;}
+function prDlg(p,toPD){const v=money(p.lines.reduce((a,l)=>a+l.qty*l.est,0));
+ openModal(toPD?tr("Send PR to the Project Director","إرسال الطلب لمدير المشروع"):tr("Send PR to Procurement","إرسال الطلب للمشتريات"),`<div style="padding:18px 22px;font-size:14px;line-height:1.6">
+ <p style="margin:0 0 10px"><b>${esc(p.no)}</b> · ${esc(p.cc)} · ${v} SAR</p>
+ <p style="margin:0 0 12px;color:#5B6476">${toPD?tr("After sending, the PR can no longer be edited or deleted (unless it is returned to draft before the PD approves).","بعد الإرسال لا يمكن تعديل الطلب أو حذفه (إلا إذا أُرجع لمسودة قبل اعتماد مدير المشروع)."):tr("The Project Director has approved this PR. After sending, Procurement will see it in their list.","اعتمد مدير المشروع هذا الطلب. بعد الإرسال سيظهر لدى المشتريات.")}</p>
+ <label style="display:flex;gap:8px;align-items:center;margin-bottom:14px"><input type="checkbox" id="psChk" style="width:auto"> ${toPD?tr("I have checked and signed this PR","راجعت الطلب ووقّعته"):tr("The PR is signed by me and by the Project Director","الطلب موقّع مني ومن مدير المشروع")}</label>
+ <button class="b" id="psGo" style="background:${toPD?"#0E7490":"#7C3AED"}">➜ ${toPD?tr("Send to PD for approval","إرسال لمدير المشروع"):tr("Send to Procurement","إرسال للمشتريات")}</button> <span id="psErr" style="color:#D2463C;font-size:13px;margin-inline-start:8px"></span></div>`,"");
+ $("#psGo").onclick=()=>{if(!$("#psChk").checked){$("#psErr").textContent=tr("Tick the box first.","ضع علامة في المربع أولاً.");return;}
+  const who=(typeof LOCAL!=="undefined"&&LOCAL.user)||p.req;if(toPD){p.status="PD";p.toPdOn=today();p.toPdBy=who;}else{p.status="Sent";p.sentOn=today();p.sentBy=who;}
+  persist();$("#ov").classList.remove("on");render();toast("✔ "+p.no+" "+(toPD?tr("sent to the Project Director","أُرسل لمدير المشروع"):tr("sent to Procurement","أُرسل للمشتريات")));};}
+const PR_OLD_BIND=BIND.pr;
+BIND.pr=()=>{PR_OLD_BIND();const tb=$("#pLines");const ar=()=>{const j=$("#pJust");if(j)j.dataset.ar=1;tb.querySelectorAll("[data-k=item]").forEach(x=>x.dataset.ar=1);};ar();$("#pAdd").addEventListener("click",ar);
+ document.querySelectorAll("[data-pd]").forEach(b=>b.onclick=()=>{const p=D.prs.find(x=>x.no===b.dataset.pd);p.pd=true;p.pdDate=today();persist();render();toast("✔");});
+ document.querySelectorAll("[data-pe]").forEach(b=>b.onclick=()=>{PR_EDIT=b.dataset.pe;render();$("#main").scrollTop=0;});
+ document.querySelectorAll("[data-pdel]").forEach(b=>b.onclick=()=>{if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent=tr("Click again to delete","اضغط مرة أخرى للحذف");setTimeout(()=>{if(b.isConnected){b.dataset.sure="";b.textContent="✕ "+tr("Delete","حذف");}},4000);return;}
+  const p=D.prs.find(x=>x.no===b.dataset.pdel);p.status="Deleted";p.deletedOn=today();if(PR_EDIT===p.no)PR_EDIT=null;persist();render();toast("✔ "+p.no+" "+tr("deleted","حُذف"));});
+ document.querySelectorAll("[data-ptopd]").forEach(b=>b.onclick=()=>prDlg(D.prs.find(x=>x.no===b.dataset.ptopd),true));
+ document.querySelectorAll("[data-psend]").forEach(b=>b.onclick=()=>prDlg(D.prs.find(x=>x.no===b.dataset.psend),false));
+ document.querySelectorAll("[data-pback]").forEach(b=>b.onclick=()=>{const p=D.prs.find(x=>x.no===b.dataset.pback);p.status="Draft";persist();render();toast("✔ "+p.no+" "+tr("is a draft again","أصبح مسودة مجدداً"));});
+ if(!PR_EDIT)return;const p=D.prs.find(x=>x.no===PR_EDIT);if(!p||p.status!=="Draft"){PR_EDIT=null;return;}
+ $("#pNo").value=p.no;$("#pDate").value=p.date||"";$("#pCc").value=p.cc||"";$("#pNeed").value=p.need||"";$("#pReq").value=p.req||"";$("#pJust").value=p.just||"";if($("#pPrio"))$("#pPrio").value=p.prio||"Normal";
+ [...tb.querySelectorAll("tr")].slice(1).forEach(r=>r.remove());(p.lines||[]).forEach(l=>{const r=pRow();tb.appendChild(r);const it=l.code&&item(l.code);r.querySelector("[data-k=item]").value=it?itemLabel(it):l.desc;r.querySelector("[data-k=qty]").value=l.qty;r.querySelector("[data-k=est]").value=l.est;r.querySelector("[data-k=cls]").value=l.cls||"OPEX";});ar();
+ const card=$("#main").querySelector(".card");card.style.outline="2px solid #7C3AED";card.querySelector("h2").textContent=tr("Edit draft PR ","تعديل مسودة الطلب ")+p.no;
+ const sv=$("#pSave");sv.textContent=tr("Save changes","حفظ التعديلات");const cx=document.createElement("button");cx.className="b l";cx.textContent=tr("Cancel edit","إلغاء التعديل");cx.onclick=()=>{PR_EDIT=null;render();};sv.before(cx);cx.style.marginInlineEnd="8px";
+ sv.onclick=()=>{if(!checkReq(card))return msg("err",ERR.req());const lines=prLinesFromTable(tb);if(!lines)return;
+  Object.assign(p,{date:$("#pDate").value,cc:$("#pCc").value,req:$("#pReq").value.trim(),need:$("#pNeed").value,just:$("#pJust").value.trim(),prio:$("#pPrio")?$("#pPrio").value:p.prio,lines,edited:today()});
+  PR_EDIT=null;persist();delete KEEP.pr;render();saved(p.no,prDoc(p));};};
+/* Purchase Request print – same layout as "Print PR" in TEST - Logistics.xlsx (Procurement System v3) */
+function prDoc(p){const L=p.lines||[],tot=L.reduce((a,l)=>a+l.qty*l.est,0),c=D.cqs.find(x=>x.pr===p.no),o=D.pos.find(x=>x.pr===p.no),it=code=>item(code)||{};
+ const N="#1F3864",B="1px solid #000",F="font-family:Calibri,Carlito,'Segoe UI',Arial,sans-serif";
+ const td=(v,x)=>`<td style="border:${B};padding:1px 4px;font-size:8.5pt;vertical-align:middle;${x||""}" dir="auto">${v===undefined||v===null?"":v}</td>`;
+ const lab=(en,ar,x)=>td(`<span><b>${en}</b>${ar?` / <span dir="rtl">${ar}</span>`:""}</span>`,x);
+ const st=prStage(p),S=STG()[st],stTxt=(S?S[0]:"")+(o?" – "+o.no:c?" – "+c.no:"");
+ const rows=Array.from({length:Math.max(15,L.length)},(_,i)=>{const l=L[i];if(!l)return `<tr style="height:20px">${td(i+1,"text-align:center")}${td("")}${td("")}${td("")}${td("")}${td("")}${td("")}${td("")}</tr>`;
+  return `<tr style="height:20px">${td(i+1,"text-align:center")}${td(esc(l.code||""))}${td(esc(l.desc))}${td(esc(it(l.code).kind||(l.cls==="CAPEX"?"Asset":"Consumable")))}${td(esc(l.unit||it(l.code).unit||"Pcs"))}${td(l.qty)}${td(ppM(l.est))}${td(ppM(l.qty*l.est))}</tr>`;}).join("");
+ const th=(en,ar,x)=>`<td style="border:${B};background:${N};color:#fff;font-weight:700;font-size:8.5pt;text-align:center;padding:2px;${x||""}">${en}<br><span dir="rtl">${ar}</span></td>`;
+ const sh=(en,ar,cs)=>`<td colspan="${cs||1}" style="border:${B};background:#F2F2F2;font-weight:700;font-size:8.5pt;text-align:center;padding:2px">${en}<br><span dir="rtl">${ar}</span></td>`;
+ const sl=(en,ar)=>`<td style="border:${B};font-size:7.5pt;font-weight:700;padding:1px 4px">${en} / <span dir="rtl">${ar}</span></td>`;
+ const sent=p.status!=="Draft";
+ return `<div class="doc xl" style="${F};color:#000;padding:6px 10px"><style>@page{size:A4 portrait;margin:10mm}</style><table style="width:100%;border-collapse:collapse;table-layout:fixed;${F}">
+ <colgroup>${[9,17,38,11,8,8,13,14].map(w=>`<col style="width:${(w/118*100).toFixed(2)}%">`).join("")}</colgroup>
+ <tr style="height:35px"><td colspan="8" style="background:${N};color:#fff;font-weight:700;font-size:14pt;text-align:center">MIDU COMPANY LTD &nbsp;| &nbsp;<span dir="rtl">شركة مايدو المحدودة</span></td></tr>
+ <tr><td colspan="8" style="font-weight:700;font-size:12pt;text-align:center;padding-top:3px">PURCHASE REQUEST &nbsp; | &nbsp; <span dir="rtl">طلب شراء</span></td></tr>
+ <tr><td colspan="8" style="font-style:italic;font-size:9pt;text-align:center">Logistics Department &nbsp;| &nbsp;<span dir="rtl">إدارة الخدمات اللوجستية</span></td></tr>
+ <tr style="height:14px"><td colspan="8"></td></tr>
+ <tr><td></td>${lab("PR No.","رقم الطلب")}${td(`<b>${esc(p.no)}</b>`,"background:#FFF2CC")}<td></td>${lab("Date","التاريخ",'" colspan="2')}${td(ppD(p.date),'" colspan="2')}</tr>
+ <tr><td></td>${lab("Requester","مقدم الطلب")}${td(esc(p.req||""))}<td></td>${td("<b>Cost Center</b>",'" colspan="2')}${td(esc(p.cc||""),'" colspan="2')}</tr>
+ <tr><td></td>${lab("Purpose","دواعي الشراء")}${td(esc(p.just||""),'" colspan="6')}</tr>
+ <tr><td></td>${lab("Priority","الأولوية")}${td(esc(p.prio||"Normal"))}<td></td>${lab("Required date","مطلوب في",'" colspan="2')}${td(ppD(p.need),'" colspan="2')}</tr>
+ <tr style="height:14px"><td colspan="8"></td></tr>
+ <tr style="height:40px">${th("#","")}${th("Item Code","رمز الصنف")}${th("Description","الوصف")}${th("Type","النوع")}${th("Unit","الوحدة")}${th("Qty","الكمية")}${th("Est. Unit Price","السعر التقديري")}${th("Est. Total (SAR)","الإجمالي")}</tr>${rows}
+ <tr><td colspan="4"></td>${td("<b>Est. Total excl. VAT</b>",'" colspan="3')}${td("<b>"+ppM(tot)+"</b>")}</tr>
+ <tr><td></td>${td("<b>Quotations needed</b>")}${td(tot>=5000?"3 quotations + CQS":"1 quotation")}<td colspan="5"></td></tr>
+ <tr><td></td>${td("<b>Status</b>")}${td(esc(stTxt),'" colspan="6')}</tr>
+ <tr style="height:14px"><td colspan="8"></td></tr>
+ <tr style="height:40px"><td style="border:${B}"></td>${sh("Prepared by (Logistics)","مقدم الطلب")}${sh("Direct Manager - Project Director","المدير المباشر - مدير المشروع",3)}${sh("Received by Procurement","استلام المشتريات",3)}</tr>
+ <tr>${sl("Name","الاسم")}${td(esc(p.req||"Azzam El Masri"))}${td("Najed Fakhreddine",'" colspan="3')}${td("Raghad Ahmad Altowirgi",'" colspan="3')}</tr>
+ <tr>${sl("Status","الحالة")}${td(sent?"Submitted":"Draft")}${td(p.pd?"Approved":"",'" colspan="3')}${td("",'" colspan="3')}</tr>
+ <tr>${sl("Date","التاريخ")}${td(ppD(p.date))}${td(ppD(p.pdDate||""),'" colspan="3')}${td("",'" colspan="3')}</tr>
+ <tr style="height:53px">${sl("Signature","التوقيع")}${td("")}${td("",'" colspan="3')}${td("",'" colspan="3')}</tr>
+ <tr style="height:20px"><td colspan="8"></td></tr>
+ <tr><td colspan="8" style="font-size:7.5pt;text-align:center">info@midu.com.sa &nbsp; | &nbsp; www.midu.com.sa</td></tr></table></div>`;}
 
 const mrDoc_old=q=>gdoc({title:"MAINTENANCE REQUEST",no:q.no,date:q.date,meta:[["Requested by",q.by],["Location",q.loc],["Asset ID",q.asset],["Asset",D.assets.find(a=>a.id===q.asset)?.desc||""],["Category",q.cat],["Priority",q.prio],["Assigned to",q.to],["Status",q.status]],cols:["Problem description","Action taken","Completed on"],rows:[[q.desc,"",""]],sig:["Requested by","Maintenance technician","Logistics approval"]});
 const mclDoc_old=x=>gdoc({title:"MONTHLY MAINTENANCE CHECKLIST",no:x.no,date:x.date,meta:[["Month",x.month],["Location",x.loc],["Checked by",x.by]],cols:["#","Category","Check point","Result","Remarks"],rows:x.res.map(r=>[r.i+1,MCL_T[r.i][0],MCL_T[r.i][1],r.s,r.rem]),sig:["Checked by","Maintenance supervisor","Logistics approval"]});
