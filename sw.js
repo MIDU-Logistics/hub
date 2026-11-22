@@ -1,7 +1,7 @@
 /* MIDU Logistics Hub — service worker: caches the app files only (never data or sign-in calls). */
-const CACHE = "midu-hub-v5";
+const CACHE = "midu-hub-v6";
 const FILES = ["./", "index.html", "m365.js", "local.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "favicon-32.png",
-  "vendor/msal-browser.min.js", "vendor/xlsx.full.min.js", "vendor/html2pdf.bundle.min.js", "vendor/jsbarcode.min.js", "vendor/jspdf.umd.min.js", "vendor/qrcode.js", "vendor/midu-label-logo.js"];
+  "vendor/msal-browser.min.js", "vendor/xlsx.full.min.js", "vendor/html2pdf.bundle.min.js", "vendor/jsbarcode.min.js", "vendor/jspdf.umd.min.js", "vendor/qrcode.js", "vendor/midu-label-logo.js", "vendor/midu-stamps.js"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(n => n !== CACHE).map(n => caches.delete(n)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {

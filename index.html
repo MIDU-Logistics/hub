@@ -17,8 +17,9 @@
 <script src="vendor/jspdf.umd.min.js" defer></script>
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
-<script src="m365.js?v=202611221411"></script>
-<script src="local.js?v=202611221411"></script>
+<script src="vendor/midu-stamps.js" defer></script>
+<script src="m365.js?v=202611221444"></script>
+<script src="local.js?v=202611221444"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -281,10 +282,10 @@ const itemLabel=i=>`${i.code} | ${i.desc}`;
 function parseItem(v){v=(v||"").trim();const code=v.split("|")[0].trim().toUpperCase();return item(code)||D.items.find(i=>i.desc.toLowerCase()===v.toLowerCase());}
 function parseEmp(v){v=(v||"").trim();const m=v.match(/\d{10}/);if(m)return emp(m[0]);const n=v.split("|")[0].trim().toLowerCase();return D.emps.find(e=>e.name.toLowerCase()===n||e.no.toLowerCase()===n);}
 function holdings(iqama){const h={};
- D.docs.filter(d=>(d.type==="MDS"&&d.dtype!=="Transfer"||d.type==="MRS")&&d.iqama===iqama).forEach(d=>d.lines.forEach(l=>{const k=l.asset||l.code;h[k]=h[k]||{code:l.code,asset:l.asset||"",qty:0,doc:d.no,loan:""};h[k].qty+=d.type==="MDS"?l.qty:-l.qty;if(d.type==="MDS"){h[k].doc=d.no;h[k].loan=d.dtype==="Temporary loan"?d.returnBy:"";}}));
+ D.docs.filter(d=>!d.cancelled&&(d.type==="MDS"&&d.dtype!=="Transfer"||d.type==="MRS")&&d.iqama===iqama).forEach(d=>d.lines.forEach(l=>{const k=l.asset||l.code;h[k]=h[k]||{code:l.code,asset:l.asset||"",qty:0,doc:d.no,loan:""};h[k].qty+=d.type==="MDS"?l.qty:-l.qty;if(d.type==="MDS"){h[k].doc=d.no;h[k].loan=d.dtype==="Temporary loan"?d.returnBy:"";}}));
  return Object.values(h).filter(x=>x.qty>0);}
 const poTotal=p=>p.lines.reduce((a,l)=>a+l.qty*l.price,0);
-const poRecv=(p,l)=>D.docs.filter(d=>d.type==="GRN"&&d.po===p.no).reduce((a,d)=>a+d.lines.filter(x=>x.code===l.code).reduce((s,x)=>s+x.qty,0),0);
+const poRecv=(p,l)=>D.docs.filter(d=>d.type==="GRN"&&!d.cancelled&&d.po===p.no).reduce((a,d)=>a+d.lines.filter(x=>x.code===l.code).reduce((s,x)=>s+x.qty,0),0);
 const poFull=p=>p.kind==="PC"||p.lines.every(l=>!l.code||poRecv(p,l)>=l.qty);
 const utRate=type=>UT.find(u=>u.type===type)||{type,unit:"",rate:0};
 const month=()=>today().slice(0,7);
@@ -391,6 +392,70 @@ BIND.home=()=>{bindDocBtns();const b=$("#loadSample");if(b)b.onclick=loadSample;
 
 /* ============================ WAREHOUSE (GRN/MDS/MRS/ASSET/COUNT) ============================ */
 const condOpts=()=>["New","Used","Damaged"].map(c=>`<option value="${c}">${{New:tr("New","جديد"),Used:tr("Used","مستعمل"),Damaged:tr("Damaged","تالف")}[c]}</option>`).join("");
+/* edit / cancel + print forms */
+/* ---------- edit / cancel saved warehouse documents ---------- */
+let WH_EDIT=null;   // {type, no}
+const live=d=>!d.cancelled;
+function whReverse(d,dry){   // undo the stock / custody effect of a document; returns an error text or ""
+ const ops=[];
+ for(const l of d.lines||[]){
+  if(d.type==="GRN"){if(stockQty(l.code,d.wh,d.loc)<l.qty)return tr("Part of this receipt was already issued","تم صرف جزء من هذا الاستلام")+` (${l.sl||l.code}). `+tr("Cancel or edit the issue (MDS) first.","ألغِ أو عدّل الصرف (MDS) أولاً.");ops.push(()=>addStock(l.code,d.wh,d.loc,-l.qty));}
+  else if(d.type==="MDS"){if(l.asset){const a=D.assets.find(x=>x.id===l.asset);if(a&&a.cust&&a.cust!==d.iqama)return tr("Asset","الأصل")+` ${l.asset} `+tr("is now with someone else.","أصبح في عهدة شخص آخر.");ops.push(()=>{if(a){a.cust="";a.custName="";a.status="In Stock";a.wh=d.wh;a.loc=d.loc;}});}
+   else if(d.dtype!=="Transfer"||true)ops.push(()=>addStock(l.code,d.wh,d.loc,l.qty));}
+  else if(d.type==="MRS"){if(l.asset){const a=D.assets.find(x=>x.id===l.asset);if(a&&a.cust)return tr("Asset","الأصل")+` ${l.asset} `+tr("was issued again after this return.","صُرف مرة أخرى بعد هذا الإرجاع.");ops.push(()=>{if(a){a.cust=d.iqama;a.status="In Use";}});}
+   else if(l.cond!=="Damaged"){if(stockQty(l.code,d.wh,d.loc)<l.qty)return tr("Returned stock was already issued again","تم صرف المخزون المرتجع مرة أخرى")+` (${l.code}).`;ops.push(()=>addStock(l.code,d.wh,d.loc,-l.qty));}}}
+ if(!dry)ops.forEach(f=>f());return "";}
+function whCancel(no){const d=D.docs.find(x=>x.no===no);if(!d||d.cancelled)return;const why=prompt(tr("Cancel ","إلغاء ")+no+"\n"+tr("Reason (required):","السبب (إلزامي):"));if(!why||!why.trim())return;
+ const e=whReverse(d,true);if(e)return msg("err",esc(e));whReverse(d,false);d.cancelled={at:today(),by:(typeof LOCAL!=="undefined"&&LOCAL.user)||"",reason:why.trim()};persist();render(true);toast("✔ "+no+" "+tr("cancelled – stock and custody reversed.","أُلغي – تم عكس المخزون والعهدة."));}
+function whEdit(no,type){const d=D.docs.find(x=>x.no===no);if(!d||d.cancelled)return;const e=whReverse(d,true);if(e)return msg("err",esc(e));WH_EDIT={type,no};delete KEEP[type==="GRN"?"grn":"mds"];go(type==="GRN"?"grn":"mds");}
+function editBanner(){if(!WH_EDIT)return "";return `<div class="banner" style="background:#FEF3C7;border-color:#F59E0B;color:#7C4A03"><b>✎ ${tr("Editing","تعديل")} ${esc(WH_EDIT.no)}</b> — ${tr("saving replaces the original (same number). Stock and custody are recalculated.","الحفظ يستبدل الأصل (بنفس الرقم). يُعاد احتساب المخزون والعهدة.")} <button class="b sm" id="edX">${tr("Stop editing","إيقاف التعديل")}</button></div>`;}
+
+/* ---------- print forms LOG-GRN-01 / LOG-MDS-01 / LOG-MRS-01 (same layout as the storekeeper Excel file) ---------- */
+function logForm(d){
+ const N="#1B273D",B="1px solid #8A94A6",fd=v=>{if(!v)return "";const [y,m,dd]=String(v).split("-");return dd?`${dd} / ${m} / ${y}`:v;};
+ const staffId=n=>{const s=(WR().staff||[]).find(x=>x.name.toLowerCase()===String(n||"").toLowerCase());const e=D.emps.find(x=>x.name.toLowerCase()===String(n||"").toLowerCase());return s?s.id:e?(e.no||e.iqama||""):"";};
+ const cfg={GRN:{t:"MATERIAL RECEIVING NOTE (GRN)",f:"LOG-GRN-01",copy:"Original: Logistics  |  Copy: Supplier",st:window.STAMP_RECEIVED},MDS:{t:"MATERIAL DISPATCH SHEET",f:"LOG-MDS-01",copy:"Original: Logistics  |  Copy: Receiver",st:window.STAMP_DISPATCHED},MRS:{t:"MATERIAL RETURN SHEET",f:"LOG-MRS-01",copy:"Original: Logistics  |  Copy: Returning person",st:window.STAMP_RECEIVED}}[d.type];
+ const kv=(a,b,c,e)=>`<tr><td style="color:#555;width:17%;padding:3px 0">${a}</td><td style="font-weight:700;width:33%">${esc(b||"")}</td><td style="color:#555;width:17%">${c}</td><td style="font-weight:700">${esc(e||"")}</td></tr>`;
+ const th=`style="background:${N};color:#fff;border:${B};padding:5px 4px;font-size:10.5px;font-weight:700;text-align:center"`,td=a=>`style="border:${B};padding:4px;font-size:10.5px;height:16px;text-align:${a||"center"}"`;
+ const lines=d.lines||[],tq=lines.reduce((a,l)=>a+(+l.qty||0),0),EMPTY=Math.max(0,(d.type==="GRN"?20:15)-lines.length);
+ const lineInfo=l=>{const ln=(l.sl&&whLines().find(x=>x.sl===l.sl))||lineFor(l.code)||{};const it=item(l.code)||{};const a=l.asset?D.assets.find(x=>x.id===l.asset):null;return {ln,it,a};};
+ let head="",cols="",rows="",after="",sig="";
+ if(d.type==="GRN"){
+  head=`<table style="width:100%;border-collapse:collapse;font-size:11.5px">${kv("GRN No.:",d.no,"Date received:",fd(d.date))}${kv("Supplier:",d.party,"PO No.:",d.po)}${kv("Delivery Note No.:",d.dn,"Received by:",d.by)}${kv("Stored at:",[WH[d.wh]?.name,d.loc].filter(Boolean).join(" › "),"Storage point:",d.sp)}</table><div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">ITEMS RECEIVED</div>`;
+  cols=["No.","Stock Line","Item Code","Description","Unit","Qty Received","Condition","Storage Point"];
+  rows=lines.map((l,i)=>{const {ln,it}=lineInfo(l);return `<tr><td ${td()}>${i+1}</td><td ${td()}>${esc(l.sl||ln.sl||"")}</td><td ${td()}>${esc(l.code)}</td><td ${td("left")}>${esc(l.desc||it.desc||ln.desc||"")}</td><td ${td()}>${esc(l.unit||it.unit||"")}</td><td ${td()}>${l.qty}</td><td ${td()}>${esc(l.cond||"")}</td><td ${td()}>${esc(d.sp||ln.sp||"")}</td></tr>`;}).join("");
+  after=`<div style="font-size:10px;color:#555;margin-top:4px">Total lines: ${lines.length} &nbsp;&nbsp; Total quantity: ${tq}</div><div style="margin-top:8px;font-size:11px"><b>Remarks / shortages / damage:</b> ${d.remarks?esc(d.remarks):"_______________________________________________________________"}</div>
+  <div style="font-size:10px;color:#555;margin:8px 0">Received subject to inspection. Quantities were counted on arrival; shortages, excess or damage are written above and reported to Procurement / the supplier.</div>`;
+  sig=[["DELIVERED BY (SUPPLIER / DRIVER)","","",""],["RECEIVED BY (STOREKEEPER)",d.by,staffId(d.by),fd(d.date)],["CHECKED BY (LOGISTICS)","Azzam El Masri","1058",fd(d.date)]];}
+ else if(d.type==="MDS"){
+  const ty=["New issue","Transfer","Temporary loan"].map(t=>`${d.dtype===t?"☑":"☐"} ${t}${t==="Temporary loan"?` (return by: ${d.returnBy?fd(d.returnBy):"____________"})`:""}`).join("&nbsp;&nbsp;&nbsp;&nbsp;");
+  head=`<table style="width:100%;border-collapse:collapse;font-size:11.5px">${kv("Document No.:",d.no,"Date:",fd(d.date))}${kv("Dispatched from:",[WH[d.wh]?.name,d.loc].filter(Boolean).join(" › "),"To (Location / Project):",d.to)}<tr><td style="color:#555;padding:3px 0">Dispatch type:</td><td colspan="3">${ty}</td></tr></table>
+  <div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">RECEIVER DETAILS</div><table style="width:100%;border-collapse:collapse;font-size:11px"><tr><td ${td("left")}><b>Name</b></td><td ${td("left")}>${esc(d.party||"")}</td><td ${td("left")}><b>Employee / Iqama No.</b></td><td ${td("left")}>${esc(d.iqama||"")}</td></tr><tr><td ${td("left")}><b>Department / Company</b></td><td ${td("left")}>${esc(d.dept||"")}</td><td ${td("left")}><b>Mobile</b></td><td ${td("left")}>${esc(d.mobile||"")}</td></tr></table>
+  <div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">ITEM DETAILS</div>`;
+  cols=["No.","Item Code / Asset ID","Item Type","Description","Brand / Model","Serial No.","Unit","Qty","Condition"];
+  rows=lines.map((l,i)=>{const {ln,it,a}=lineInfo(l);return `<tr><td ${td()}>${i+1}</td><td ${td()}>${esc(l.asset||l.sl||ln.sl||l.code)}</td><td ${td()}>${esc(a?a.type:(ln.cat||it.cat||""))}</td><td ${td("left")}>${esc(l.desc||(a&&a.desc)||it.desc||"")}</td><td ${td()}>${esc(l.bm||"")}</td><td ${td()}>${esc(l.sn||"")}</td><td ${td()}>${esc(l.unit||it.unit||"Pcs")}</td><td ${td()}>${l.qty}</td><td ${td()}>${esc(l.cond||"")}</td></tr>`;}).join("");
+  after=`<div style="font-size:10px;color:#555;margin-top:4px">Total lines: ${lines.length} &nbsp;&nbsp; Total quantity: ${tq}</div><div style="margin-top:8px;font-size:11px"><b>Remarks:</b> ${d.remarks?esc(d.remarks):"______________________________________________________________"}</div>
+  <div style="font-size:10px;color:#555;margin:8px 0">The receiver confirms receiving the material(s) / asset(s) above in the stated condition and quantity, accepts responsibility for their safe use and custody, and will return reusable items to the Logistics Department (Warehouse &amp; Stores) on request or when no longer needed. Loss or damage must be reported to Logistics immediately.</div>`;
+  sig=[["ISSUED BY (STOREKEEPER)",d.by,staffId(d.by),fd(d.date)],["APPROVED BY (LOGISTICS)","Azzam El Masri","1058",fd(d.date)],["RECEIVED BY",d.party,d.iqama,fd(d.date)]];}
+ else {
+  const e=D.emps.find(x=>x.iqama===d.iqama||x.no===d.iqama)||{};
+  head=`<table style="width:100%;border-collapse:collapse;font-size:11.5px">${kv("Return No.:",d.no,"Date:",fd(d.date))}${kv("Returned from:",d.party,"Returned to:",[WH[d.wh]?.name,d.loc].filter(Boolean).join(" › "))}</table>
+  <div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">RETURNED BY</div><table style="width:100%;border-collapse:collapse;font-size:11px"><tr><td ${td("left")}><b>Name</b></td><td ${td("left")}>${esc(d.party||"")}</td><td ${td("left")}><b>Employee ID</b></td><td ${td("left")}>${esc(d.iqama||"")}</td></tr><tr><td ${td("left")}><b>Department</b></td><td ${td("left")}>${esc(e.dept||"")}</td><td ${td("left")}><b>Mobile</b></td><td ${td("left")}>${esc(e.mobile||"")}</td></tr></table>
+  <div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">ITEMS RETURNED</div>`;
+  cols=["No.","Item Code / Asset ID","Item Type","Description","Brand / Model","Serial No.","Unit","Qty","Condition"];
+  rows=lines.map((l,i)=>{const {ln,it,a}=lineInfo(l);return `<tr><td ${td()}>${i+1}</td><td ${td()}>${esc(l.asset||ln.sl||l.code)}</td><td ${td()}>${esc(a?a.type:(ln.cat||""))}</td><td ${td("left")}>${esc((a&&a.desc)||it.desc||"")}</td><td ${td()}>${esc(a?[a.brand,a.model].filter(Boolean).join(" "):"")}</td><td ${td()}>${esc(a?a.serial||"":"")}</td><td ${td()}>${esc(it.unit||"Pcs")}</td><td ${td()}>${l.qty}</td><td ${td()}>${esc(l.cond||"")}</td></tr>`;}).join("");
+  const cs=c=>lines.some(l=>l.cond===c)?"☑":"☐";
+  after=`<div style="font-size:10px;color:#555;margin-top:4px">Total lines: ${lines.length} &nbsp;&nbsp; Total quantity: ${tq}</div><div style="margin-top:8px;font-size:11px"><b>Checked by store:</b> ${cs("Complete")} Complete &nbsp; ${cs("Damaged")} Damaged &nbsp; ${cs("Missing parts")} Missing parts &nbsp;&nbsp; Remarks: ____________________________</div>
+  <div style="font-size:10px;color:#555;margin:8px 0">The items above were returned to the MIDU warehouse in the condition stated. Damaged or missing items are recorded and reported to the Logistics Department. The returning person's responsibility for these items ends with this signed return.</div>`;
+  sig=[["RETURNED BY",d.party,d.iqama,fd(d.date)],["RECEIVED BY (STOREKEEPER)","","",fd(d.date)],["APPROVED BY (LOGISTICS)","Azzam El Masri","1058",fd(d.date)]];}
+ const empty=Array.from({length:EMPTY},()=>`<tr>${cols.map(()=>`<td ${td()}>&nbsp;</td>`).join("")}</tr>`).join("");
+ const sigT=`<table style="width:100%;border-collapse:collapse;margin-top:6px"><tr>${sig.map(s=>`<td style="border:${B};background:#EEF1F6;font-size:10px;font-weight:700;text-align:center;padding:4px;width:26%">${s[0]}</td>`).join("")}<td style="border:${B};background:#EEF1F6;font-size:10px;font-weight:700;text-align:center;padding:4px">WAREHOUSE STAMP</td></tr>
+  ${["Name:","ID No.:","Signature:","Date:"].map((k,i)=>`<tr>${sig.map(s=>`<td style="border:${B};font-size:10.5px;padding:6px 5px;height:${i===2?26:14}px">${k} ${esc([s[1],s[2],"",s[3]][i]||"")}</td>`).join("")}${i===0?`<td rowspan="4" style="border:${B};text-align:center;vertical-align:middle">${cfg.st?`<img src="${cfg.st}" style="max-width:110px;max-height:80px;opacity:.9">`:""}</td>`:""}</tr>`).join("")}</table>`;
+ const X=d.cancelled?`<div style="border:2px solid #B42318;color:#B42318;font-weight:700;text-align:center;padding:6px;margin:8px 0">CANCELLED ${esc(d.cancelled.at)} — ${esc(d.cancelled.reason)}</div>`:"";
+ return `<div class="doc" style="font-family:Arial,Helvetica,sans-serif;color:#111;padding:20px 26px"><div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid ${N};padding-bottom:6px"><div><div style="font-size:20px;font-weight:800;color:#000">${cfg.t}</div><div style="font-size:9.5px;color:#555;margin-top:3px">MIDU PROJECT &nbsp;|&nbsp; LOGISTICS DEPARTMENT &nbsp;|&nbsp; WAREHOUSE &amp; STORES &nbsp; • &nbsp; Form ${cfg.f}</div></div><img src="${LOGO}" style="height:30px"></div>
+ <div style="height:10px"></div>${X}${head}<table style="width:100%;border-collapse:collapse"><tr>${cols.map(c=>`<th ${th}>${c}</th>`).join("")}</tr>${rows}${empty}</table>${after}${sigT}
+ <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#555;margin-top:8px"><span>Form ${cfg.f}${d.edited?" · edited "+esc(d.edited.at):""}</span><span>${cfg.copy}</span></div></div>`;}
+
 /* ---------- storekeeper reference (stock lines, categories, storage points) from data/whref.json ---------- */
 const WR=()=>window.WHREF||{lines:[],cats:[],locs:[],sps:[],units:[],staff:[]};
 const UNITS=()=>WR().units.length?WR().units:["Pcs","Set","Box","Carton","Roll","Pair","Meter","Kg","Liter","Bag","Bundle","Lot"];
@@ -415,15 +480,17 @@ async function openAtt(a){if(!a)return;if(a.url)return window.open(a.url,"_blank
 const ATT_DIR={GRN:"01 Warehouse & Assets/01 Signed GRN",MDS:"01 Warehouse & Assets/02 Signed MDS",MRS:"01 Warehouse & Assets/03 Signed MRS"};
 function recentDocs(type){const L=D.docs.filter(d=>d.type===type).slice(-12).reverse();if(!L.length)return "";
  return `<div class="card"><h2>${tr("Recent documents – signed / stamped copies","المستندات الأخيرة – النسخ الموقعة / المختومة")}</h2><table class="t"><tr><th>${tr("Document","المستند")}</th><th>${tr("Date","التاريخ")}</th><th>${tr("Party","الطرف")}</th><th>${tr("Lines","الأسطر")}</th><th>${tr("Stamped copy","النسخة المختومة")}</th><th></th></tr>`+
- L.map(d=>{const a=(d.att||[]).filter(x=>x.kind==="signed");return `<tr><td class="en"><b>${esc(d.no)}</b></td><td class="en">${esc(d.date)}</td><td class="en">${esc(d.party||"")}</td><td class="num">${(d.lines||[]).length}</td><td>${a.length?a.map((x,i)=>`<button class="b sm" data-att="${esc(d.no)}|${i}">📎 ${esc(x.name.split(" - ").pop())}</button>`).join(" "):tag(tr("Missing","غير مرفق"),"r")}</td>
- <td style="white-space:nowrap"><button class="b l sm" data-doc="${esc(d.no)}">${tr("Print","طباعة")}</button> <label class="b sm" style="cursor:pointer">${tr("Attach signed copy","إرفاق النسخة الموقعة")}<input type="file" accept=".pdf,.jpg,.jpeg,.png,image/*" data-up="${esc(d.no)}" style="display:none"></label></td></tr>`;}).join("")+`</table></div>`;}
-function bindRecent(type){document.querySelectorAll("[data-att]").forEach(b=>b.onclick=()=>{const[no,i]=b.dataset.att.split("|");const d=D.docs.find(x=>x.no===no);openAtt((d.att||[]).filter(x=>x.kind==="signed")[+i]);});
+ L.map(d=>{const a=(d.att||[]);const X=d.cancelled;return `<tr style="${X?"opacity:.55":""}"><td class="en"><b style="${X?"text-decoration:line-through":""}">${esc(d.no)}</b>${X?" "+tag(tr("Cancelled","ملغى"),"r"):d.edited?" "+tag(tr("Edited","معدّل"),"a"):""}</td><td class="en">${esc(d.date)}</td><td class="en">${esc(d.party||"")}</td><td class="num">${(d.lines||[]).length}</td><td>${a.length?a.map((x,i)=>`<button class="b sm" data-att="${esc(d.no)}|${i}" title="${esc(x.name)}">📎 ${x.kind==="dn"?tr("Delivery note","مذكرة التسليم"):tr("Signed copy","نسخة موقعة")}</button>`).join(" "):X?"":tag(tr("Missing","غير مرفق"),"r")}${X?`<div class="sub" style="font-size:11px">${esc(X.reason)} · ${esc(X.by)} · ${esc(X.at)}</div>`:""}</td>
+ <td style="white-space:nowrap"><button class="b l sm" data-doc="${esc(d.no)}">${tr("Print","طباعة")}</button>${X?"":` ${type!=="MRS"?`<button class="b l sm" data-ed="${esc(d.no)}">✎ ${tr("Edit","تعديل")}</button> `:""}<button class="b r sm" data-cx="${esc(d.no)}">${tr("Cancel","إلغاء")}</button> <label class="b sm" style="cursor:pointer">${tr("Attach signed copy","إرفاق النسخة الموقعة")}<input type="file" accept=".pdf,.jpg,.jpeg,.png,image/*" data-up="${esc(d.no)}" style="display:none"></label>`}</td></tr>`;}).join("")+`</table></div>`;}
+function bindRecent(type){document.querySelectorAll("[data-att]").forEach(b=>b.onclick=()=>{const[no,i]=b.dataset.att.split("|");const d=D.docs.find(x=>x.no===no);openAtt((d.att||[])[+i]);});
+ document.querySelectorAll("[data-cx]").forEach(b=>b.onclick=()=>whCancel(b.dataset.cx));document.querySelectorAll("[data-ed]").forEach(b=>b.onclick=()=>whEdit(b.dataset.ed,type));
+ const ex=$("#edX");if(ex)ex.onclick=()=>{WH_EDIT=null;render();};
  document.querySelectorAll("[data-up]").forEach(inp=>inp.onchange=async()=>{const d=D.docs.find(x=>x.no===inp.dataset.up);const f=inp.files[0];if(!d||!f)return;
   try{const a=await saveAtt(f,ATT_DIR[type],d.no,type==="GRN"?"signed GRN":"signed sheet");a.kind="signed";d.att=[...(d.att||[]),a];persist();render(true);toast("✔ "+tr("Signed copy attached","تم إرفاق النسخة الموقعة")+": "+d.no);}catch(e){msg("err",esc(e.message));}});bindDocBtns();}
 
 /* ============================ RECEIVE (GRN) ============================ */
 VIEWS.grn=()=>{const w=whOpts();const ref=!!window.WHREF;
- return head(tr("Receive (GRN)","استلام (GRN)"),tr("One row per item. Pick an existing stock line, or type the name of a NEW item and choose its category, unit and type — the item code and stock line are created automatically. Attach the stamped delivery note.","سطر لكل صنف. اختر سطر مخزون موجوداً أو اكتب اسم صنف جديد واختر الفئة والوحدة والنوع — يُنشأ كود الصنف وسطر المخزون تلقائياً. أرفق مذكرة التسليم المختومة."))+msgBox+
+ return head(tr("Receive (GRN)","استلام (GRN)"),tr("One row per item. Pick an existing stock line, or type the name of a NEW item and choose its category, unit and type — the item code and stock line are created automatically. Attach the stamped delivery note.","سطر لكل صنف. اختر سطر مخزون موجوداً أو اكتب اسم صنف جديد واختر الفئة والوحدة والنوع — يُنشأ كود الصنف وسطر المخزون تلقائياً. أرفق مذكرة التسليم المختومة."))+msgBox+(WH_EDIT&&WH_EDIT.type==="GRN"?editBanner():"")+
  (ref?"":`<div class="banner">${tr("Stock lines and categories are not loaded (whref.json missing) — new items cannot be coded.","لم يتم تحميل أسطر المخزون والفئات — لا يمكن ترميز أصناف جديدة.")}</div>`)+
  `<div class="card"><h2>${tr("Delivery details","بيانات التوريد")}</h2><div class="fg">${fld("gNo",tr("GRN No.","رقم الاستلام"),{ro:true,val:nextNo("GRN")})}${fld("gDate",tr("Date received","تاريخ الاستلام"),{type:"date",val:today(),req:true})}${fld("gSup",tr("Supplier","المورد"),{req:true,list:"supL"})}${fld("gPo",tr("PO No. (or PETTY CASH)","رقم أمر الشراء (أو عهدة نثرية)"),{upper:true,list:"poL",ph:"MIDU-PO-26…"})}
  ${fld("gDn",tr("Delivery note No.","رقم مذكرة التسليم"),{req:true,upper:true})}${sel("gWh",tr("Warehouse","المستودع"),w,{req:true})}${sel("gLoc",tr("Stored at – location","مكان التخزين – الموقع"),locOpts(w[0][0]),{req:true})}${fld("gSp",tr("Storage point","نقطة التخزين"),{list:"spL",ph:"Container No-3 · Porta Cabin P-10 Room 01"})}
@@ -449,7 +516,10 @@ function gRow(){const r=document.createElement("tr");const cats=WR().cats;
   else ["sl","code","desc","unit","dept"].forEach(k=>q(k).textContent="—");};
  q("item").addEventListener("change",()=>r._upd());["cat","nunit","nkind"].forEach(k=>q(k).onchange=()=>{const tb=r.parentNode;[...tb.querySelectorAll("tr")].forEach(x=>x._upd&&x._upd());});
  q("del").onclick=()=>{const tb=r.parentNode;r.remove();[...tb.querySelectorAll("tr")].forEach(x=>x._upd&&x._upd());};return r;}
-BIND.grn=()=>{const tb=$("#gLines");tb.appendChild(gRow());$("#gAdd").onclick=()=>tb.appendChild(gRow());bindRecent("GRN");
+BIND.grn=()=>{const tb=$("#gLines");const ED=WH_EDIT&&WH_EDIT.type==="GRN"?D.docs.find(x=>x.no===WH_EDIT.no):null;if(!ED)WH_EDIT=WH_EDIT&&WH_EDIT.type!=="GRN"?WH_EDIT:null;$("#gAdd").onclick=()=>tb.appendChild(gRow());bindRecent("GRN");
+ if(ED){$("#gNo").value=ED.no;$("#gDate").value=ED.date;$("#gSup").value=ED.party||"";$("#gPo").value=ED.po||"";$("#gDn").value=ED.dn||"";$("#gWh").value=ED.wh;$("#gLoc").innerHTML=locOpts(ED.wh).map(l=>`<option>${l}</option>`).join("");$("#gLoc").value=ED.loc;$("#gSp").value=ED.sp||"";$("#gBy").value=ED.by||"";$("#gRem").value=ED.remarks||"";["gC1","gC2","gC3"].forEach(i=>$("#"+i).checked=true);
+  ED.lines.forEach(l=>{const r=gRow();tb.appendChild(r);const ln=(l.sl&&whLines().find(x=>x.sl===l.sl))||lineFor(l.code);r.querySelector("[data-k=item]").value=ln?slLabel(ln):itemLabel(item(l.code)||{code:l.code,desc:l.desc||""});r.querySelector("[data-k=qty]").value=l.qty;r.querySelector("[data-k=cond]").value=l.cond||"New";r._upd();});}
+ else tb.appendChild(gRow());
  $("#gWh").onchange=e=>$("#gLoc").innerHTML=locOpts(e.target.value).map(l=>`<option>${l}</option>`).join("");
  $("#gPo").addEventListener("change",()=>{const p=D.pos.find(x=>x.no===$("#gPo").value);if(p){$("#gSup").value=p.sup;tb.querySelectorAll("tr").forEach((r,i)=>i&&r.remove());p.lines.filter(l=>l.code).forEach(l=>{const r=gRow();tb.appendChild(r);const ln=lineFor(l.code);r.querySelector("[data-k=item]").value=ln?slLabel(ln):itemLabel(item(l.code));r._upd();r.querySelector("[data-k=qty]").value=Math.max(l.qty-poRecv(p,l),0)||l.qty;});}});
  $("#gSave").onclick=async()=>{if(!checkReq($("#main")))return msg("err",ERR.req());const lines=[],newItems=[];
@@ -460,15 +530,17 @@ BIND.grn=()=>{const tb=$("#gLines");tb.appendChild(gRow());$("#gAdd").onclick=()
     lines.push({code:it.code,sl:it.sl,desc:it.desc,unit:u,dept:it.dept,qty:qn,cond,isNew:true});}
    else{const l=r._line;lines.push({code:l.code,sl:l.sl||"",desc:l.desc,unit:l.unit,dept:l.dept||"",qty:qn,cond});}}
   if(!lines.length)return msg("err",ERR.lines());
-  const f=$("#gAtt").files[0];if(!f)return msg("err",tr("Attach the stamped delivery note (scan or photo).","أرفق مذكرة التسليم المختومة (مسح أو صورة)."));
+  const f=$("#gAtt").files[0];const oldAtt=ED?(ED.att||[]):[];if(!f&&!oldAtt.some(a=>a.kind==="dn"))return msg("err",tr("Attach the stamped delivery note (scan or photo).","أرفق مذكرة التسليم المختومة (مسح أو صورة)."));
   if(!$("#gC1").checked||!$("#gC2").checked||!$("#gC3").checked)return msg("err",tr("Tick the three storekeeper checks.","حدد خانات التحقق الثلاث."));
-  const no=nextNo("GRN");let att;try{att=await saveAtt(f,ATT_DIR.GRN,no,"stamped delivery note "+$("#gDn").value.trim());att.kind="dn";}catch(e){return msg("err",tr("The delivery note could not be saved: ","تعذر حفظ مذكرة التسليم: ")+esc(e.message));}
-  const doc={no,type:"GRN",date:$("#gDate").value,party:$("#gSup").value.trim(),po:$("#gPo").value.trim(),dn:$("#gDn").value.trim(),wh:$("#gWh").value,loc:$("#gLoc").value,sp:$("#gSp").value.trim(),by:$("#gBy").value.trim(),remarks:$("#gRem").value.trim(),checks:{qty:true,inspected:true,stamped:true},att:[att],lines};
-  newItems.forEach(it=>D.items.push(it));lines.forEach(l=>addStock(l.code,doc.wh,doc.loc,l.qty));D.docs.push(doc);persist();delete KEEP.grn;render();
+  if(ED){const e=whReverse(ED,true);if(e)return msg("err",esc(e));}
+  const no=ED?ED.no:nextNo("GRN");let att=null;if(f){try{att=await saveAtt(f,ATT_DIR.GRN,no,"stamped delivery note "+$("#gDn").value.trim()+(ED?" (edit "+today()+")":""));att.kind="dn";}catch(e){return msg("err",tr("The delivery note could not be saved: ","تعذر حفظ مذكرة التسليم: ")+esc(e.message));}}
+  const doc={no,type:"GRN",date:$("#gDate").value,party:$("#gSup").value.trim(),po:$("#gPo").value.trim(),dn:$("#gDn").value.trim(),wh:$("#gWh").value,loc:$("#gLoc").value,sp:$("#gSp").value.trim(),by:$("#gBy").value.trim(),remarks:$("#gRem").value.trim(),checks:{qty:true,inspected:true,stamped:true},att:[...oldAtt,...(att?[att]:[])],lines};
+  if(ED){whReverse(ED,false);doc.edited={at:today(),by:(typeof LOCAL!=="undefined"&&LOCAL.user)||""};D.docs.splice(D.docs.indexOf(ED),1,doc);}else D.docs.push(doc);
+  newItems.forEach(it=>D.items.push(it));lines.forEach(l=>addStock(l.code,doc.wh,doc.loc,l.qty));WH_EDIT=null;persist();delete KEEP.grn;render();
   saved(doc.no,doc,"g");if(newItems.length)toast("✔ "+newItems.length+" "+tr("new item(s) coded: ","صنف جديد تم ترميزه: ")+newItems.map(i=>i.code+" / "+i.sl).join(", "));};};
 
 /* ============================ ISSUE (MDS) ============================ */
-VIEWS.mds=()=>{const w=whOpts();return head(tr("Issue (MDS)","صرف (MDS)"),tr("Issue to a person or transfer to another location. Stock and custody update at once. Print the dispatch sheet, get it signed and stamped, then attach it below.","صرف لشخص أو تحويل لموقع آخر. يتحدث المخزون والعهدة فوراً. اطبع ورقة الصرف ووقّعها واختمها ثم أرفقها أدناه."))+msgBox+
+VIEWS.mds=()=>{const w=whOpts();return head(tr("Issue (MDS)","صرف (MDS)"),tr("Issue to a person or transfer to another location. Stock and custody update at once. Print the dispatch sheet, get it signed and stamped, then attach it below.","صرف لشخص أو تحويل لموقع آخر. يتحدث المخزون والعهدة فوراً. اطبع ورقة الصرف ووقّعها واختمها ثم أرفقها أدناه."))+msgBox+(WH_EDIT&&WH_EDIT.type==="MDS"?editBanner():"")+
  `<div class="card"><h2>${tr("Dispatch details","بيانات الصرف")}</h2><div class="fg">${fld("mNo",tr("Dispatch No.","رقم الصرف"),{ro:true,val:nextNo("MDS")})}${fld("mDate",tr("Date","التاريخ"),{type:"date",val:today(),req:true})}${sel("mType",tr("Dispatch type","نوع الصرف"),[["New issue",tr("New issue","صرف جديد")],["Temporary loan",tr("Temporary loan","إعارة مؤقتة")],["Transfer",tr("Transfer","تحويل")]])}${fld("mRet",tr("Return by (loan only)","تاريخ الإرجاع (للإعارة)"),{type:"date"})}
  ${fld("mRcv",tr("Receiver name","اسم المستلم"),{req:true,list:"empL",w:"w2"})}${fld("mIq",tr("Employee / Iqama No.","رقم الموظف / الإقامة"),{req:true})}${fld("mMob",tr("Mobile","الجوال"),{ph:"05…"})}
  ${fld("mDept",tr("Department / Company","القسم / الشركة"),{req:true,list:"deptL"})}${fld("mTo",tr("To (location / project)","إلى (موقع / مشروع)"),{req:true})}${sel("mWh",tr("Dispatched from – warehouse","الصرف من – المستودع"),w,{req:true})}${sel("mLoc",tr("Storage location","موقع التخزين"),locOpts(w[0][0]),{req:true})}
@@ -488,21 +560,30 @@ function mRow(){const r=document.createElement("tr");r.innerHTML=`<td><input cla
   if(l){q("sl").textContent=l.sl||"—";q("desc").textContent=l.desc;q("unit").textContent=l.unit||"—";q("dept").textContent=l.dept||"—";q("av").textContent=`${stockQty(l.code,$("#mWh").value,$("#mLoc").value)} ${l.unit||""}`;}
   else ["sl","desc","unit","dept","av"].forEach(k=>q(k).textContent=raw?tr("not found","غير موجود"):"—");};
  q("item").addEventListener("change",upd);r._upd=upd;q("del").onclick=()=>r.remove();return r;}
-BIND.mds=()=>{const tb=$("#mLines");tb.appendChild(mRow());bindRecent("MDS");const upA=()=>[...tb.querySelectorAll("tr")].slice(1).forEach(r=>r._upd&&r._upd());
+BIND.mds=()=>{const tb=$("#mLines");const ED=WH_EDIT&&WH_EDIT.type==="MDS"?D.docs.find(x=>x.no===WH_EDIT.no):null;bindRecent("MDS");const upA=()=>[...tb.querySelectorAll("tr")].slice(1).forEach(r=>r._upd&&r._upd());
  $("#mAdd").onclick=()=>tb.appendChild(mRow());$("#mWh").onchange=e=>{$("#mLoc").innerHTML=locOpts(e.target.value).map(l=>`<option>${l}</option>`).join("");upA();};$("#mLoc").onchange=upA;
  $("#mRcv").addEventListener("change",e=>{const p=parseEmp(e.target.value);if(p){$("#mRcv").value=p.name;$("#mIq").value=p.iqama||p.no||"";if(p.dept&&!$("#mDept").value)$("#mDept").value=p.dept;if(p.mobile&&!$("#mMob").value)$("#mMob").value=p.mobile;}});
+ if(ED){$("#mNo").value=ED.no;$("#mDate").value=ED.date;$("#mType").value=ED.dtype;$("#mRet").value=ED.returnBy||"";$("#mRcv").value=ED.party||"";$("#mIq").value=ED.iqama||"";$("#mMob").value=ED.mobile||"";$("#mDept").value=ED.dept||"";$("#mTo").value=ED.to||"";$("#mWh").value=ED.wh;$("#mLoc").innerHTML=locOpts(ED.wh).map(l=>`<option>${l}</option>`).join("");$("#mLoc").value=ED.loc;$("#mBy").value=ED.by||"";$("#mRem").value=ED.remarks||"";$("#mC1").checked=$("#mC2").checked=true;
+  whReverse(ED,false);   // temporarily, so "Available" shows the stock before this issue
+  ED.lines.forEach(l=>{const r=mRow();tb.appendChild(r);const ln=l.asset?null:((l.sl&&whLines().find(x=>x.sl===l.sl))||lineFor(l.code));r.querySelector("[data-k=item]").value=l.asset?`${l.asset} | ${l.desc||""}`:(ln?slLabel(ln):l.code);r.querySelector("[data-k=qty]").value=l.qty;r.querySelector("[data-k=cond]").value=l.cond||"New";r.querySelector("[data-k=bm]").value=l.bm||"";r.querySelector("[data-k=sn]").value=l.sn||"";r._upd();});
+  ED.lines.forEach(l=>{if(l.asset){const a=D.assets.find(x=>x.id===l.asset);if(a){a.cust=ED.iqama;a.custName=ED.party;a.status="In Use";}}else addStock(l.code,ED.wh,ED.loc,-l.qty);});}
+ else tb.appendChild(mRow());
  const rt=()=>{const on=$("#mType").value==="Temporary loan";$("#mRet").disabled=!on;$("#mRet").closest(".f").style.opacity=on?1:.4;if(on)$("#mRet").dataset.req=1;else delete $("#mRet").dataset.req;};$("#mType").onchange=rt;rt();
- $("#mSave").onclick=async()=>{if(!checkReq($("#main")))return msg("err",ERR.req());const wh=$("#mWh").value,loc=$("#mLoc").value,lines=[];const iq=$("#mIq").value.trim();
-  for(const r of [...tb.querySelectorAll("tr")].slice(1)){r._upd();const raw=r.querySelector("[data-k=item]").value.trim();if(!raw)continue;const qn=+r.querySelector("[data-k=qty]").value;if(!(qn>0))return msg("err",ERR.qty());
+ $("#mSave").onclick=async()=>{if(!checkReq($("#main")))return msg("err",ERR.req());if(ED){const e=whReverse(ED,true);if(e)return msg("err",esc(e));whReverse(ED,false);}
+  const undo=()=>{if(ED)ED.lines.forEach(l=>{if(l.asset){const a=D.assets.find(x=>x.id===l.asset);if(a){a.cust=ED.iqama;a.custName=ED.party;a.status="In Use";}}else addStock(l.code,ED.wh,ED.loc,-l.qty);});};
+  const fail=t=>{undo();return msg("err",t);};
+  const wh=$("#mWh").value,loc=$("#mLoc").value,lines=[];const iq=$("#mIq").value.trim();
+  for(const r of [...tb.querySelectorAll("tr")].slice(1)){r._upd();const raw=r.querySelector("[data-k=item]").value.trim();if(!raw)continue;const qn=+r.querySelector("[data-k=qty]").value;if(!(qn>0))return fail(ERR.qty());
    const cond=r.querySelector("[data-k=cond]").value,bm=r.querySelector("[data-k=bm]").value.trim(),sn=r.querySelector("[data-k=sn]").value.trim().toUpperCase();
-   const a=r._asset;if(a){if(a.cust)return msg("err",tr("This asset is already with someone — return it first.","هذا الأصل في عهدة شخص آخر — يجب إرجاعه أولاً.")+` (${a.id})`);lines.push({code:a.itemCode,asset:a.id,desc:a.desc,qty:1,cond,bm,sn});continue;}
-   const l=r._line;if(!l)return msg("err",ERR.item()+` (${esc(raw)})`);if(stockQty(l.code,wh,loc)<qn)return msg("err",ERR.stock()+` (${l.sl||l.code})`);lines.push({code:l.code,sl:l.sl||"",desc:l.desc,unit:l.unit,dept:l.dept||"",qty:qn,cond,bm,sn});}
-  if(!lines.length)return msg("err",ERR.lines());
-  if(!$("#mC1").checked||!$("#mC2").checked)return msg("err",tr("Tick the storekeeper checks.","حدد خانات التحقق."));
-  const no=nextNo("MDS");const att=[];const f=$("#mAtt").files[0];if(f){try{const a=await saveAtt(f,ATT_DIR.MDS,no,"signed sheet");a.kind="signed";att.push(a);}catch(e){return msg("err",esc(e.message));}}
+   const a=r._asset;if(a){if(a.cust)return fail(tr("This asset is already with someone — return it first.","هذا الأصل في عهدة شخص آخر — يجب إرجاعه أولاً.")+` (${a.id})`);lines.push({code:a.itemCode,asset:a.id,desc:a.desc,qty:1,cond,bm,sn});continue;}
+   const l=r._line;if(!l)return fail(ERR.item()+` (${esc(raw)})`);if(stockQty(l.code,wh,loc)<qn)return fail(ERR.stock()+` (${l.sl||l.code})`);lines.push({code:l.code,sl:l.sl||"",desc:l.desc,unit:l.unit,dept:l.dept||"",qty:qn,cond,bm,sn});}
+  if(!lines.length)return fail(ERR.lines());
+  if(!$("#mC1").checked||!$("#mC2").checked)return fail(tr("Tick the storekeeper checks.","حدد خانات التحقق."));
+  const no=ED?ED.no:nextNo("MDS");const att=ED?[...(ED.att||[])]:[];const f=$("#mAtt").files[0];if(f){try{const a=await saveAtt(f,ATT_DIR.MDS,no,"signed sheet");a.kind="signed";att.push(a);}catch(e){return fail(esc(e.message));}}
   const p=parseEmp($("#mRcv").value);const custKey=iq||(p&&(p.iqama||p.no))||$("#mRcv").value.trim();
   const doc={no,type:"MDS",date:$("#mDate").value,dtype:$("#mType").value,party:$("#mRcv").value.trim(),iqama:custKey,mobile:$("#mMob").value.trim(),dept:$("#mDept").value.trim(),wh,loc,to:$("#mTo").value.trim(),by:$("#mBy").value.trim(),remarks:$("#mRem").value.trim(),returnBy:$("#mType").value==="Temporary loan"?$("#mRet").value:"",checks:{qty:true,id:true},att,lines};
-  lines.forEach(l=>{if(l.asset){const a=D.assets.find(x=>x.id===l.asset);a.cust=custKey;a.custName=doc.party;a.status="In Use";}else addStock(l.code,wh,loc,-l.qty);});D.docs.push(doc);persist();delete KEEP.mds;render();saved(doc.no,doc);};};
+  if(ED){doc.edited={at:today(),by:(typeof LOCAL!=="undefined"&&LOCAL.user)||""};D.docs.splice(D.docs.indexOf(ED),1,doc);}else D.docs.push(doc);
+  lines.forEach(l=>{if(l.asset){const a=D.assets.find(x=>x.id===l.asset);a.cust=custKey;a.custName=doc.party;a.status="In Use";}else addStock(l.code,wh,loc,-l.qty);});WH_EDIT=null;persist();delete KEEP.mds;render();saved(doc.no,doc);};};
 
 VIEWS.mrs=()=>{const w=whOpts();return head(tr("Return (MRS)","إرجاع (MRS)"),tr("Pick the person — everything they hold appears. Tick what comes back.","اختر الشخص — تظهر كل عهدته. حدّد ما تم إرجاعه."))+msgBox+
  `<div class="card"><div class="fg">${fld("rNo",tr("Document No.","رقم المستند"),{ro:true,val:nextNo("MRS")})}${fld("rDate",tr("Date","التاريخ"),{type:"date",val:today(),req:true})}${fld("rP",tr("Person returning","الشخص المُرجِع"),{req:true,list:"empL",w:"w2"})}${sel("rWh",tr("Warehouse","المستودع"),w,{req:true})}${sel("rLoc",tr("Storage location","موقع التخزين"),locOpts(w[0][0]),{req:true})}</div></div>
@@ -1005,6 +1086,7 @@ function gdoc({title,no,date,meta=[],cols,rows,totals=[],sig=["Prepared by","Che
  <div class="sig">${sig.map(s=>`<div>${s}<br>Name / Signature / Date</div>`).join("")}</div>${stamp?`<div class="stamp">${stamp}</div>`:""}
  <div class="foot">Generated by MIDU Logistics Hub · ${esc(no)}${foot?" · "+foot:""}</div></div>`;}
 function whDoc(d){const T={GRN:"MATERIAL RECEIVING NOTE (GRN)",MDS:"MATERIAL DISPATCH SHEET (MDS)",MRS:"MATERIAL RETURN SHEET (MRS)",SC:"STOCK COUNT SHEET",AHS:"ASSET HANDOVER SHEET"}[d.type];
+ if(d.type==="GRN"||d.type==="MDS"||d.type==="MRS")return logForm(d);
  if(d.type==="GRN")return gdoc({title:T,no:d.no,date:d.date,meta:[["Supplier",d.party],["PO No.",d.po],["Delivery note",d.dn],["Warehouse",WH[d.wh].name],["Location",d.loc],["Received by",d.by]],cols:["#","Item code","Description","Unit","Qty","Condition"],rows:d.lines.map((l,i)=>[i+1,l.code,item(l.code)?.desc||"(new item)",item(l.code)?.unit||"",l.qty,l.cond]),sig:["Delivered by (driver)","Received by (storekeeper)","Logistics approval"],stamp:"RECEIVED",right:[4]});
  if(d.type==="MDS")return gdoc({title:T,no:d.no,date:d.date,meta:[["Dispatch type",d.dtype],["Receiver",d.party],["Employee / Iqama",d.iqama],["From",WH[d.wh].name+" › "+d.loc],["To",d.to],["Return by",d.returnBy]],cols:["#","Item / Asset ID","Description","Qty","Condition"],rows:d.lines.map((l,i)=>[i+1,l.asset||l.code,item(l.code)?.desc||"",l.qty,l.cond]),sig:["Received by","Issued by (storekeeper)","Logistics approval"],stamp:"DISPATCHED",right:[3]});
  if(d.type==="MRS")return gdoc({title:T,no:d.no,date:d.date,meta:[["Returned by",d.party],["Employee / Iqama",d.iqama],["Returned to",WH[d.wh].name+" › "+d.loc]],cols:["#","Item / Asset ID","Description","Qty","Condition"],rows:d.lines.map((l,i)=>[i+1,l.asset||l.code,item(l.code)?.desc||"",l.qty,l.cond]),sig:["Returned by","Received by (storekeeper)","Logistics approval"],stamp:"RECEIVED",right:[3]});
