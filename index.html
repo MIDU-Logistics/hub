@@ -325,7 +325,7 @@ const NAV=()=>[
  [tr("Budget","الميزانية")],[1,"capex","◔","#B45309",tr("CAPEX & OPEX","CAPEX و OPEX")],
  [tr("HR","الموارد البشرية")],[1,"att","☺","#BE185D",tr("Attendance (biometric)","الحضور (البصمة)")],
  [tr("Maintenance","الصيانة")],[1,"mcl","✓","#475569",tr("Monthly checklist","قائمة الفحص الشهرية")],[1,"mreq","⚒","#475569",tr("Maintenance requests","طلبات الصيانة")],
- [tr("Tools","أدوات")],[1,"search","⌕","#2C3B57",tr("Search","بحث")]];
+ [tr("Tools","أدوات")],[1,"search","⌕","#2C3B57",tr("Search","بحث")],[1,"users","☷","#2C3B57",tr("Hub users","مستخدمو المنصة")]];
 let view="home";
 function navAllowed(){const n=NAV().filter(x=>x.length===1||M365.can(x[1]));return n.filter((x,i)=>x.length>1||(n[i+1]&&n[i+1].length>1));}
 function drawNav(){$("#nav").innerHTML=navAllowed().map(n=>n.length===1?`<div class="grp">${esc(n[0])}</div>`:`<button data-v="${n[1]}" class="${view===n[1]?"on":""}"><span class="ic" style="background:${n[3]}">${n[2]}</span>${esc(n[4])}</button>`).join("");
@@ -340,7 +340,7 @@ function hubErr(text,detail){let b=document.getElementById("hubErr");if(!b){b=do
  b.innerHTML=`<b>${esc(tr("The folder could not be opened","تعذر فتح المجلد"))}</b><div style="margin:6px 0">${esc(text)}</div><div class="en" style="font-size:12px;color:#7a4a46">${esc(detail||"")}</div><button class="b sm" style="margin-top:8px;background:#9C2B23" onclick="this.parentNode.remove()">${esc(tr("Close","إغلاق"))}</button>`;}
 function drawAcct(){const a=$("#acct");if(!a)return;const btn=(id,txt,bg)=>`<button class="b sm" id="${id}" style="background:${bg}">${txt}</button>`;
  if(M365.signedIn)a.innerHTML=`<span class="en" title="${esc(M365.user.email)}" style="color:#C9D3E6">${esc(M365.user.name)}</span>`+btn("sOut",tr("Sign out","تسجيل الخروج"),"var(--navy2)");
- else if(LOCAL.connected)a.innerHTML=`<span class="en" style="color:#C9D3E6" title="${esc(tr("Shared folder mode","وضع المجلد المشترك"))}">📁 MIDU Hub Data · ${esc(LOCAL.user)}</span>`+btn("lOut",tr("Close folder","إغلاق المجلد"),"var(--navy2)");
+ else if(LOCAL.connected)a.innerHTML=`<span class="en" style="color:#C9D3E6" title="${esc(tr("Shared folder mode","وضع المجلد المشترك"))}">📁 MIDU Hub Data · ${esc(LOCAL.user)}${LOCAL.roles&&LOCAL.roles.length?" · "+esc(LOCAL.roles.join(", ")):""}</span>`+btn("lUser",tr("Change user","تغيير المستخدم"),"var(--navy2)")+(M365.can("users")?btn("lOut",tr("Close folder","إغلاق المجلد"),"var(--navy2)"):"");
  else if(LOCAL.supported&&!M365.configured())a.innerHTML=`<span style="color:#9FB4DA">${tr("Demo","تجريبي")}</span>`+btn("lIn",tr("Open MIDU Hub Data folder","فتح مجلد MIDU Hub Data"),"#1E9E6A");
  else if(M365.configured())a.innerHTML=(M365.error?`<span style="color:#FFB4AC" title="${esc(M365.error)}">✖</span>`:"")+btn("sIn",tr("Sign in with Microsoft","تسجيل الدخول بحساب Microsoft"),"#0078D4");
  else a.innerHTML=`<span style="color:#9FB4DA" title="${esc(tr("Microsoft sign-in starts once IT has registered the app.","يبدأ تسجيل الدخول بعد تسجيل التطبيق من قسم تقنية المعلومات."))}">${tr("Demo","تجريبي")}</span>`;
@@ -348,7 +348,7 @@ function drawAcct(){const a=$("#acct");if(!a)return;const btn=(id,txt,bg)=>`<but
  const li=$("#lIn");if(li)li.onclick=async()=>{const where=location.protocol+"//"+location.host+" · "+(window.top===window?"own tab":"inside another page")+" · secure:"+isSecureContext;
   if(window.top!==window||!/^(file|https):$/.test(location.protocol))return hubErr(tr("The Hub is open inside a preview, where it cannot use folders. Open the MIDU Hub Data folder in File Explorer on your PC and double-click “MIDU Logistics Hub.html” so it opens in Edge.","المنصة مفتوحة داخل معاينة لا تسمح باستخدام المجلدات. افتح مجلد MIDU Hub Data من مستكشف الملفات في جهازك وانقر مرتين على «MIDU Logistics Hub.html» لتفتح في Edge."),where);
   LOCAL.picked=false;const wd=setTimeout(()=>{if(!LOCAL.connected)hubErr(tr("Still waiting after selecting the folder. Chrome may be waiting for OneDrive to download the files, or a small Chrome box may be hidden behind this window.","ما زال الانتظار بعد اختيار المجلد."),where+" · step: "+(LOCAL.step||"-"));},60000);try{await LOCAL.connect();clearTimeout(wd);const eb=document.getElementById("hubErr");if(eb)eb.remove();startData(LOCAL.run);}catch(e){clearTimeout(wd);hubErr((e.name==="AbortError"&&!LOCAL.picked?"Chrome closed the folder window without giving access. If you did select MIDU Hub Data, Chrome is blocking folder access for a page opened from a file. ":"")+(e.name||"Error")+": "+e.message,where+" · step: "+(LOCAL.step||"-"));}};
- const lo=$("#lOut");if(lo)lo.onclick=()=>LOCAL.disconnect();const o=$("#sOut");if(o)o.onclick=()=>M365.signOut();}
+ const lu=$("#lUser");if(lu)lu.onclick=()=>LOCAL.changeUser();const lo=$("#lOut");if(lo)lo.onclick=()=>LOCAL.disconnect();const o=$("#sOut");if(o)o.onclick=()=>M365.signOut();}
 if(BUILD==="en")$("#langBox").style.display="none";
 $("#lgEN").onclick=()=>{L="en";applyLang()};$("#lgAR").onclick=()=>{L="ar";applyLang()};
 $("#site").onchange=()=>render(true);
@@ -371,14 +371,14 @@ VIEWS.home=()=>{
  const capA=sumClass("CAPEX"),capB=Object.values(D.budget).reduce((a,b)=>a+b.CAPEX,0),opA=sumClass("OPEX"),opB=Object.values(D.budget).reduce((a,b)=>a+b.OPEX,0);
  const att=attDay(today());const pres=att.filter(a=>a.in).length,late=att.filter(a=>a.late).length;
  const openMR=D.mreq.filter(r=>r.status!=="Closed").length;const mclDone=D.mcl.some(x=>x.month===m);
- const card=(ic,c,t,d,stats,links)=>`<div class="mod"><div class="hd"><span class="ic" style="background:${c}">${ic}</span><div><b>${t}</b><div class="d">${d}</div></div></div><div class="st">${stats}</div><div class="links">${links.map(([v,l])=>`<button class="b l sm" data-go="${v}">${l}</button>`).join("")}</div></div>`;
+ const card=(ic,c,t,d,stats,links)=>(links=links.filter(([v])=>M365.can(v))).length===0?"":`<div class="mod"><div class="hd"><span class="ic" style="background:${c}">${ic}</span><div><b>${t}</b><div class="d">${d}</div></div></div><div class="st">${stats}</div><div class="links">${links.map(([v,l])=>`<button class="b l sm" data-go="${v}">${l}</button>`).join("")}</div></div>`;
  return (GAS&&DBEMPTY?`<div class="banner"><b>${tr("Some SharePoint lists are not created yet:","بعض قوائم SharePoint لم تُنشأ بعد:")}</b><span class="en">${esc(MISSING.join(" · "))}</span><span>${tr("Screens that save to these lists show “Not saved” until the lists are created.","الشاشات التي تحفظ في هذه القوائم تُظهر «لم يُحفظ» حتى يتم إنشاء القوائم.")}</span></div>`:"")+head(tr("Home","الرئيسية"),tr("One place for every logistics task. Pick a module — each entry is checked and saved once.","مكان واحد لكل مهام اللوجستيات. اختر الوحدة — كل إدخال يُفحص ويُحفظ مرة واحدة."))+
  `<div class="grid g5" style="margin-bottom:18px">
   <div class="kpi"><div class="v">${D.assets.filter(inS).length}</div><div class="l">${tr("Assets registered","أصول مسجلة")}</div></div>
   <div class="kpi ${low?"warn":""}"><div class="v">${low}</div><div class="l">${tr("Items below minimum","أصناف تحت الحد الأدنى")}</div></div>
-  <div class="kpi"><div class="v">${money(outDN)}</div><div class="l">${tr("Back charge outstanding (SAR)","إعادة فوترة غير محصّلة (ريال)")}</div></div>
-  <div class="kpi ${blocked?"warn":""}"><div class="v">${blocked}</div><div class="l">${tr("Invoices blocked (not fully received)","فواتير موقوفة (استلام غير مكتمل)")}</div></div>
-  <div class="kpi"><div class="v">${pres}/${D.emps.length}</div><div class="l">${tr("Present today","الحاضرون اليوم")}</div></div></div>
+  ${M365.can("utReg")?`<div class="kpi"><div class="v">${money(outDN)}</div><div class="l">${tr("Back charge outstanding (SAR)","إعادة فوترة غير محصّلة (ريال)")}</div></div>`:""}
+  ${M365.can("fin")?`<div class="kpi ${blocked?"warn":""}"><div class="v">${blocked}</div><div class="l">${tr("Invoices blocked (not fully received)","فواتير موقوفة (استلام غير مكتمل)")}</div></div>`:""}
+  ${M365.can("att")?`<div class="kpi"><div class="v">${pres}/${D.emps.length}</div><div class="l">${tr("Present today","الحاضرون اليوم")}</div></div>`:""}</div>
  <div class="grid g3">
  ${card("▦","#1E9E6A",tr("Warehouse & Assets","المستودع والأصول"),tr("GRN · MDS · MRS · assets · counts","استلام · صرف · إرجاع · أصول · جرد"),`${tag(D.stock.filter(inS).length+" "+tr("stock lines","سطر مخزون"),"b")}${tag(D.docs.filter(d=>d.date===today()).length+" "+tr("documents today","مستند اليوم"))}`,[["grn",tr("Receive","استلام")],["mds",tr("Issue","صرف")],["mrs",tr("Return","إرجاع")],["asset",tr("New asset","أصل جديد")]])}
  ${card("⛽","#0E7490",tr("Utilities","الخدمات"),tr("Daily → weekly → monthly → back charge → debit note → master","يومي ← أسبوعي ← شهري ← إعادة فوترة ← إشعار مدين ← السجل"),`${tag(utM.length+" "+tr("readings this month","قراءة هذا الشهر"),"b")}${tag(money(utAmt)+" SAR","a")}`,[["utDaily",tr("Daily readings","القراءات اليومية")],["utBC",tr("Back charge","إعادة الفوترة")],["utReg",tr("Register","السجل")]])}
@@ -536,6 +536,25 @@ BIND.labels=()=>{let shown=[];
    else if(M365.signedIn){await M365.uploadDoc("01 Warehouse & Assets/06 Asset Labels",name,blob);where=" · "+tr("copy saved in Hub Documents","نسخة محفوظة في مستندات المنصة");}}catch(e){console.warn(e);}
   msg("ok",`✔ ${tr("Downloaded","تم التنزيل")}: <b class="en">${esc(name)}</b> (${n} ${tr("labels","ملصق")})${where}`);};
  draw();queue();};
+
+/* ============================ HUB USERS (folder mode) ============================ */
+const HUB_ROLES=[["admin","Admin – all screens"],["logistics","Logistics"],["storekeeper","Storekeeper – GRN, MDS, MRS"],["procurement","Procurement"],["finance","Finance"],["hr","HR"],["maintenance","Maintenance"],["management","Management – all screens"]];
+VIEWS.users=()=>{if(!LOCAL.connected)return head(tr("Hub users","مستخدمو المنصة"),tr("When the Hub is signed in with Microsoft, users and roles are managed in the SharePoint list “Hub Users”.","عند تسجيل الدخول بحساب Microsoft تُدار الصلاحيات في قائمة SharePoint «Hub Users»."));
+ return head(tr("Hub users","مستخدمو المنصة"),tr("Each person opens the Hub with their name and PIN and sees only the screens of their role. This is a simple lock for the shared folder; real Microsoft-account permissions come when IT enables sign-in.","يفتح كل شخص المنصة باسمه ورمزه ويرى شاشات دوره فقط. هذا قفل بسيط للمجلد المشترك؛ الصلاحيات الفعلية بحساب Microsoft تأتي عند تفعيل تسجيل الدخول من قسم تقنية المعلومات."))+msgBox+
+ `<div class="card"><div class="fg">${fld("uN",tr("Full name","الاسم الكامل"),{req:true,ph:"e.g. Mazhar Ashraf"})}${sel("uR",tr("Role","الدور"),HUB_ROLES)}<div class="f"><label>&nbsp;</label><button class="b n" id="uAdd">${tr("Add user","إضافة مستخدم")}</button></div></div>
+ <p class="sub">${tr("New users choose their own PIN the first time they open the Hub.","يختار المستخدم الجديد رمزه عند أول فتح للمنصة.")}</p></div><div class="card"><table class="t" id="uTab"></table></div>`;};
+BIND.users=()=>{if(!LOCAL.connected)return;
+ const draw=async()=>{await LOCAL.readUsers();$("#uTab").innerHTML=`<tr><th>${tr("Name","الاسم")}</th><th>${tr("Role","الدور")}</th><th>PIN</th><th>${tr("Status","الحالة")}</th><th></th></tr>`+LOCAL.users.map((u,i)=>`<tr><td class="en"><b>${esc(u.name)}</b></td>
+  <td><select data-r="${i}">${HUB_ROLES.map(([v,l])=>`<option value="${v}" ${String(u.role).split(",")[0].trim()===v?"selected":""}>${esc(l)}</option>`).join("")}</select></td>
+  <td>${u.pinHash?tag(tr("Set","مُعيّن"),"g"):tag(tr("Chosen at first sign-in","يُختار عند أول دخول"),"a")}</td><td>${u.active===false?tag(tr("Disabled","موقوف"),"r"):tag(tr("Active","نشط"),"g")}</td>
+  <td><button class="b sm" data-p="${i}">${tr("Reset PIN","إعادة تعيين الرمز")}</button> <button class="b sm" data-a="${i}">${u.active===false?tr("Enable","تفعيل"):tr("Disable","إيقاف")}</button></td></tr>`).join("");
+  const save=async(u,t)=>{if(u.name===LOCAL.user&&(u.active===false||!/admin|management/.test(u.role)))return msg("err",tr("You cannot remove your own admin access.","لا يمكنك إزالة صلاحية المسؤول عن نفسك."));await LOCAL.writeUsers([u]);msg("ok","✔ "+esc(t));draw();};
+  $("#uTab").querySelectorAll("select[data-r]").forEach(s=>s.onchange=()=>{const u={...LOCAL.users[+s.dataset.r],role:s.value};save(u,u.name+" → "+s.value);});
+  $("#uTab").querySelectorAll("button[data-p]").forEach(b=>b.onclick=()=>{const u={...LOCAL.users[+b.dataset.p]};delete u.pinHash;save(u,tr("PIN reset — ","تمت إعادة تعيين الرمز — ")+u.name+tr(" chooses a new PIN at the next sign-in."," سيختار رمزاً جديداً عند الدخول التالي."));});
+  $("#uTab").querySelectorAll("button[data-a]").forEach(b=>b.onclick=()=>{const u={...LOCAL.users[+b.dataset.a]};u.active=u.active===false;save(u,u.name+": "+(u.active?tr("enabled","مفعّل"):tr("disabled","موقوف")));});};
+ $("#uAdd").onclick=async()=>{const n=$("#uN").value.trim();if(!n)return msg("err",ERR.req());await LOCAL.readUsers();if(LOCAL.users.some(u=>u.name.toLowerCase()===n.toLowerCase()))return msg("err",tr("This name is already in the list.","هذا الاسم موجود في القائمة."));
+  await LOCAL.writeUsers([{name:n,role:$("#uR").value,active:true}]);$("#uN").value="";msg("ok","✔ "+esc(n)+" "+tr("added. They choose their PIN when they first open the Hub.","أُضيف. سيختار رمزه عند أول فتح للمنصة."));draw();};
+ draw();};
 
 /* ============================ UTILITIES ============================ */
 const utFlow=k=>`<div class="flow">${[["utDaily",tr("Daily readings","القراءات اليومية")],["utRep",tr("Weekly / monthly","أسبوعي / شهري")],["utBC",tr("Back charge","إعادة الفوترة")],["utBC",tr("Debit note","إشعار مدين")],["utReg",tr("Master register","السجل الرئيسي")]].map(([v,l],i)=>`${i?"<em>→</em>":""}<span class="${v===k?"on":""}">${l}</span>`).join("")}</div>`;
