@@ -88,7 +88,9 @@ async function pinHash(name, pin) {
 }
 LOCAL.readUsers = async function () {
   const d = await subDir("data", true); const j = await readJson(d, "hub-users.json");
-  LOCAL.users = (j && Array.isArray(j.users)) ? j.users : []; return LOCAL.users;
+  LOCAL.users = (j && Array.isArray(j.users)) ? j.users : [];
+  LOCAL.users.forEach(u => { if (/\blogistics\b/.test(u.role || "")) u.role = [...new Set(String(u.role).replace(/\blogistics\b/, "utilities,assets").split(",").map(x => x.trim()).filter(Boolean))].join(","); });
+  return LOCAL.users;
 };
 LOCAL.writeUsers = async function (users) {
   const d = await subDir("data", true); const j = (await readJson(d, "hub-users.json")) || {};
