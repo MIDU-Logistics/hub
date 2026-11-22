@@ -42,13 +42,13 @@ const M365_DEFAULT_RATES = [
 const M365_ROLES = {
   admin: "*", management: "*", viewer: "*",   // viewer = every screen, nothing saved (folder mode)
   utilities:   ["home","utDaily","utRep","utBC","utReg","search"],
-  assets:      ["home","asset","assetReg","labels","count","forms","search"],
-  logistics:   ["home","grn","mds","mrs","asset","assetReg","count","labels","utDaily","utRep","utBC","utReg","pr","mcl","mreq","forms","search"],   // older role name
-  storekeeper: ["home","grn","mds","mrs","forms","search"],
-  procurement: ["home","pr","cqs","po","search"],
-  finance:     ["home","po","fin","capex","utReg","search"],
-  hr:          ["home","att","search"],
-  maintenance: ["home","mcl","mreq","forms","search"]
+  assets:      ["home","dashWH","asset","assetReg","labels","count","forms","search"],
+  logistics:   ["home","dashWH","dashMT","grn","mds","mrs","asset","assetReg","count","labels","utDaily","utRep","utBC","utReg","pr","mcl","mreq","forms","search"],   // older role name
+  storekeeper: ["home","dashWH","grn","mds","mrs","forms","search"],
+  procurement: ["home","dashPF","pr","cqs","po","search"],
+  finance:     ["home","dashPF","po","fin","capex","utReg","search"],
+  hr:          ["home","dashHR","att","search"],
+  maintenance: ["home","dashMT","mcl","mreq","forms","search"]
 };
 
 /* ============================ LIST MAPPING ============================
