@@ -17,8 +17,8 @@
 <script src="vendor/jspdf.umd.min.js" defer></script>
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
-<script src="m365.js?v=202611221327"></script>
-<script src="local.js?v=202611221327"></script>
+<script src="m365.js?v=202611221333"></script>
+<script src="local.js?v=202611221333"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -317,7 +317,7 @@ function saved(no,doc,cls=""){msg("ok",`✔ ${tr("Saved","تم الحفظ")}: <b
 const NAV=()=>[
  [null,"home","⌂","#1B273D",tr("Home","الرئيسية")],
  [tr("Warehouse & Assets","المستودع والأصول")],
- [1,"grn","⬇","#1E9E6A",tr("Receive (GRN)","استلام (GRN)")],[1,"mds","⬆","#2F6FDE",tr("Issue (MDS)","صرف (MDS)")],[1,"mrs","↩","#138A8A",tr("Return (MRS)","إرجاع (MRS)")],[1,"asset","＋","#714B67",tr("New asset","أصل جديد")],[1,"count","☑","#D9961A",tr("Stock count","جرد")],[1,"labels","▦","#714B67",tr("Print asset labels","طباعة ملصقات الأصول")],
+ [1,"grn","⬇","#1E9E6A",tr("Receive (GRN)","استلام (GRN)")],[1,"mds","⬆","#2F6FDE",tr("Issue (MDS)","صرف (MDS)")],[1,"mrs","↩","#138A8A",tr("Return (MRS)","إرجاع (MRS)")],[1,"asset","＋","#714B67",tr("New asset","أصل جديد")],[1,"assetReg","☷","#714B67",tr("Asset register","سجل الأصول")],[1,"count","☑","#D9961A",tr("Stock count","جرد")],[1,"labels","▦","#714B67",tr("Print asset labels","طباعة ملصقات الأصول")],
  [tr("Utilities","الخدمات (Utilities)")],
  [1,"utDaily","⛽","#0E7490",tr("Daily readings","القراءات اليومية")],[1,"utRep","▤","#0E7490",tr("Weekly & monthly","أسبوعي وشهري")],[1,"utBC","₪","#0E7490",tr("Back charge & debit notes","إعادة الفوترة وإشعارات المدين")],[1,"utReg","☰","#0E7490",tr("Master back-charge register","السجل الرئيسي لإعادة الفوترة")],
  [tr("Procurement & Finance","المشتريات والمالية")],
@@ -538,7 +538,7 @@ BIND.labels=()=>{let shown=[];
  draw();queue();};
 
 /* ============================ HUB USERS (folder mode) ============================ */
-const HUB_ROLES=[["admin","Admin – all screens"],["logistics","Logistics"],["storekeeper","Storekeeper – GRN, MDS, MRS"],["procurement","Procurement"],["finance","Finance"],["hr","HR"],["maintenance","Maintenance"],["management","Management (PD / CEO) – all screens except Hub users"]];
+const HUB_ROLES=[["admin","Admin – all screens"],["utilities","Utilities"],["assets","Assets Management"],["storekeeper","Storekeeper – GRN, MDS, MRS"],["procurement","Procurement"],["finance","Finance"],["hr","HR"],["maintenance","Maintenance"],["management","Management (PD / CEO) – all screens except Hub users"]];
 VIEWS.users=()=>{if(!LOCAL.connected)return head(tr("Hub users","مستخدمو المنصة"),tr("When the Hub is signed in with Microsoft, users and roles are managed in the SharePoint list “Hub Users”.","عند تسجيل الدخول بحساب Microsoft تُدار الصلاحيات في قائمة SharePoint «Hub Users»."));
  return head(tr("Hub users","مستخدمو المنصة"),tr("Each person opens the Hub with their name and PIN and sees only the screens of their role. This is a simple lock for the shared folder; real Microsoft-account permissions come when IT enables sign-in.","يفتح كل شخص المنصة باسمه ورمزه ويرى شاشات دوره فقط. هذا قفل بسيط للمجلد المشترك؛ الصلاحيات الفعلية بحساب Microsoft تأتي عند تفعيل تسجيل الدخول من قسم تقنية المعلومات."))+msgBox+
  `<div class="card"><div class="fg">${fld("uN",tr("Full name","الاسم الكامل"),{req:true,ph:"e.g. Mazhar Ashraf"})}<div class="f" style="grid-column:span 2"><label>${tr("Roles (tick one or more)","الأدوار (اختر واحداً أو أكثر)")}</label><div id="uR" style="display:flex;flex-wrap:wrap;gap:6px 14px;padding-top:4px">${HUB_ROLES.map(([v,l])=>`<label style="font-weight:400;display:flex;gap:5px;align-items:center;white-space:nowrap"><input type="checkbox" value="${v}">${esc(l)}</label>`).join("")}</div></div><div class="f"><label>&nbsp;</label><button class="b n" id="uAdd">${tr("Add user","إضافة مستخدم")}</button></div></div>
@@ -556,6 +556,38 @@ BIND.users=()=>{if(!LOCAL.connected)return;
   const role=[...document.querySelectorAll("#uR input:checked")].map(x=>x.value).join(",");if(!role)return msg("err",tr("Tick at least one role.","اختر دوراً واحداً على الأقل."));
   await LOCAL.writeUsers([{name:n,role,active:true}]);$("#uN").value="";document.querySelectorAll("#uR input").forEach(x=>x.checked=false);msg("ok","✔ "+esc(n)+" "+tr("added. They choose their PIN when they first open the Hub.","أُضيف. سيختار رمزه عند أول فتح للمنصة."));draw();};
  draw();};
+
+/* ============================ ASSET REGISTER (search · edit · print label) ============================ */
+let AR_SEL=null;
+const arStatuses=()=>[...new Set(["In Stock","In Use","Under Maintenance","Damaged","Lost","Disposed",...D.assets.map(a=>a.status).filter(Boolean)])];
+VIEWS.assetReg=()=>{const types=[...new Set(D.assets.map(a=>a.type).filter(Boolean))].sort();
+ return head(tr("Asset register","سجل الأصول"),tr("Search any asset, open it to edit its details, or print its label. Holder changes are made through Issue (MDS) and Return (MRS).","ابحث عن أي أصل وافتحه لتعديل بياناته أو طباعة ملصقه. تغيير حامل العهدة يتم من خلال الصرف (MDS) والإرجاع (MRS)."))+msgBox+
+ `<div class="card"><div class="fg">${fld("arQ",tr("Search ID, description, serial, holder, location","ابحث بالرقم أو الوصف أو الرقم التسلسلي أو الحامل أو الموقع"),{ph:"LAP-001 · DELL · 1DHS723 · PL 1"})}${sel("arT",tr("Asset type","نوع الأصل"),[["",tr("All types","كل الأنواع")],...types])}${sel("arS",tr("Status","الحالة"),[["",tr("All statuses","كل الحالات")],...arStatuses()])}<div class="f"><label>&nbsp;</label><span class="sub" id="arCnt"></span></div></div>
+ <div style="max-height:420px;overflow:auto;margin-top:10px"><table class="t" id="arTab"></table></div></div><div id="arEd"></div>`;};
+BIND.assetReg=()=>{let shown=[];
+ const draw=()=>{const q=$("#arQ").value.trim().toLowerCase(),t=$("#arT").value,st=$("#arS").value;
+  shown=D.assets.filter(a=>(!t||a.type===t)&&(!st||(a.status||"")===st)&&(!q||[a.id,a.desc,a.brand,a.model,a.serial,a.custName,(a.cust&&emp(a.cust)?.name),a.loc,a.wh,a.itemCode].join(" ").toLowerCase().includes(q))).sort((a,b)=>a.id.localeCompare(b.id));
+  $("#arCnt").textContent=shown.length+" "+tr("assets","أصل");
+  $("#arTab").innerHTML=`<tr><th>${tr("Asset ID","رقم الأصل")}</th><th>${tr("Description","الوصف")}</th><th>${tr("Serial No.","الرقم التسلسلي")}</th><th>${tr("Location","الموقع")}</th><th>${tr("Holder","حامل العهدة")}</th><th>${tr("Status","الحالة")}</th><th></th></tr>`+
+   shown.slice(0,300).map((a,i)=>`<tr><td class="en"><b>${esc(a.id)}</b></td><td class="en">${esc(a.desc)}</td><td class="en">${esc(a.serial||"")}</td><td class="en">${esc([a.wh,a.loc].filter(Boolean).join(" · "))}</td><td class="en">${esc((a.cust&&emp(a.cust)?.name)||a.custName||"")}</td><td>${a.status?tag(a.status,a.status==="In Use"?"b":a.status==="In Stock"?"g":"a"):""}</td><td style="white-space:nowrap"><button class="b sm" data-e="${i}">${tr("Edit","تعديل")}</button> ${M365.can("labels")?`<button class="b sm" data-l="${i}">${tr("Label","ملصق")}</button>`:""}</td></tr>`).join("")+
+   (shown.length>300?`<tr><td colspan="7" class="sub">${tr("Showing the first 300 — narrow the search.","يتم عرض أول 300 — ضيّق البحث.")}</td></tr>`:"");
+  $("#arTab").querySelectorAll("button[data-e]").forEach(b=>b.onclick=()=>edit(shown[+b.dataset.e]));
+  $("#arTab").querySelectorAll("button[data-l]").forEach(b=>b.onclick=()=>{const a=shown[+b.dataset.l];if(!LBQ.some(x=>x.id===a.id))LBQ.push({id:a.id,desc:a.desc||"",copies:1});lbSave();go("labels");});};
+ const edit=a=>{AR_SEL=a.id;const w=whOpts(),locs=locOpts(a.wh||w[0][0]);if(a.loc&&!locs.includes(a.loc))locs.unshift(a.loc);
+  $("#arEd").innerHTML=`<div class="card"><h3 style="margin:0 0 10px">${tr("Edit asset","تعديل الأصل")} <span class="en">${esc(a.id)}</span> <span class="sub en">${esc(a.type||"")} · ${esc(a.itemCode||"")}</span></h3><div class="fg">
+   ${fld("eDesc",tr("Description","الوصف"),{req:true,w:"w2",val:a.desc||""})}${fld("eBr",tr("Brand","العلامة"),{val:a.brand||""})}${fld("eMo",tr("Model","الموديل"),{val:a.model||""})}
+   ${fld("eSn",tr("Serial No.","الرقم التسلسلي"),{upper:true,val:a.serial||""})}${sel("eOwn",tr("Ownership","الملكية"),[["",""],["MIDU-owned",tr("MIDU-owned","مملوك لـ MIDU")],["Rented",tr("Rented","مستأجر")],["Subcontractor-owned",tr("Subcontractor-owned","مملوك لمقاول")]],{val:a.own||""})}
+   ${sel("eWh",tr("Warehouse","المستودع"),w,{val:a.wh||""})}${sel("eLoc",tr("Storage location","موقع التخزين"),locs,{val:a.loc||""})}${sel("eSt",tr("Status","الحالة"),arStatuses(),{val:a.status||""})}
+   ${fld("eCu",tr("Holder (change through MDS / MRS)","حامل العهدة (يتغير عبر الصرف / الإرجاع)"),{ro:true,val:(a.cust&&emp(a.cust)?.name)||a.custName||""})}</div>
+   <div class="btns"><button class="b l" id="eCancel">${tr("Close","إغلاق")}</button><span style="flex:1"></span>${M365.can("labels")?`<button class="b l" id="eLbl">${tr("Print label","طباعة الملصق")}</button>`:""}<button class="b p" id="eSave">${tr("Save changes","حفظ التعديلات")}</button></div></div>`;
+  $("#eWh").onchange=e=>$("#eLoc").innerHTML=locOpts(e.target.value).map(l=>`<option>${esc(l)}</option>`).join("");
+  $("#eCancel").onclick=()=>{AR_SEL=null;$("#arEd").innerHTML="";};
+  const lb=$("#eLbl");if(lb)lb.onclick=()=>{if(!LBQ.some(x=>x.id===a.id))LBQ.push({id:a.id,desc:$("#eDesc").value.trim()||a.desc||"",copies:1});lbSave();go("labels");};
+  $("#eSave").onclick=()=>{if(!$("#eDesc").value.trim())return msg("err",ERR.req());const r=D.assets.find(x=>x.id===AR_SEL);if(!r)return;
+   Object.assign(r,{desc:$("#eDesc").value.trim(),brand:$("#eBr").value.trim(),model:$("#eMo").value.trim(),serial:$("#eSn").value.trim().toUpperCase(),own:$("#eOwn").value,wh:$("#eWh").value,loc:$("#eLoc").value,status:$("#eSt").value});
+   persist();msg("ok",`✔ ${tr("Saved","تم الحفظ")}: <b class="en">${esc(r.id)}</b>`);draw();};
+  $("#arEd").scrollIntoView({behavior:"smooth",block:"start"});};
+ $("#arQ").oninput=draw;$("#arT").onchange=draw;$("#arS").onchange=draw;draw();};
 
 /* ============================ UTILITIES ============================ */
 const utFlow=k=>`<div class="flow">${[["utDaily",tr("Daily readings","القراءات اليومية")],["utRep",tr("Weekly / monthly","أسبوعي / شهري")],["utBC",tr("Back charge","إعادة الفوترة")],["utBC",tr("Debit note","إشعار مدين")],["utReg",tr("Master register","السجل الرئيسي")]].map(([v,l],i)=>`${i?"<em>→</em>":""}<span class="${v===k?"on":""}">${l}</span>`).join("")}</div>`;
