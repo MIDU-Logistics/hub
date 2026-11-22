@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611221519"></script>
-<script src="local.js?v=202611221519"></script>
+<script src="m365.js?v=202611221530"></script>
+<script src="local.js?v=202611221530"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -1408,6 +1408,159 @@ function tkWeekHtml(m,st){const days=Array.from({length:7},(_,i)=>addDays(st,i))
  return p1+p2;}
 function tkReportHtml(m,wk){const first=m+"-01",last=upD(m,upDays(m)),W=[];for(let st=wkStart(first);st<=last;st=addDays(st,7))W.push(st);
  const sel=wk&&wk!=="all"?[wk]:W;return `<div class="doc xl" style="font-family:'Plus Jakarta Sans',Inter,Arial,Helvetica,sans-serif;color:#1d2321;padding:8px 12px"><style>@page{size:A4 landscape;margin:8mm}</style>${sel.map((st,i)=>`<div style="${i<sel.length-1?"page-break-after:always":""}">${tkWeekHtml(m,st)}</div>`).join("")}</div>`;}
+
+/* ===== Utilities dashboard (layout of Turki's MIDU Utilities Dashboard), replaces the Weekly & monthly page ===== */
+const UD_SEC={"Diesel":["Generators diesel","Equipment diesel","Tower lights diesel"],"Water & services":["Drinking water (labour)","Drinking water cartons","Potable water","Sewage","Garbage skip","Ice cubes"],"Concrete":["Concrete trucks","Concrete vacuum","Concrete waste skip"]};
+const UD_ZONES=["PL 1 · ShinYoung","PL 2 · Benteler","PL 3 · JVIS","PL 4 · FAXGIN","PL 5 · LEAR","MIDU Complex","Concrete","MCC","Store / Laydown Area","Other"];
+const UD_ZC={"PL 1 · ShinYoung":"#2F6FB5","PL 2 · Benteler":"#E0832B","PL 3 · JVIS":"#3E9B6B","PL 4 · FAXGIN":"#B8456B","PL 5 · LEAR":"#7E5BC4","MIDU Complex":"#5B6876","Concrete":"#C9A227","MCC":"#138A8A","Store / Laydown Area":"#8C9AA8","Other":"#C4C4C4"};
+const UD_LAB={"Generators diesel":"Generators diesel","Equipment diesel":"Equipment/vehicles diesel","Tower lights diesel":"Tower lights diesel","Drinking water (labour)":"Labour drinking water","Drinking water cartons":"Drinking water cartons","Potable water":"Potable water supply","Sewage":"Sewage vacuum","Garbage skip":"Garbage removal","Ice cubes":"Ice cubes","Concrete trucks":"Concrete trucks","Concrete vacuum":"Concrete vacuum","Concrete waste skip":"Concrete waste skip"};
+let UD={tab:"ov",from:"",to:"",zone:"",sec:"",item:"",ctype:"Concrete trucks",sort:"date",dir:1,page:0};
+function udZone(it){if(!it)return "Other";const s=String(it.loc||"")+" "+String(it.title||"");
+ const P=[["ShinYoung",0],["Benteler",1],["JVIS",2],["FAXGIN",3],["LEAR",4]];
+ if(it.cat==="Equipment diesel")return /MIDU/i.test(s)?"MIDU Complex":"Concrete";
+ for(const [n,i] of P)if(new RegExp(n,"i").test(it.loc||""))return UD_ZONES[i];
+ if(/MIDU Complex|MIDU staff/i.test(it.loc||""))return "MIDU Complex";
+ if(/laydown/i.test(s))return "Store / Laydown Area";if(/^MCC/i.test(it.loc||it.title||""))return "MCC";if(/concrete/i.test(s))return "Concrete";
+ const m=s.match(/PL\s*([1-5])/i);if(m)return UD_ZONES[+m[1]-1];return "Other";}
+const udSecOf=c=>Object.keys(UD_SEC).find(k=>UD_SEC[k].includes(c))||"Other";
+const udN=v=>{v=Math.round(v*10)/10;return v.toLocaleString("en-US",{maximumFractionDigits:1});};
+const udK=v=>v>=10000?Math.round(v/1000)+"k":v>=1000?(v/1000).toFixed(1)+"k":udN(v);
+const udDay=ds=>{const d=new Date(ds+"T12:00:00Z");return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getUTCDay()]+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getUTCMonth()]+" "+d.getUTCDate();};
+const udShort=ds=>udDay(ds).slice(4);
+function udRows(o={}){const m=$("#rpM").value;return D.ut.filter(u=>u.date.startsWith(m)).map(u=>{const it=uItem(u.item);return Object.assign({},u,{_it:it,_z:udZone(it),_s:udSecOf(u.type)});})
+ .filter(u=>(!UD.from||u.date>=UD.from)&&(!UD.to||u.date<=UD.to)&&(o.noZone||!UD.zone||u._z===UD.zone)&&(o.noSec||!UD.sec||u._s===UD.sec)&&(o.noItem||!UD.item||u.item===UD.item||u.type===UD.item));}
+function udDays(){const m=$("#rpM").value,n=upDays(m),a=[];for(let i=1;i<=n;i++){const d=upD(m,i);if((!UD.from||d>=UD.from)&&(!UD.to||d<=UD.to))a.push(d);}return a;}
+const udSum=(r,f)=>r.reduce((a,u)=>a+(f?f(u):u.qty),0);
+function udKpi(lab,unit,r,days){const by={};r.forEach(u=>by[u.date]=(by[u.date]||0)+u.qty);const used=Object.keys(by).filter(d=>by[d]).sort(),tot=udSum(r);
+ const rng=days.length?udShort(days[0])+"–"+udShort(days[days.length-1]):"";
+ if(!tot)return `<div class="udk"><div class="udkl">${lab} · ${rng}</div><div class="udkv">0 <small>${unit}</small></div><div class="udks">${tr("Not used in this range","غير مستخدم في هذه الفترة")}</div></div>`;
+ const avg=tot/used.length,ld=used[used.length-1],lv=by[ld],pc=Math.round((lv-avg)/avg*100);
+ return `<div class="udk"><div class="udkl">${lab} · ${rng}</div><div class="udkv">${udN(tot)} <small>${unit}</small></div><div class="udks">Avg ${udN(avg)} ${unit} on ${used.length} day${used.length>1?"s":""} used<br>Last day ${udShort(ld)}: ${udN(lv)} (${pc>=0?"▲":"▼"} ${Math.abs(pc)}% vs avg)</div></div>`;}
+const udUnit=c=>{const it=D.uitems.find(i=>i.cat===c);return it?it.unit||"":"";};
+function udCard(t,sub,body,x){return `<div class="udc${x?" "+x:""}"><h3>${t}</h3>${sub?`<p class="udsub">${sub}</p>`:""}${body}</div>`;}
+/* stacked bar chart by day: series=[{k,lab,col}], val(day,k) */
+function udStack(days,series,val,o={}){const W=o.w||620,H=o.h||210,L=46,B=22,T=8,cw=(W-L-6)/Math.max(days.length,1);const tots=days.map(d=>series.reduce((a,s)=>a+val(d,s.k),0));const mx=Math.max(1,...tots);
+ const step=Math.pow(10,Math.floor(Math.log10(mx)));let nice=Math.ceil(mx/step)*step;const tk=[0,1,2,3,4,5].map(i=>nice*i/5);
+ let g=tk.map(v=>{const y=T+(H-T-B)*(1-v/nice);return `<line x1="${L}" x2="${W}" y1="${y}" y2="${y}" stroke="#EEF0F3"/><text x="${L-6}" y="${y+3}" text-anchor="end" font-size="10" fill="#6B7280">${v.toLocaleString("en-US")}</text>`;}).join("");
+ days.forEach((d,i)=>{let y=H-B;const x=L+i*cw+cw*0.14,w=cw*0.72;series.forEach(s=>{const v=val(d,s.k);if(!v)return;const h=(H-T-B)*v/nice;y-=h;g+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${s.col}" rx="1.5"><title>${udDay(d)} · ${s.lab}: ${udN(v)}</title></rect>`;});
+  g+=`<rect class="udhit" data-day="${d}" x="${L+i*cw}" y="${T}" width="${cw}" height="${H-T-B}" fill="transparent"><title>${udDay(d)}: ${udN(tots[i])}</title></rect><text x="${L+i*cw+cw/2}" y="${H-6}" text-anchor="middle" font-size="10" fill="#6B7280">${+d.slice(8)}</text>`;});
+ const leg=series.length>1||o.leg?`<div class="udleg">${series.map(s=>`<span><i style="background:${s.col}"></i>${s.lab}</span>`).join("")}</div>`:"";
+ return leg+`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${g}</svg>`;}
+/* horizontal bars: [{lab,v,col,f}] */
+function udHbar(items,unit,o={}){const tot=items.reduce((a,x)=>a+x.v,0),mx=Math.max(1,...items.map(x=>x.v));if(!items.length)return `<p class="udsub">${tr("No data for the current filters.","لا توجد بيانات.")}</p>`;
+ return `<div class="udhb">${items.map(x=>`<div class="udhr"${x.f?` data-f='${esc(JSON.stringify(x.f))}'`:""}><span class="udhl">${esc(x.lab)}</span><span class="udht"><i style="width:${(x.v/mx*100).toFixed(1)}%;background:${x.col||"#5B6876"}"></i></span><span class="udhv">${udN(x.v)} ${unit} · ${tot?Math.round(x.v/tot*100):0}%</span></div>`).join("")}</div>`;}
+/* heatmap: rows=[{lab,key,vals(day)}] */
+function udHeat(days,rows){return `<div class="udhm" style="grid-template-columns:150px repeat(${days.length},1fr)">${rows.map(r=>{const vs=days.map(d=>r.val(d)),mx=Math.max(0,...vs);
+ return `<div class="udhml">${esc(r.lab)}</div>`+vs.map((v,i)=>{const a=mx&&v?0.25+0.75*v/mx:0;return `<div class="udhc" data-day="${days[i]}" data-it="${esc(r.key)}" style="background:${v?`rgba(14,138,148,${a.toFixed(2)})`:"#F5F6F7"};color:${a>0.55?"#fff":"#1F2A37"}" title="${esc(r.lab)} · ${udDay(days[i])}: ${udN(v)}">${v?udK(v):""}</div>`;}).join("");}).join("")}<div></div>${days.map(d=>`<div class="udhx">${+d.slice(8)}</div>`).join("")}</div>`;}
+function udSpark(vals,col){const W=90,H=22,mx=Math.max(1,...vals);const p=vals.map((v,i)=>`${(i/(Math.max(vals.length-1,1))*W).toFixed(1)},${(H-2-(H-4)*v/mx).toFixed(1)}`).join(" ");return `<svg width="${W}" height="${H}"><polyline points="${p}" fill="none" stroke="${col}" stroke-width="1.5"/></svg>`;}
+function udFilters(){const m=$("#rpM").value,f=m+"-01",l=upD(m,upDays(m));const zs=UD_ZONES,its=D.uitems.slice().sort(uSort).filter(i=>i.active!==false&&(!UD.sec||udSecOf(i.cat)===UD.sec));
+ const desc=[UD.from||UD.to?`${udShort(UD.from||f)} to ${udShort(UD.to||l)}`:tr("every day of the month","كل أيام الشهر"),UD.zone||tr("all zones","كل المناطق"),UD.sec||tr("all sections","كل الأقسام"),UD.item?(uItem(UD.item)?.title||UD.item):tr("all items","كل البنود")].join(", ");
+ return `<div class="udc udf"><div class="udfr"><label>${tr("From","من")}<input type="date" id="udFrom" min="${f}" max="${l}" value="${UD.from||f}"></label><label>${tr("To","إلى")}<input type="date" id="udTo" min="${f}" max="${l}" value="${UD.to||l}"></label>
+ <label>${tr("Zone","المنطقة")}<select id="udZone"><option value="">${tr("All zones","كل المناطق")}</option>${zs.map(z=>`<option${UD.zone===z?" selected":""}>${z}</option>`).join("")}</select></label>
+ <label>${tr("Section","القسم")}<select id="udSec"><option value="">${tr("All sections","كل الأقسام")}</option>${Object.keys(UD_SEC).map(s=>`<option${UD.sec===s?" selected":""}>${s}</option>`).join("")}</select></label>
+ <label>${tr("Item","البند")}<select id="udItem"><option value="">${tr("All items","كل البنود")}</option>${Object.keys(UD_LAB).filter(c=>!UD.sec||UD_SEC[UD.sec].includes(c)).map(c=>`<option value="${c}"${UD.item===c?" selected":""}>— ${UD_LAB[c]} (all)</option>`).join("")}${its.map(i=>`<option value="${i.key}"${UD.item===i.key?" selected":""}>${esc(i.title)} · ${esc(i.cat)} (${i.key})</option>`).join("")}</select></label>
+ <button class="b n sm" id="udReset" style="align-self:flex-end;background:#fff;color:#1F2A37;border:1px solid #D5DAE1">${tr("Reset filters","إعادة ضبط")}</button></div><div class="udsub" style="margin:8px 0 0">${tr("Showing","المعروض")}: ${esc(desc)}.</div></div>`;}
+function udOverview(r,days){const cat=c=>r.filter(u=>u.type===c),dz=r.filter(u=>udSecOf(u.type)==="Diesel");
+ const k=[udKpi("Total diesel","L",dz,days),udKpi("Generators diesel","L",cat("Generators diesel"),days),udKpi("Equipment/vehicles diesel","L",cat("Equipment diesel"),days),udKpi("Labour drinking water",udUnit("Drinking water (labour)"),cat("Drinking water (labour)"),days),
+  udKpi("Potable water supply",udUnit("Potable water"),cat("Potable water"),days),udKpi("Sewage vacuum",udUnit("Sewage"),cat("Sewage"),days),udKpi("Concrete trucks","trips",cat("Concrete trucks"),days),udKpi("Concrete vacuum","trips",cat("Concrete vacuum"),days)].join("");
+ const used=new Set(r.map(u=>u.date)).size;
+ const strip=`<div class="udstrip"><span>Days with entries <b>${used} of ${days.length}</b></span><span>Line items <b>${r.length}</b></span>${["Drinking water cartons","Garbage skip","Ice cubes","Concrete waste skip","Tower lights diesel"].map(c=>`<span>${UD_LAB[c]} <b>${udN(udSum(cat(c)))} ${udUnit(c)}</b></span>`).join("")}</div>`;
+ /* insights */
+ const ins=[],td=udSum(dz),tg=udSum(cat("Generators diesel"));
+ if(td){ins.push(`Generators used ${(tg/td*100).toFixed(1)}% of all diesel (${udN(tg)} of ${udN(td)} L). Tower lights show ${udN(udSum(cat("Tower lights diesel")))} L.`);
+  const by={};dz.forEach(u=>by[u.date]=(by[u.date]||0)+u.qty);const ds=Object.keys(by).filter(d=>by[d]);const top=ds.sort((a,b)=>by[b]-by[a])[0],avg=td/ds.length;ins.push(`The highest diesel day was ${udDay(top)} at ${udN(by[top])} L, ${Math.round((by[top]-avg)/avg*100)}% above the ${udN(avg)} L average on the ${ds.length} days with diesel.`);
+  const tk={};cat("Generators diesel").forEach(u=>tk[u.item]=(tk[u.item]||0)+u.qty);const t1=Object.keys(tk).sort((a,b)=>tk[b]-tk[a])[0];if(t1){const it=uItem(t1)||{};ins.push(`${esc(it.title||t1)} (${esc(it.loc||"")}) took the most generator diesel: ${udN(tk[t1])} L, ${(tk[t1]/tg*100).toFixed(1)}% of the generator total.`);}}
+ const lw=cat("Drinking water (labour)");if(udSum(lw)){const z={};lw.forEach(u=>z[u._z]=(z[u._z]||0)+u.qty);const z1=Object.keys(z).sort((a,b)=>z[b]-z[a])[0];ins.push(`${z1} received the most labour drinking water: ${udN(z[z1])}, ${Math.round(z[z1]/udSum(lw)*100)}% of ${udN(udSum(lw))}.`);}
+ const ct=cat("Concrete trucks");if(udSum(ct)){const z={};ct.forEach(u=>z[u._z]=(z[u._z]||0)+u.qty);const z1=Object.keys(z).sort((a,b)=>z[b]-z[a])[0];ins.push(`${udN(udSum(ct))} concrete truck trips were recorded; ${z1} had the most (${udN(z[z1])}).`);}
+ const cv=cat("Concrete vacuum").slice().sort((a,b)=>b.qty-a.qty);if(cv.length)ins.push(`The largest single concrete-vacuum entry is ${udN(cv[0].qty)} at ${cv[0]._z} on ${udDay(cv[0].date)}.`);
+ if(!ins.length)ins.push(tr("No readings for the current filters.","لا توجد قراءات للفلاتر الحالية."));
+ const dser=[{k:"Generators diesel",lab:"Generators",col:"#5B6876"},{k:"Equipment diesel",lab:"Equipment/vehicles",col:"#C9A227"},{k:"Tower lights diesel",lab:"Tower lights",col:"#8C9AA8"}].filter(s=>s.k!=="Tower lights diesel"||udSum(cat(s.k)));
+ const dv=(d,k)=>udSum(r.filter(u=>u.date===d&&u.type===k));
+ const hmRows=Object.keys(UD_LAB).filter(c=>r.some(u=>u.type===c)).map(c=>({lab:UD_LAB[c],key:c,val:d=>udSum(r.filter(u=>u.date===d&&u.type===c))}));
+ const W=monthWeeks($("#rpM").value).filter(w=>days.some(d=>d>=w.s&&d<=w.e));
+ const wk=`<table class="udt"><tr><th>Item</th><th>Unit</th>${W.map(w=>`<th class="n">${w.lab}</th>`).join("")}<th class="n">Total</th></tr>${Object.keys(UD_LAB).filter(c=>r.some(u=>u.type===c)).map(c=>{const rr=cat(c);return `<tr><td>${UD_LAB[c]}</td><td>${udUnit(c)}</td>${W.map(w=>`<td class="n">${udN(udSum(rr.filter(u=>u.date>=w.s&&u.date<=w.e)))}</td>`).join("")}<td class="n"><b>${udN(udSum(rr))}</b></td></tr>`;}).join("")}</table><p class="udsub" style="margin-top:6px">Weeks run Saturday to Friday.</p>`;
+ const zc=[["Gen. diesel (L)","Generators diesel"],["Labour water","Drinking water (labour)"],["Cartons","Drinking water cartons"],["Trucks","Concrete trucks"],["Vacuums","Concrete vacuum"]];
+ const zmax=zc.map(([,c])=>Math.max(1,...UD_ZONES.map(z=>udSum(r.filter(u=>u._z===z&&u.type===c)))));
+ const zt=`<table class="udt udz"><tr><th>Zone</th>${zc.map(([l])=>`<th class="n">${l}</th>`).join("")}</tr>${UD_ZONES.filter(z=>r.some(u=>u._z===z)||/^PL/.test(z)).map(z=>`<tr data-zone="${z}" style="cursor:pointer"><td><i class="udsw" style="background:${UD_ZC[z]}"></i>${z}</td>${zc.map(([,c],j)=>{const v=udSum(r.filter(u=>u._z===z&&u.type===c));return `<td class="n">${v?`<i class="udmb" style="width:${Math.max(3,v/zmax[j]*44)}px;background:${UD_ZC[z]}"></i>`:""}${udN(v)}</td>`;}).join("")}</tr>`).join("")}</table>`;
+ return `<div class="udg4">${k}</div>${strip}<div class="udg2">${udCard("Insights","Worked out from the rows that match the current filters.",`<ul class="udins">${ins.map(x=>`<li>${x}</li>`).join("")}</ul>`)}${udCard("Diesel per day","Litres, generators and equipment/vehicles stacked. Click a day to filter to it.",udStack(days,dser,dv))}</div>
+ ${udCard("Activity by day","Each row is shaded against its own busiest day. Click a cell to filter to that item and day.",udHeat(days,hmRows))}
+ <div class="udg2">${udCard("Weekly totals","Built from the daily readings, one column per week of the month.",wk)}${udCard("By zone","Totals for each PL zone and its contractor. Click a row to filter to that zone.",zt)}</div>`;}
+function udDiesel(r,days){const cat=c=>r.filter(u=>u.type===c),dz=r.filter(u=>udSecOf(u.type)==="Diesel"),g=cat("Generators diesel"),e=cat("Equipment diesel");
+ const k=[udKpi("Total diesel","L",dz,days),udKpi("Generators diesel","L",g,days),udKpi("Equipment/vehicles diesel","L",e,days),udKpi("Tower lights diesel","L",cat("Tower lights diesel"),days)].join("");
+ const tk={};g.forEach(u=>tk[u.item]=(tk[u.item]||0)+u.qty);const tanks=Object.keys(tk).sort((a,b)=>tk[b]-tk[a]);
+ const tb=udHbar(tanks.map(t=>{const it=uItem(t)||{};return {lab:`${it.title||t} · ${udZone(it)}`,v:tk[t],col:UD_ZC[udZone(it)],f:{item:t}};}),"L");
+ const dp={};e.forEach(u=>{const it=uItem(u.item)||{},l=`${String(it.title||u.item).replace(/Trcuk/i,"Truck")} (${it.loc||"—"})`;dp[l]=dp[l]||{v:0,k:u.item};dp[l].v+=u.qty;});
+ const eb=udHbar(Object.keys(dp).sort((a,b)=>dp[b].v-dp[a].v).map(l=>({lab:l,v:dp[l].v,col:"#C9A227",f:{item:dp[l].k}})),"L");
+ const tt=`<table class="udt"><tr><th>Tank</th><th>Zone</th><th>Location</th><th class="n">Days</th><th class="n">Total L</th><th class="n">Avg L</th><th class="n">Min–max L</th><th>Daily trend</th></tr>${tanks.map(t=>{const it=uItem(t)||{},rr=g.filter(u=>u.item===t&&u.qty),q=rr.map(u=>u.qty),z=udZone(it);
+  return `<tr><td>${esc(it.title||t)}</td><td>${z}</td><td>${esc(it.loc||"")}</td><td class="n">${new Set(rr.map(u=>u.date)).size}</td><td class="n">${udN(tk[t])}</td><td class="n">${q.length?udN(tk[t]/q.length):0}</td><td class="n">${q.length?udN(Math.min(...q))+"–"+udN(Math.max(...q)):"—"}</td><td>${udSpark(days.map(d=>udSum(rr.filter(u=>u.date===d))),UD_ZC[z])}</td></tr>`;}).join("")}</table>`;
+ const el=e.filter(u=>u.qty).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+ const et=`<table class="udt"><tr><th>Date</th><th>Equipment</th><th>Department</th><th>Reference</th><th class="n">Diesel L</th></tr>${el.map(u=>`<tr><td>${udDay(u.date)}</td><td>${esc(String(u._it?.title||u.title||"").replace(/Trcuk/i,"Truck"))}</td><td>${esc(u._it?.loc||u.c||"")}</td><td>${esc(u.ref||"—")}</td><td class="n">${udN(u.qty)}</td></tr>`).join("")}<tr class="udtot"><td colspan="4">Total</td><td class="n">${udN(udSum(el))}</td></tr></table>`;
+ return `<div class="udg4">${k}</div><div class="udg2">${udCard("Generator diesel by tank","Litres for the selected days. Click a tank to filter to it.",tb)}${udCard("Equipment/vehicle diesel by department","Click a department to filter to it.",eb)}</div>
+ ${udCard("Generator tanks, day by day","Days refuelled, total, average per refuel, range, and a daily trend line.",tt)}${udCard("Equipment and vehicle refuels","Every equipment/vehicle diesel entry for the current filters.",et)}`;}
+function udWater(r,days){const cat=c=>r.filter(u=>u.type===c);
+ const k=UD_SEC["Water & services"].map(c=>udKpi(UD_LAB[c],udUnit(c),cat(c),days)).join("");
+ const lw=cat("Drinking water (labour)"),zs=UD_ZONES.filter(z=>lw.some(u=>u._z===z));
+ const st=udStack(days,zs.map(z=>({k:z,lab:z,col:UD_ZC[z]})),(d,z)=>udSum(lw.filter(u=>u.date===d&&u._z===z)),{leg:1});
+ const zb=udHbar(zs.map(z=>({lab:z,v:udSum(lw.filter(u=>u._z===z)),col:UD_ZC[z],f:{zone:z}})),udUnit("Drinking water (labour)"));
+ const ca=cat("Drinking water cartons"),as=[...new Set(ca.map(u=>u._z))];
+ const cb=udHbar(as.map(z=>({lab:z,v:udSum(ca.filter(u=>u._z===z)),col:UD_ZC[z],f:{zone:z}})).sort((a,b)=>b.v-a.v),"cartons");
+ const hm=udHeat(days,["Drinking water cartons","Potable water","Sewage","Garbage skip","Ice cubes"].filter(c=>cat(c).length).map(c=>({lab:UD_LAB[c],key:c,val:d=>udSum(cat(c).filter(u=>u.date===d))})));
+ return `<div class="udg6">${k}</div><div class="udg2">${udCard("Labour drinking water per day","Quantity as written on the form, stacked by zone. Click a day to filter to it.",st)}${udCard("Labour drinking water by zone","Click a zone to filter to it.",zb)}</div>
+ ${udCard("Drinking water cartons by area","Cartons go to MIDU Complex, Concrete and MCC. Click an area to filter to it.",cb)}${udCard("Site services by day","Cartons, potable water, sewage vacuum, garbage removal and ice. Click a cell to filter.",hm)}`;}
+function udConcrete(r,days){const cat=c=>r.filter(u=>u.type===c);
+ const k=UD_SEC.Concrete.map(c=>udKpi(UD_LAB[c],udUnit(c)||"trips",cat(c),days)).join("")+udKpi("Garbage removal",udUnit("Garbage skip"),cat("Garbage skip"),days);
+ const T=[["Concrete trucks","Trucks"],["Concrete vacuum","Vacuums"],["Concrete waste skip","Waste skips"],["Garbage skip","Garbage skips"]];
+ const sel=cat(UD.ctype),zs=UD_ZONES.filter(z=>sel.some(u=>u._z===z)||/^PL/.test(z));
+ const tog=`<div class="udtog">${T.map(([c,l])=>`<button data-ct="${c}" class="${UD.ctype===c?"on":""}">${l}</button>`).join("")}</div>`;
+ const st=udStack(days,zs.map(z=>({k:z,lab:z,col:UD_ZC[z]})),(d,z)=>udSum(sel.filter(u=>u.date===d&&u._z===z)),{leg:1,w:1240,h:250});
+ const zb=udHbar(zs.map(z=>({lab:z,v:udSum(sel.filter(u=>u._z===z)),col:UD_ZC[z],f:{zone:z}})),udUnit(UD.ctype)||"trips");
+ const W=monthWeeks($("#rpM").value).filter(w=>days.some(d=>d>=w.s&&d<=w.e));
+ const wt=`<table class="udt"><tr><th>Zone</th>${W.map(w=>`<th class="n">${w.lab}</th>`).join("")}<th class="n">Total</th></tr>${zs.map(z=>{const rr=sel.filter(u=>u._z===z);return `<tr><td><i class="udsw" style="background:${UD_ZC[z]}"></i>${z}</td>${W.map(w=>`<td class="n">${udN(udSum(rr.filter(u=>u.date>=w.s&&u.date<=w.e)))}</td>`).join("")}<td class="n"><b>${udN(udSum(rr))}</b></td></tr>`;}).join("")}<tr class="udtot"><td>Total</td>${W.map(w=>`<td class="n">${udN(udSum(sel.filter(u=>u.date>=w.s&&u.date<=w.e)))}</td>`).join("")}<td class="n">${udN(udSum(sel))}</td></tr></table>`;
+ return `<div class="udg4">${k}</div><div class="udc"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><h3>Concrete per day</h3><p class="udsub">Stacked by zone. Click a day to filter to it.</p></div>${tog}</div>${st}</div>
+ <div class="udg2">${udCard("Concrete by zone","Type picked above. Click a zone to filter to it.",zb)}${udCard("Weekly by zone","Type picked above, one column per week (Saturday to Friday).",wt)}</div>`;}
+function udData(r){const cols=[["date","Date"],["item","Key"],["title","Item"],["type","Category"],["_z","Zone"],["qty","Qty"],["unit","Unit"],["ref","Reference"]];
+ const s=r.slice().sort((a,b)=>{const x=a[UD.sort]??"",y=b[UD.sort]??"";return (x<y?-1:x>y?1:0)*UD.dir;}),P=50,pg=Math.min(UD.page,Math.max(0,Math.ceil(s.length/P)-1)),sl=s.slice(pg*P,pg*P+P);
+ return udCard("All line items","One row for each reading saved in the Hub. Click a header to sort.",`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><button class="b n sm" id="udCsv">${tr("Copy filtered rows as CSV","نسخ الصفوف كـ CSV")}</button><span class="udsub" style="margin:0">${s.length} rows</span><span style="flex:1"></span><button class="b sm" id="udPrev" ${pg?"":"disabled"}>‹ Previous</button><span class="udsub" style="margin:0">Page ${pg+1} of ${Math.max(1,Math.ceil(s.length/P))}</span><button class="b sm" id="udNext" ${(pg+1)*P<s.length?"":"disabled"}>Next ›</button></div>
+ <table class="udt"><tr>${cols.map(([k,l])=>`<th data-sort="${k}" style="cursor:pointer"${k==="qty"?' class="n"':""}>${l}${UD.sort===k?(UD.dir>0?" ▲":" ▼"):""}</th>`).join("")}</tr>${sl.map(u=>`<tr><td>${udDay(u.date)}</td><td>${u.item}</td><td>${esc(u.title||u._it?.title||"")}</td><td>${esc(u.type)}</td><td>${u._z}</td><td class="n">${udN(u.qty)}</td><td>${esc(u.unit||"")}</td><td>${esc(u.ref||"")}</td></tr>`).join("")}</table>`);}
+const UD_CSS=`<style>.udw{font-size:13px}.udw h3{font-size:15px;font-weight:600;margin:0 0 3px;color:#1F2A37}.udsub{font-size:11.5px;color:#6B7280;margin:0 0 10px}.udc{background:#fff;border:1px solid #E3E6EA;border-radius:10px;padding:14px 16px;margin-bottom:14px;min-width:0}
+.udtabs{display:flex;gap:4px;border-bottom:1px solid #E3E6EA;margin:4px 0 14px;flex-wrap:wrap}.udtabs button{background:none;border:0;padding:8px 12px;font:inherit;font-size:13.5px;color:#4B5563;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}.udtabs button.on{color:#111827;font-weight:600;border-bottom-color:#111827}
+.udfr{display:flex;gap:10px;flex-wrap:wrap}.udfr label{display:flex;flex-direction:column;font-size:11.5px;color:#4B5563;gap:3px}.udfr input,.udfr select{width:auto;min-width:130px;padding:6px 8px;font-size:12.5px}#udItem{max-width:240px}
+.udg4,.udg6{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}.udg6{grid-template-columns:repeat(6,minmax(0,1fr))}.udg2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}@media(max-width:1100px){.udg4,.udg6,.udg2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.udk{background:#fff;border:1px solid #E3E6EA;border-radius:10px;padding:12px 14px}.udkl{font-size:11.5px;color:#4B5563}.udkv{font-family:Georgia,'Times New Roman',serif;font-size:25px;margin:4px 0 4px;color:#111827}.udkv small{font-family:inherit;font-size:11px;color:#6B7280}.udks{font-size:11.5px;color:#4B5563;line-height:1.55}
+.udstrip{display:flex;gap:26px;flex-wrap:wrap;font-size:11.5px;color:#4B5563;margin:0 2px 14px}.udstrip b{color:#111827}.udins{margin:0;padding-inline-start:18px;line-height:1.6;font-size:13px}.udins li{margin-bottom:6px}
+.udleg{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:#4B5563;margin-bottom:6px}.udleg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-inline-end:5px;vertical-align:-1px}.udhit{cursor:pointer}.udhit:hover{fill:rgba(0,0,0,.04)}
+.udhr{display:grid;grid-template-columns:180px 1fr auto;gap:10px;align-items:center;padding:4px 0;font-size:12px;cursor:pointer}.udhr:hover{background:#F7F8FA}.udht{background:none;height:14px}.udht i{display:block;height:100%;border-radius:2px}.udhv{color:#374151;white-space:nowrap;min-width:110px;text-align:end}.udhl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.udhm{display:grid;gap:3px;font-size:10.5px;align-items:center}.udhml{text-align:end;padding-inline-end:8px;color:#374151;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.udhc{height:20px;border-radius:2px;display:flex;align-items:center;justify-content:center;cursor:pointer}.udhx{text-align:center;color:#6B7280;padding-top:4px}
+.udt{width:100%;border-collapse:collapse;font-size:12px}.udt th{font-weight:500;color:#4B5563;text-align:start;border-bottom:1px solid #E3E6EA;padding:6px 8px;background:none}.udt td{border-bottom:1px solid #F0F1F3;padding:6px 8px}.udt .n{text-align:end}.udtot td{font-weight:600}.udsw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-inline-end:6px}.udmb{display:inline-block;height:7px;border-radius:2px;margin-inline-end:6px;vertical-align:1px}.udz tr:hover td{background:#F7F8FA}
+.udtog{display:inline-flex;border:1px solid #D5DAE1;border-radius:7px;overflow:hidden}.udtog button{border:0;background:#fff;padding:5px 11px;font:inherit;font-size:12px;cursor:pointer;color:#374151}.udtog button.on{background:#111827;color:#fff}
+.udtitle{font-family:Georgia,'Times New Roman',serif;font-size:27px;font-weight:400;margin:0;color:#111827}</style>`;
+VIEWS.utRep=()=>UD_CSS+`<div class="udw"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1 class="udtitle" id="udTitle">MIDU utilities</h1><p class="udsub" id="udLead" style="font-size:13px;margin:4px 0 8px"></p></div><div style="display:flex;align-items:center;gap:8px"><span class="udsub" style="margin:0">${tr("Month","الشهر")}</span><select id="rpM" style="width:auto">${utMonths().map(m=>`<option value="${m}">${monthName(m)}</option>`).join("")}</select></div></div>`+utFlow("utRep")+
+ `<div class="udtabs">${[["ov","Overview"],["dz","Diesel"],["ws","Water & services"],["cc","Concrete"],["da","Data"],["bc","Back-charge & print"]].map(([k,l])=>`<button data-tab="${k}" class="${UD.tab===k?"on":""}">${l}</button>`).join("")}</div><div id="udF"></div><div id="udBody"></div><div id="rpOut"></div></div>`;
+const UD_OLD_BIND=BIND.utRep;
+BIND.utRep=()=>{UD_OLD_BIND();
+ const draw=()=>{const m=$("#rpM").value;if(UD.from&&!UD.from.startsWith(m)){UD.from="";UD.to="";}
+  const days=udDays(),r=udRows(),all=D.ut.filter(u=>u.date.startsWith(m)),dz=all.filter(u=>udSecOf(u.type)==="Diesel"),last=all.map(u=>u.date).sort().pop();
+  $("#udTitle").textContent="MIDU utilities, "+monthName(m).replace("-"," ");
+  const tg=udSum(dz.filter(u=>u.type==="Generators diesel")),td=udSum(dz),dd=new Set(dz.filter(u=>u.qty).map(u=>u.date)).size;
+  $("#udLead").textContent=last?`${udShort(m+"-01")}–${udShort(last)}: ${udN(td)} L of diesel on ${dd} days${td?", "+Math.round(tg/td*100)+"% of it for generators":""}. Data is entered up to ${udShort(last)}.`:tr("No readings saved for this month yet.","لا توجد قراءات لهذا الشهر بعد.");
+  document.querySelectorAll(".udtabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===UD.tab));
+  const bc=UD.tab==="bc";$("#rpOut").style.display=bc?"":"none";$("#udF").innerHTML=bc?"":udFilters();
+  $("#udBody").innerHTML=bc?"":UD.tab==="dz"?udDiesel(r,days):UD.tab==="ws"?udWater(r,days):UD.tab==="cc"?udConcrete(r,days):UD.tab==="da"?udData(r):udOverview(r,days);
+  if(!bc)bindF();};
+ const bindF=()=>{const set=(k,v)=>{UD[k]=v;UD.page=0;draw();};
+  $("#udFrom").onchange=e=>set("from",e.target.value);$("#udTo").onchange=e=>set("to",e.target.value);$("#udZone").onchange=e=>set("zone",e.target.value);
+  $("#udSec").onchange=e=>{UD.item="";set("sec",e.target.value);};$("#udItem").onchange=e=>set("item",e.target.value);
+  $("#udReset").onclick=()=>{Object.assign(UD,{from:"",to:"",zone:"",sec:"",item:"",page:0});draw();};
+  document.querySelectorAll("#udBody [data-day]").forEach(el=>el.onclick=()=>{UD.from=UD.to=el.dataset.day;if(el.dataset.it)UD.item=el.dataset.it;draw();});
+  document.querySelectorAll("#udBody [data-zone]").forEach(el=>el.onclick=()=>set("zone",el.dataset.zone));
+  document.querySelectorAll("#udBody [data-f]").forEach(el=>el.onclick=()=>{Object.assign(UD,JSON.parse(el.dataset.f));draw();});
+  document.querySelectorAll("#udBody [data-ct]").forEach(el=>el.onclick=()=>{UD.ctype=el.dataset.ct;draw();});
+  document.querySelectorAll("#udBody [data-sort]").forEach(el=>el.onclick=()=>{const k=el.dataset.sort;UD.dir=UD.sort===k?-UD.dir:1;UD.sort=k;draw();});
+  const pv=$("#udPrev"),nx=$("#udNext"),cs=$("#udCsv");if(pv)pv.onclick=()=>{UD.page--;draw();};if(nx)nx.onclick=()=>{UD.page++;draw();};
+  if(cs)cs.onclick=()=>{const rows=udRows().sort((a,b)=>a.date<b.date?-1:1),q=v=>`"${String(v??"").replace(/"/g,'""')}"`;const t=[["Date","Key","Item","Category","Zone","Qty","Unit","Reference"].join(","),...rows.map(u=>[u.date,u.item,u.title||u._it?.title,u.type,u._z,u.qty,u.unit,u.ref].map(q).join(","))].join("\n");
+   (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("✔ "+rows.length+" rows copied")).catch(()=>openModal("CSV","<textarea style='width:100%;height:60vh'>"+esc(t)+"</textarea>","rows"));};};
+ document.querySelectorAll(".udtabs button").forEach(b=>b.onclick=()=>{UD.tab=b.dataset.tab;draw();});
+ $("#rpM").addEventListener("change",()=>{UD.from="";UD.to="";draw();});draw();};
 
 const mrDoc_old=q=>gdoc({title:"MAINTENANCE REQUEST",no:q.no,date:q.date,meta:[["Requested by",q.by],["Location",q.loc],["Asset ID",q.asset],["Asset",D.assets.find(a=>a.id===q.asset)?.desc||""],["Category",q.cat],["Priority",q.prio],["Assigned to",q.to],["Status",q.status]],cols:["Problem description","Action taken","Completed on"],rows:[[q.desc,"",""]],sig:["Requested by","Maintenance technician","Logistics approval"]});
 const mclDoc_old=x=>gdoc({title:"MONTHLY MAINTENANCE CHECKLIST",no:x.no,date:x.date,meta:[["Month",x.month],["Location",x.loc],["Checked by",x.by]],cols:["#","Category","Check point","Result","Remarks"],rows:x.res.map(r=>[r.i+1,MCL_T[r.i][0],MCL_T[r.i][1],r.s,r.rem]),sig:["Checked by","Maintenance supervisor","Logistics approval"]});
