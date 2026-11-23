@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611221642"></script>
-<script src="local.js?v=202611221642"></script>
+<script src="m365.js?v=202611231200"></script>
+<script src="local.js?v=202611231200"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -686,7 +686,7 @@ BIND.labels=()=>{let shown=[];
   let blob;try{blob=lbPdf().output("blob");}catch(e){return msg("err","PDF: "+esc(e.message));}
   const n=lbList().length,name=`MIDU Asset Labels 60x40 ${today()} (${n}).pdf`;
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
-  let where="";try{if(LOCAL.connected){await LOCAL.uploadDoc("01 Warehouse & Assets/06 Asset Labels",name,blob);where=" · "+tr("copy saved in MIDU Hub Data › Documents › 01 Warehouse & Assets › 06 Asset Labels","نسخة محفوظة في MIDU Hub Data › Documents › 01 Warehouse & Assets › 06 Asset Labels");}
+  let where="";try{if(LOCAL.connected){await LOCAL.uploadDoc("01 Warehouse & Assets/06 Asset Labels",name,blob);where=" · "+tr("copy saved in MIDU Hub Data › 01 Warehouse & Assets › 06 Asset Labels","نسخة محفوظة في MIDU Hub Data › 01 Warehouse & Assets › 06 Asset Labels");}
    else if(M365.signedIn){await M365.uploadDoc("01 Warehouse & Assets/06 Asset Labels",name,blob);where=" · "+tr("copy saved in Hub Documents","نسخة محفوظة في مستندات المنصة");}}catch(e){console.warn(e);}
   msg("ok",`✔ ${tr("Downloaded","تم التنزيل")}: <b class="en">${esc(name)}</b> (${n} ${tr("labels","ملصق")})${where}`);};
  draw();queue();};
@@ -1838,6 +1838,38 @@ function openClearance(e){openModal(tr("Clearance","إخلاء طرف")+" — "+
 $("#mClose").onclick=()=>$("#ov").classList.remove("on");$("#ov").onclick=e=>{if(e.target.id==="ov")$("#ov").classList.remove("on");};document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#ov").classList.remove("on");});
 $("#rst").onclick=()=>{if(GAS){loadServer(()=>render());return;}D=seed();try{localStorage.removeItem(KEY)}catch(e){};for(const k in KEEP)delete KEEP[k];render();toast(tr("Sample data restored","تمت إعادة البيانات التجريبية"));};
 
+/* ===== Update 18: area folders, backups and change history (folder mode) ===== */
+const HIST_VIEWS={pr:["prs"],cqs:["cqs"],po:["pos"],fin:["pos"],capex:["prs","pos"],utReg:["dns"],utBC:["dns"],search:["prs","cqs","pos","dns"],dashPF:["prs","pos"]};
+const HIST_F={status:"Status",pd:"PD approved",pdBy:"PD approval by",pdDate:"PD approval date",rejReason:"Reason not approved",rejBy:"Not approved by",lines:"Lines",just:"Purpose",prio:"Priority",cc:"Cost center",req:"Requested by",need:"Need date",date:"Date",sup:"Supplier",fin:"Finance status",paid:"Paid",sub:"Subtotal",vat:"VAT",contractor:"Contractor",period:"Period",sel:"Selected supplier",approved:"Approved",quotes:"Quotes",amt:"Amount",toPdBy:"Sent to PD by",toPdOn:"Sent to PD on",prepSigned:"Signed by Logistics",pdSigned:"Signed by PD",sentOn:"Sent to Procurement on",rejDate:"Not approved on",history:"Earlier returns",sentBy:"Sent to Procurement by",deletedOn:"Deleted on",edited:"Edited on"};
+function histLinks(){if(typeof LOCAL==="undefined"||!LOCAL.connected)return;const cs=HIST_VIEWS[view];if(!cs)return;
+ document.querySelectorAll("#main table.t tr").forEach(tr_=>{if(tr_.querySelector("[data-hist]"))return;const c0=tr_.querySelector("td");if(!c0)return;const k=c0.textContent.trim();if(!k)return;
+  const coll=cs.find(c=>(D[c]||[]).some(r=>KEYS[c](r)===k));if(!coll)return;const td=tr_.lastElementChild;
+  td.insertAdjacentHTML("beforeend",` <button class="b l sm" data-hist="${esc(coll)}|${esc(k)}" title="${esc(tr("Change history","سجل التغييرات"))}">🕘</button>`);});}
+const RENDER0=render;render=function(k){RENDER0(k);try{histLinks();}catch(e){console.warn(e);}};
+const fdt=ts=>{const d=new Date(ts);return isNaN(d)?ts:d.toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});};
+function showHistory(coll,key){const ev=LOCAL.historyOf(coll,key).concat(coll==="pos"?LOCAL.hist.filter(e=>e.coll==="invs"&&String(e.key).indexOf(key+"|")===0):[]).sort((a,b)=>a.ts<b.ts?-1:1);
+ const last=LOCAL.lastSaved(coll,key);
+ const rows=ev.map(e=>`<tr><td class="en" style="white-space:nowrap">${esc(fdt(e.ts))}</td><td class="en">${esc(e.by||"")}</td><td><b>${esc(e.coll==="invs"?tr("Invoice ","فاتورة ")+String(e.key).split("|")[1]+": "+e.act:e.act)}</b></td>
+  <td style="font-size:12px">${(e.ch||[]).map(c=>`<div><b>${esc(HIST_F[c.f]||c.f)}</b>: ${c.from!==""?`<span style="color:#9A3412;text-decoration:line-through">${esc(c.from)}</span> → `:""}<span style="color:#166534">${esc(c.to===""?"(empty)":c.to)}</span></div>`).join("")}</td></tr>`).join("");
+ openModal(tr("Change history – ","سجل التغييرات – ")+key,`<div style="padding:16px 20px;font-size:13px">
+  ${last?`<p style="margin:0 0 10px;color:#5B6476">${tr("Last saved by","آخر حفظ بواسطة")} <b>${esc(last.by||"-")}</b> · ${esc(fdt(last.ts))}</p>`:""}
+  ${rows?`<table class="t"><tr><th>${tr("When","متى")}</th><th>${tr("Who","من")}</th><th>${tr("What","ماذا")}</th><th>${tr("Details","التفاصيل")}</th></tr>${rows}</table>`:`<p class="sub">${tr("No changes recorded yet.","لا توجد تغييرات مسجلة بعد.")}</p>`}
+  <p class="sub" style="margin-top:10px">${tr("The full history starts with Hub update 18 (Nov 2026). Earlier changes only show the last person who saved.","يبدأ السجل الكامل من التحديث 18 (نوفمبر 2026). التغييرات السابقة تُظهر آخر من حفظ فقط.")}</p></div>`,"");}
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-hist]");if(!b)return;e.preventDefault();e.stopPropagation();const i=b.dataset.hist.indexOf("|");showHistory(b.dataset.hist.slice(0,i),b.dataset.hist.slice(i+1));},true);
+/* Hub users screen: backups + who sees which area folder */
+const AREA_PLAN=[["00 System","Everyone who uses the Hub","Edit"],["01 Warehouse & Assets","Azzam, Turki, storekeepers (Mazhar)","Edit"],["02 Utilities","Azzam, Turki (Finance: View)","Edit"],["03 Procurement","Azzam, Turki, PD (Najed), Procurement, Finance","Edit"],["05 HR","Azzam only (later HR – Kaid)","Edit"],["06 Maintenance","Azzam, Turki, maintenance staff","Edit"],["Backups","Azzam only","—"],["Signatures","Everyone (prints read it)","View"]];
+const USERS_V0=VIEWS.users,USERS_B0=BIND.users;
+VIEWS.users=()=>USERS_V0()+(typeof LOCAL!=="undefined"&&LOCAL.connected?`<div class="card"><h2>${tr("Backups","النسخ الاحتياطي")}</h2>
+ <p class="sub" id="bkInfo">⟳</p><button class="b n" id="bkNow">💾 ${tr("Back up now","نسخ احتياطي الآن")}</button>
+ <p class="sub" style="margin-top:8px">${tr("A copy of all Hub data is saved in MIDU Hub Data › Backups automatically when you open the Hub and the last copy is 7 days old (the last 12 weekly copies are kept). Keep the Backups folder shared with nobody.","تُحفظ نسخة من كل بيانات المنصة في MIDU Hub Data › Backups تلقائياً عند فتح المنصة إذا مرّ 7 أيام على آخر نسخة (تُحفظ آخر 12 نسخة). لا تشارك مجلد Backups مع أحد.")}</p></div>
+ <div class="card"><h2>${tr("Area folders and sharing","مجلدات الأقسام والمشاركة")}</h2>
+ ${LOCAL.layout===2?`<p class="sub">${tr("Each area has its own folder in MIDU Hub Data. Share in OneDrive only the folders a person needs; screens of folders they cannot open are hidden for them.","لكل قسم مجلد في MIDU Hub Data. شارك في OneDrive المجلدات التي يحتاجها الشخص فقط؛ تُخفى عنه شاشات المجلدات التي لا يستطيع فتحها.")}</p>
+ <table class="t"><tr><th>${tr("Folder","المجلد")}</th><th>${tr("Share with","المشاركة مع")}</th><th>${tr("Access","الصلاحية")}</th><th>${tr("On this PC","على هذا الجهاز")}</th></tr>${AREA_PLAN.map(([f,w,a])=>{const k=Object.keys(AREAS).find(x=>AREAS[x]===f);return `<tr><td class="en"><b>${esc(f)}</b></td><td>${esc(w)}</td><td>${a}</td><td>${k?(LOCAL.areaOK[k]?"✔":"✖"):""}</td></tr>`;}).join("")}</table>`
+ :`<p class="sub">${tr("The data is still in the old single “data” folder, so anyone with the folder can open every file (HR included).","البيانات ما زالت في مجلد «data» الواحد، فكل من لديه المجلد يفتح كل الملفات.")}</p><button class="b n" id="mgGo">${tr("Organise into area folders","تنظيم في مجلدات الأقسام")}</button>`}</div>`:"");
+BIND.users=()=>{USERS_B0();if(typeof LOCAL==="undefined"||!LOCAL.connected)return;
+ const info=async()=>{const l=await LOCAL.lastBackup().catch(()=>null);const el=$("#bkInfo");if(el)el.innerHTML=l?`${tr("Last backup","آخر نسخة")}: <b>${esc(fdt(l.at))}</b> · ${esc(l.by||"")} · ${l.files} ${tr("files","ملف")} · <span class="en">${esc(l.folder)}</span>`:tr("No backup yet.","لا توجد نسخة بعد.");};info();
+ $("#bkNow").onclick=async()=>{const b=$("#bkNow");b.disabled=true;try{const r=await LOCAL.backup("manual");toast("✔ "+tr("Backup saved: ","تم الحفظ: ")+r.folder);info();}catch(e){msg("err",esc(e.message));}b.disabled=false;};
+ const mg=$("#mgGo");if(mg)mg.onclick=async()=>{try{sessionStorage.removeItem("midu-hub-nomigrate");}catch(e){}await LOCAL.offerMigration();if(LOCAL.layout===2)loadServer(()=>render());};};
 /* start */
 const h0=(location.hash||"").slice(1);if(VIEWS[h0])view=h0;
 window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(VIEWS[h]&&h!==view){view=h;drawNav();render();}});
