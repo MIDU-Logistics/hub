@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611232330"></script>
-<script src="local.js?v=202611232330"></script>
+<script src="m365.js?v=202611240000"></script>
+<script src="local.js?v=202611240000"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -252,10 +252,22 @@ function loadServer(cb){if(!GAS){cb&&cb();return;}syncState("loading");
    UT=(D.rates&&D.rates.length)?D.rates:UT0;snapshot();
    LASTLOAD=Date.now();syncState("ok");cb&&cb();})
   .withFailureHandler(e=>{syncState("err",e&&e.message);cb&&cb();}).getAll();}
+/* Warehouses and their locations (Azzam, 23 Nov 2026). Codes stay the same as before (MAIN, ASP, KHU …). */
+const WH_PLAN=[["MAIN","ASP-Warehouse",["Container 1","Container 2","Container 3","Container 4","Container 5","Container 6","Container 7","Laydown - Open Yard","Laydown - Plant Porta Cabin"]],
+ ["ASP","ASP-Site",["ASP-PL 01","ASP-PL 02","ASP-PL 03","ASP-PL 04","ASP-PL 05","PL 01 Workshop Container","ASP-General"]],
+ ["MAD","Madina",["Madina"]],["RUH","Riyadh",["Riyadh"]],["KRK","Kroki Saabar Land",["Kroki Saabar Land"]],["HQ","HQ",["HQ"]],
+ ["KHU","Khulais Arabia",["Khulais Arabia - Open Yard","Khulais Arabia - Plant Porta Cabin"]],["CEER","CEER 1",["CEER 1"]],["MSB","MSB Office",["MSB Office"]]];
+/* storage points offered for a location (others: type freely or pick from the full list) */
+const SP_PLAN={"ASP-PL 01":["Container 8","Porta Cabin-10"]};
+const whOfLocPlan=loc=>{const w=WH_PLAN.find(x=>x[2].includes(loc));return w?w[0]:"";};
+const spOpts=loc=>SP_PLAN[loc]||(/^Container \d/.test(loc||"")?[loc]:WR().sps);
+function spSync(locSel,spInp,listId){const loc=$(locSel)&&$(locSel).value,o=spOpts(loc),dl=document.getElementById(listId);if(dl)dl.innerHTML=o.map(x=>`<option value="${esc(x)}">`).join("");
+ const sp=$(spInp);if(sp&&(!sp.value||sp.dataset.auto==="1")){sp.value=o.length===1||/^Container \d/.test(loc||"")?o[0]:"";sp.dataset.auto="1";}}
+document.addEventListener("change",e=>{if(e.target.id==="gWh"||e.target.id==="gLoc")setTimeout(()=>spSync("#gLoc","#gSp","spL"),0);if(e.target.id==="gSp")e.target.dataset.auto="";});
 /* Warehouses, storage locations, cost centers and contractors come from the SharePoint choice columns. */
 function m365Refs(){
  const L=M365.choice("MIDU Asset Register","field_9");
- if(L.length){Object.keys(WH).forEach(k=>delete WH[k]);M365_WH_MAP.forEach(([k,n])=>WH[k]={name:n,locs:[]});L.forEach(l=>WH[M365.whOfLoc(l)].locs.push(l));Object.keys(WH).forEach(k=>{if(!WH[k].locs.length)delete WH[k];});}
+ Object.keys(WH).forEach(k=>delete WH[k]);WH_PLAN.forEach(([k,n,locs])=>WH[k]={name:n,locs:locs.slice()});
  (D.stock||[]).forEach(x=>{if(!WH[x.wh])WH[x.wh]={name:x.wh,locs:[]};if(x.loc&&WH[x.wh].locs.indexOf(x.loc)<0)WH[x.wh].locs.push(x.loc);});
  const cc=M365.choice("MIDU Asset Register","CostCenter");if(cc.length)CC.splice(0,CC.length,...cc);
  const ct=M365.choice("Utility Items","ChargeTo").filter(c=>c!=="MIDU");if(ct.length)CONTR.splice(0,CONTR.length,...ct);
@@ -314,7 +326,7 @@ const fld=(id,lab,{req=false,w="",type="text",ph="",val="",ro=false,list="",uppe
 const sel=(id,lab,opts,{req=false,w="",val=""}={})=>`<div class="f ${w}"><label for="${id}">${esc(lab)}${req?' <span class="req">*</span>':""}</label><select id="${id}" ${req?"data-req=1":""}>${opts.map(o=>{const[v,l]=Array.isArray(o)?o:[o,o];return `<option value="${esc(v)}" ${v===val?"selected":""}>${esc(l)}</option>`}).join("")}</select></div>`;
 const dl=(id,arr)=>`<datalist id="${id}">${arr.map(v=>`<option value="${esc(v)}">`).join("")}</datalist>`;
 const whOpts=()=>{const s=site();return Object.entries(WH).filter(([k])=>s==="ALL"||s===k).map(([k,w])=>[k,w.name]);};
-const locOpts=wh=>WH[wh].locs;
+const locOpts=wh=>(WH[wh]||{locs:[]}).locs;
 function checkReq(scope){let ok=true;scope.querySelectorAll("[data-req]").forEach(e=>{if(!e.disabled&&!String(e.value).trim()){e.classList.add("bad");ok=false;}else e.classList.remove("bad");});return ok;}
 function msg(type,html){const m=$("#msgbox");m.className="msg "+type;m.innerHTML=html;m.style.display="flex";m.scrollIntoView({block:"nearest"});}
 const msgBox=`<div id="msgbox" class="msg" style="display:none"></div>`;
@@ -529,7 +541,7 @@ BIND.grn=()=>{const tb=$("#gLines");const ED=WH_EDIT&&WH_EDIT.type==="GRN"?D.doc
  if(ED){$("#gNo").value=ED.no;$("#gDate").value=ED.date;$("#gSup").value=ED.party||"";$("#gPo").value=ED.po||"";$("#gDn").value=ED.dn||"";$("#gWh").value=ED.wh;$("#gLoc").innerHTML=locOpts(ED.wh).map(l=>`<option>${l}</option>`).join("");$("#gLoc").value=ED.loc;$("#gSp").value=ED.sp||"";$("#gBy").value=ED.by||"";$("#gRem").value=ED.remarks||"";["gC1","gC2","gC3"].forEach(i=>$("#"+i).checked=true);
   ED.lines.forEach(l=>{const r=gRow();tb.appendChild(r);const ln=(l.sl&&whLines().find(x=>x.sl===l.sl))||lineFor(l.code);r.querySelector("[data-k=item]").value=ln?slLabel(ln):itemLabel(item(l.code)||{code:l.code,desc:l.desc||""});r.querySelector("[data-k=qty]").value=l.qty;r.querySelector("[data-k=cond]").value=l.cond||"New";r._upd();});}
  else tb.appendChild(gRow());
- $("#gWh").onchange=e=>$("#gLoc").innerHTML=locOpts(e.target.value).map(l=>`<option>${l}</option>`).join("");
+ $("#gWh").onchange=e=>$("#gLoc").innerHTML=locOpts(e.target.value).map(l=>`<option>${l}</option>`).join("");if(!ED)setTimeout(()=>spSync("#gLoc","#gSp","spL"),0);
  $("#gPo").addEventListener("change",()=>{const p=D.pos.find(x=>x.no===$("#gPo").value);if(p){$("#gSup").value=p.sup;tb.querySelectorAll("tr").forEach((r,i)=>i&&r.remove());p.lines.filter(l=>l.code).forEach(l=>{const r=gRow();tb.appendChild(r);const ln=lineFor(l.code);r.querySelector("[data-k=item]").value=ln?slLabel(ln):itemLabel(item(l.code));r._upd();r.querySelector("[data-k=qty]").value=Math.max(l.qty-poRecv(p,l),0)||l.qty;});}});
  $("#gSave").onclick=async()=>{if(!checkReq($("#main")))return msg("err",ERR.req());const lines=[],newItems=[],slNew=[],slItems=[];
   for(const r of [...tb.querySelectorAll("tr")].slice(1)){r._upd();const v=r.querySelector("[data-k=item]").value.trim();if(!v)continue;const qn=+r.querySelector("[data-k=qty]").value;if(!(qn>0))return msg("err",ERR.qty());const cond=r.querySelector("[data-k=cond]").value;
@@ -1292,10 +1304,10 @@ function gdoc({title,no,date,meta=[],cols,rows,totals=[],sig=["Prepared by","Che
 function whDoc(d){const T={GRN:"MATERIAL RECEIVING NOTE (GRN)",MDS:"MATERIAL DISPATCH SHEET (MDS)",MRS:"MATERIAL RETURN SHEET (MRS)",SC:"STOCK COUNT SHEET",AHS:"ASSET HANDOVER SHEET"}[d.type];
  if(d.type==="GRN"||d.type==="MDS"||d.type==="MRS")return logForm(d);
  if(d.type==="AHS")return ahsForm(d);if(d.type==="SC")return scForm(d);
- if(d.type==="GRN")return gdoc({title:T,no:d.no,date:d.date,meta:[["Supplier",d.party],["PO No.",d.po],["Delivery note",d.dn],["Warehouse",WH[d.wh].name],["Location",d.loc],["Received by",d.by]],cols:["#","Item code","Description","Unit","Qty","Condition"],rows:d.lines.map((l,i)=>[i+1,l.code,item(l.code)?.desc||"(new item)",item(l.code)?.unit||"",l.qty,l.cond]),sig:["Delivered by (driver)","Received by (storekeeper)","Logistics approval"],stamp:"RECEIVED",right:[4]});
- if(d.type==="MDS")return gdoc({title:T,no:d.no,date:d.date,meta:[["Dispatch type",d.dtype],["Receiver",d.party],["Employee / Iqama",d.iqama],["From",WH[d.wh].name+" › "+d.loc],["To",d.to],["Return by",d.returnBy]],cols:["#","Item / Asset ID","Description","Qty","Condition"],rows:d.lines.map((l,i)=>[i+1,l.asset||l.code,item(l.code)?.desc||"",l.qty,l.cond]),sig:["Received by","Issued by (storekeeper)","Logistics approval"],stamp:"DISPATCHED",right:[3]});
- if(d.type==="MRS")return gdoc({title:T,no:d.no,date:d.date,meta:[["Returned by",d.party],["Employee / Iqama",d.iqama],["Returned to",WH[d.wh].name+" › "+d.loc]],cols:["#","Item / Asset ID","Description","Qty","Condition"],rows:d.lines.map((l,i)=>[i+1,l.asset||l.code,item(l.code)?.desc||"",l.qty,l.cond]),sig:["Returned by","Received by (storekeeper)","Logistics approval"],stamp:"RECEIVED",right:[3]});
- if(d.type==="SC")return gdoc({title:T,no:d.no,date:d.date,meta:[["Location",WH[d.wh].name+" › "+d.loc],["Status","Pending approval"]],cols:["#","Item code","Description","Counted","System","Difference"],rows:d.lines.map((l,i)=>[i+1,l.code,item(l.code)?.desc||"",l.qty,l.sys,(l.qty-l.sys>0?"+":"")+(l.qty-l.sys)]),sig:["Counted by","Checked by","Approved by (Finance)"],right:[3,4,5]});
+ if(d.type==="GRN")return gdoc({title:T,no:d.no,date:d.date,meta:[["Supplier",d.party],["PO No.",d.po],["Delivery note",d.dn],["Warehouse",(WH[d.wh]||{}).name],["Location",d.loc],["Received by",d.by]],cols:["#","Item code","Description","Unit","Qty","Condition"],rows:d.lines.map((l,i)=>[i+1,l.code,item(l.code)?.desc||"(new item)",item(l.code)?.unit||"",l.qty,l.cond]),sig:["Delivered by (driver)","Received by (storekeeper)","Logistics approval"],stamp:"RECEIVED",right:[4]});
+ if(d.type==="MDS")return gdoc({title:T,no:d.no,date:d.date,meta:[["Dispatch type",d.dtype],["Receiver",d.party],["Employee / Iqama",d.iqama],["From",(WH[d.wh]||{}).name+" › "+d.loc],["To",d.to],["Return by",d.returnBy]],cols:["#","Item / Asset ID","Description","Qty","Condition"],rows:d.lines.map((l,i)=>[i+1,l.asset||l.code,item(l.code)?.desc||"",l.qty,l.cond]),sig:["Received by","Issued by (storekeeper)","Logistics approval"],stamp:"DISPATCHED",right:[3]});
+ if(d.type==="MRS")return gdoc({title:T,no:d.no,date:d.date,meta:[["Returned by",d.party],["Employee / Iqama",d.iqama],["Returned to",(WH[d.wh]||{}).name+" › "+d.loc]],cols:["#","Item / Asset ID","Description","Qty","Condition"],rows:d.lines.map((l,i)=>[i+1,l.asset||l.code,item(l.code)?.desc||"",l.qty,l.cond]),sig:["Returned by","Received by (storekeeper)","Logistics approval"],stamp:"RECEIVED",right:[3]});
+ if(d.type==="SC")return gdoc({title:T,no:d.no,date:d.date,meta:[["Location",(WH[d.wh]||{}).name+" › "+d.loc],["Status","Pending approval"]],cols:["#","Item code","Description","Counted","System","Difference"],rows:d.lines.map((l,i)=>[i+1,l.code,item(l.code)?.desc||"",l.qty,l.sys,(l.qty-l.sys>0?"+":"")+(l.qty-l.sys)]),sig:["Counted by","Checked by","Approved by (Finance)"],right:[3,4,5]});
  const a=d.asset||D.assets.find(x=>x.id===d.lines[0].asset);return gdoc({title:T,no:d.no,date:d.date,meta:[["Receiver",d.party],["Employee / Iqama",d.iqama],["Ownership",a.own]],cols:["Asset ID","Description","Brand","Model","Serial","Item code"],rows:[[a.id,a.desc,a.brand,a.model,a.serial,a.itemCode]],sig:["Receiver","Logistics","HR"]});}
 const prDoc_old=p=>gdoc({title:"PURCHASE REQUEST (PR)",no:p.no,date:p.date,meta:[["Cost center",p.cc],["Requested by",p.req],["Required date",p.need],["Purpose",p.just]],cols:["#","Item code","Description","Qty","Est. unit price","Est. total","Class"],rows:p.lines.map((l,i)=>[i+1,l.code||"—",l.desc,l.qty,money(l.est),money(l.qty*l.est),l.cls]),totals:[["Estimated total (SAR)",money(p.lines.reduce((a,l)=>a+l.qty*l.est,0))]],sig:["Requested by (Logistics)","Approved by (Project Director)","Received by (Procurement)"],right:[3,4,5]});
 const cqsDoc_old=c=>gdoc({title:"COMPARATIVE QUOTATION SHEET (CQS)",no:c.no,date:c.date,meta:[["Purchase request",c.pr],["Selected supplier",c.sel]],cols:["Supplier","Price (SAR)","Delivery (days)","Warranty (months)","Meets spec","Valid","Compliant"],rows:c.quotes.map(q=>[q.sup,money(q.price),q.days,q.war,q.spec?"Yes":"No",q.valid?"Yes":"No",q.spec&&q.valid?"Yes":"No"]),sig:["Prepared by (Procurement)","Project Director","Finance Manager"],right:[1,2,3]});
