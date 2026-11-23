@@ -256,7 +256,7 @@ async function localGetAll() {
   }
   await histLoad(dirs);
   if (merged) setTimeout(() => toast("✔ " + merged + " " + tr("records merged from a OneDrive conflict copy", "سجل تم دمجه من نسخة تعارض في OneDrive")), 500);
-  if (!LOCAL.autoChecked) { LOCAL.autoChecked = true; setTimeout(() => LOCAL.autoBackup().catch(e => console.warn("backup", e)), 2500); }
+  if (!LOCAL.autoChecked) { LOCAL.autoChecked = true; setTimeout(() => LOCAL.autoBackup().catch(e => console.warn("backup", e)).then(() => LOCAL.xlDaily()).catch(e => console.warn("excel", e)), 2500); }
   out._missing = [];
   return out;
 }
@@ -287,6 +287,7 @@ async function localUpsertMany(payload) {
     payload[name].forEach(rec => SNAP[name][KEYS[name](rec)] = JSON.stringify(rec));
     result[name] = payload[name].length;
   }
+  try { xlSchedule([...new Set(Object.keys(result).map(n => COLL_AREA[n] || "sys"))], (payload.ut || []).map(u => String(u.date || "").slice(0, 7)).filter(Boolean)); } catch (e) { console.warn(e); }
   for (const a of Object.keys(hist)) { try { await histAppend(a, hist[a]); } catch (e) { console.warn("history", e); toast("⚠ " + tr("Saved, but the change history could not be written: ", "تم الحفظ لكن تعذّر تسجيل سجل التغييرات: ") + e.message); } }
   if (others.length) toast("⚠ " + tr("Saved. Note: ", "تم الحفظ. ملاحظة: ") + others.length + " " + tr("record(s) had also been changed by", "سجل عدّله أيضاً") + " " + [...new Set(others)].join(", "));
   return result;
@@ -442,6 +443,440 @@ LOCAL.migrate = async function (say) {
   LOCAL.layout = 2;
   return stat;
 };
+
+/* ======================= Excel linked with the Hub (both ways) =======================
+   A. Utilities weekly workbook (Turki's layout), one per month, linked BOTH ways:
+      - in the Hub folder:  02 Utilities/Excel (linked with Hub)/Weekly_Report_Utilities_Back_Charge_MIDU (<Month yyyy>).xlsx
+      - in Turki's own folder (Utilities › Weekly Reports For Sub-contractors › <Month>/…), once someone links that
+        folder on their PC (button on the Utilities screens). His own file is used, so his sheets, the Link sheet and
+        the "Monthly Utilities Consumption" file that reads it keep working.
+      Items that are not rows of his sheet (Laydown rows, extra equipment …) are on an added sheet "Hub extra items".
+   B. Every area: <area>/Excel (linked with Hub)/<area> - Hub data.xlsx – one sheet per list. Columns marked ✎ can be
+      edited in Excel and come back into the Hub; other columns are overwritten (they follow the Hub's own rules:
+      stock and custody only through GRN/MDS/MRS, PR approvals in the Hub …).
+   How a change is recognised: the Hub keeps what it last wrote in <area>/_data/_excel-sync.json. A cell that differs
+   from that in Excel was typed in Excel → saved into the Hub; then the Hub writes the file again with everything.
+   The Hub checks the files every 30 s while it is open, when its window gets focus, when it opens, and before every
+   write – so an Excel change is never overwritten.                                                                 */
+const XL_DIR = "Excel (linked with Hub)", XL_TPL = "Excel templates", XL_TPL_NAME = "Utilities weekly template";
+const XL_MON = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const XL_EXTRA = "Hub extra items", XL_EDIT_MARK = " ✎";
+const XL_COLS = {
+  emps: [["no", "Employee No"], ["name", "Name"], ["dept", "Department"], ["site", "Site"], ["iqama", "Iqama / ID"], ["mobile", "Mobile"], ["deviceId", "Device ID"]],
+  items: [["code", "Item code"], ["desc", "Description"], ["descAr", "Description (AR)"], ["unit", "Unit"], ["kind", "Kind"], ["cat", "Category"], ["dept", "Department"], ["min", "Min qty"], ["price", "Unit price"], ["created", "Created"], ["createdBy", "Created by"], ["src", "Source"]],
+  assets: [["id", "Asset ID"], ["type", "Type"], ["desc", "Description"], ["brand", "Brand"], ["model", "Model"], ["serial", "Serial No"], ["itemCode", "Item code"], ["status", "Status"], ["wh", "Warehouse"], ["loc", "Location"], ["own", "Ownership"], ["custName", "Holder"], ["cust", "Holder ID"]],
+  stock: [["code", "Item code"], ["wh", "Warehouse"], ["loc", "Storage location"], ["sl", "Stock line"], ["qty", "Qty"]],
+  docs: [["no", "Doc No"], ["type", "Type"], ["date", "Date"], ["dtype", "Dispatch type"], ["party", "Party"], ["iqama", "Employee / Iqama"], ["po", "PO No"], ["dn", "Delivery note"], ["wh", "Warehouse"], ["loc", "Location"], ["to", "To"], ["returnBy", "Return by"], ["by", "By"], ["remarks", "Remarks"]],
+  ut: [["id", "Reading ID"], ["date", "Date"], ["item", "Item key"], ["title", "Item"], ["type", "Category"], ["c", "Location / Charge to"], ["company", "Company"], ["qty", "Qty"], ["unit", "Unit"], ["ref", "Reference"]],
+  uitems: [["key", "Item key"], ["title", "Item"], ["cat", "Category"], ["loc", "Location"], ["unit", "Unit"], ["company", "Company"], ["chargeTo", "Charge to"], ["concretePct", "Concrete %"], ["mccPct", "MCC %"], ["emcoPct", "EMCO %"], ["active", "Active"]],
+  rates: [["type", "Type"], ["unit", "Unit"], ["rate", "Rate (before VAT)"]],
+  dns: [["no", "Debit note"], ["contractor", "Contractor"], ["period", "Period"], ["date", "Date"], ["sub", "Subtotal"], ["vat", "VAT"], ["status", "Status"], ["paid", "Paid"]],
+  prs: [["no", "PR No"], ["date", "Date"], ["cc", "Cost center"], ["req", "Requested by"], ["need", "Need date"], ["just", "Purpose"], ["prio", "Priority"], ["status", "Status"], ["pd", "PD approved"], ["pdBy", "PD approved by"], ["pdDate", "PD approval date"], ["rejReason", "Reason not approved"]],
+  cqs: [["no", "CQS No"], ["pr", "PR No"], ["date", "Date"], ["sel", "Selected supplier"], ["approved", "Approved"]],
+  pos: [["no", "PO No"], ["kind", "Kind"], ["date", "Date"], ["pr", "PR No"], ["cqs", "CQS No"], ["sup", "Supplier"], ["cc", "Cost center"], ["fin", "Finance status"]],
+  invs: [["po", "PO No"], ["no", "Invoice No"], ["date", "Invoice date"], ["amt", "Amount"], ["paid", "Paid date"]],
+  budget: [["cc", "Cost center"], ["CAPEX", "CAPEX"], ["OPEX", "OPEX"]],
+  punches: [["emp", "Employee No"], ["ts", "Punch time"], ["dev", "Device"], ["src", "Source file"]],
+  areq: [["no", "Request No"], ["emp", "Employee No"], ["type", "Type"], ["date", "Date"], ["from", "From"], ["to", "To"], ["leaveType", "Leave type"], ["inTime", "In"], ["outTime", "Out"], ["reason", "Reason"], ["status", "Status"], ["requestedBy", "Requested by"], ["decidedBy", "Decided by"], ["decidedOn", "Decided on"]],
+  mcl: [["no", "Checklist No"], ["month", "Month"], ["loc", "Location"], ["by", "Checked by"], ["date", "Date"]],
+  mreq: [["no", "Request No"], ["date", "Date"], ["by", "Requested by"], ["asset", "Asset"], ["loc", "Location"], ["cat", "Category"], ["prio", "Priority"], ["desc", "Description"], ["status", "Status"], ["to", "Assigned to"]]
+};
+const XL_NAMES = { emps: "Employees", items: "Item list", assets: "Asset register", stock: "Stock", docs: "GRN MDS MRS", ut: "Utility readings", uitems: "Utility items", rates: "Utility rates", dns: "Debit notes",
+  prs: "Purchase requests", cqs: "CQS", pos: "PO and petty cash", invs: "Invoices", budget: "Budget", punches: "Attendance punches", areq: "Attendance requests", mcl: "Monthly checklists", mreq: "Maintenance requests", assetTypes: "Asset types" };
+const XL_LINES = { docs: "no", prs: "no", pos: "no", cqs: "no", dns: "no" };
+/* Columns that may be changed in Excel (the same fields the Hub screens let people edit directly). add = new rows allowed. */
+const XL_EDIT = {
+  emps: { f: ["name", "dept", "site", "iqama", "mobile", "deviceId"], add: true },
+  items: { f: ["desc", "descAr", "unit", "min", "price"] },
+  assets: { f: ["desc", "brand", "model", "serial", "status", "wh", "loc", "own"] },
+  ut: { f: ["qty", "ref"] },
+  rates: { f: ["rate"] },
+  dns: { f: ["status", "paid"] },
+  budget: { f: ["CAPEX", "OPEX"], add: true },
+  mreq: { f: ["status", "to", "prio"] }
+};
+const XL_NUM = new Set(["min", "price", "rate", "paid", "CAPEX", "OPEX", "qty", "sub", "vat", "amt"]);
+const xlCell = v => v === undefined || v === null ? "" : typeof v === "object" ? JSON.stringify(v) : v;
+const xlNorm = (f, v) => { if (v === undefined || v === null) return ""; if (XL_NUM.has(f)) { if (v === "") return ""; const n = +v; return isNaN(n) ? String(v).trim() : n; } return String(v).trim(); };
+const xlKeyOf = (c, r) => String(KEYS[c](r));
+const xlRows = (data, c) => data === (typeof D !== "undefined" ? D : null) && typeof rowsOf === "function" ? rowsOf(c) : (Array.isArray(data[c]) ? data[c] : Object.entries(data[c] || {}).map(([cc, v]) => Object.assign({ cc }, v)));
+
+/* ---------------- small zip / sheet helpers ---------------- */
+const xlColName = n => { let s = ""; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+const xlSerial = ymd => Math.round((Date.UTC(+ymd.slice(0, 4), +ymd.slice(5, 7) - 1, +ymd.slice(8, 10)) - Date.UTC(1899, 11, 30)) / 864e5);
+const xlFromSerial = n => { const d = new Date(Date.UTC(1899, 11, 30) + Math.round(n) * 864e5); return d.toISOString().slice(0, 10); };
+const xlEsc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const zOpen = u8 => XLSX.CFB.read(u8, { type: "array" });
+const zFind = (z, p) => XLSX.CFB.find(z, "/" + p.replace(/^\//, ""));
+const zText = (z, p) => { const e = zFind(z, p); return e ? new TextDecoder().decode(e.content) : null; };
+const zPut = (z, p, s) => { const e = zFind(z, p), b = new TextEncoder().encode(s); if (e) { e.content = b; e.size = b.length; } else XLSX.CFB.utils.cfb_add(z, "/" + p, b); };
+const zBytes = z => XLSX.CFB.write(z, { fileType: "zip", type: "array", compression: true });
+/** sheet name → part path ("xl/worksheets/sheet2.xml") */
+function zSheets(z) {
+  const wb = zText(z, "xl/workbook.xml"), rels = zText(z, "xl/_rels/workbook.xml.rels"), out = {};
+  const tgt = {}; (rels.match(/<Relationship [^>]*>/g) || []).forEach(r => { const id = /Id="([^"]+)"/.exec(r), t = /Target="([^"]+)"/.exec(r); if (id && t) tgt[id[1]] = t[1].replace(/^\/?xl\//, "").replace(/^\//, ""); });
+  (wb.match(/<sheet [^>]*>/g) || []).forEach(s => { const n = /name="([^"]+)"/.exec(s), id = /r:id="([^"]+)"/.exec(s); if (n && id && tgt[id[1]]) out[n[1].replace(/&amp;/g, "&")] = "xl/" + tgt[id[1]]; });
+  return out;
+}
+function xlSetCell(rowXml, ref, val) {
+  const re = new RegExp('<c r="' + ref + '"((?: [\\w:]+="[^"]*")*)\\s*(?:/>|>[\\s\\S]*?</c>)');
+  const m = re.exec(rowXml); if (!m) return null;
+  const attrs = m[1].replace(/ t="[^"]*"/, "");
+  const cell = val === null || val === undefined || val === "" ? '<c r="' + ref + '"' + attrs + '/>' : '<c r="' + ref + '"' + attrs + '><v>' + (+val) + '</v></c>';
+  return rowXml.slice(0, m.index) + cell + rowXml.slice(m.index + m[0].length);
+}
+const xlRowRe = r => new RegExp('<row r="' + r + '"[^>]*>[\\s\\S]*?</row>');
+
+/* ---------------- A. utilities weekly workbook ---------------- */
+const xlUtilName = month => "Weekly_Report_Utilities_Back_Charge_MIDU (" + XL_MON[+month.slice(5, 7) - 1] + " " + month.slice(0, 4) + ").xlsx";
+const xlMonthOf = serial => { const d = xlFromSerial(serial); return d.slice(0, 7); };
+/** Find the row of every Hub utility item in "Daily Utilities Filling" (by name and location, in order). */
+function xlUtilInfo(u8) {
+  const wb = XLSX.read(u8, { type: "array" }), ws = wb.Sheets["Daily Utilities Filling"], su = wb.Sheets.Setup;
+  if (!ws || !su) throw new Error("Not a utilities weekly workbook (sheets 'Setup' / 'Daily Utilities Filling' missing)");
+  const b4 = su.B4, month = b4 && typeof b4.v === "number" ? xlMonthOf(b4.v) : "";
+  const n = s => String(s === undefined || s === null ? "" : s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const items = (D.uitems || []).slice().sort((a, b) => (+a.sort || 0) - (+b.sort || 0)), rows = {}, unmatched = [];
+  const rng = XLSX.utils.decode_range(ws["!ref"]); let j = 0;
+  for (let r = 8; r <= rng.e.r + 1; r++) {
+    const A = (ws["A" + r] || {}).v, B = (ws["B" + r] || {}).v, C = (ws["C" + r] || {}).v;
+    if (!A || /^total/i.test(String(A)) || (!B && !C)) continue;
+    let k = -1;
+    for (let i = j; i < items.length; i++) { const it = items[i]; if (n(it.title) === n(A) && n(it.loc) === n(B) && (!it.company || n(it.company) === n(C))) { k = i; break; } }
+    if (k < 0) { unmatched.push(r + ": " + A + " / " + (B || "")); continue; }
+    rows[items[k].key] = r; j = k + 1;
+  }
+  const extra = items.filter(i => !rows[i.key]);
+  return { month, rows, extra, unmatched, sheets: null };
+}
+/** Values typed in the workbook: {month, cells:{"U001|2026-11-21":qty}, skip:Set(keys with text)} */
+function xlReadUtilities(u8) {
+  const info = xlUtilInfo(u8), wb = XLSX.read(u8, { type: "array" }), ws = wb.Sheets["Daily Utilities Filling"], ex = wb.Sheets[XL_EXTRA];
+  const month = info.month, days = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 0)).getUTCDate(), cells = {}, skip = new Set();
+  const take = (key, c) => { if (!c || c.v === "" || c.v === null || c.v === undefined) return; if (typeof c.v === "number") cells[key] = c.v; else skip.add(key); };
+  Object.keys(info.rows).forEach(k => { for (let d = 1; d <= days; d++) take(k + "|" + month + "-" + String(d).padStart(2, "0"), ws[xlColName(3 + d) + info.rows[k]]); });
+  if (ex && ex["!ref"]) { const rg = XLSX.utils.decode_range(ex["!ref"]);
+    for (let r = 2; r <= rg.e.r + 1; r++) { const k = (ex["A" + r] || {}).v; if (!k || info.rows[k]) continue; for (let d = 1; d <= days; d++) take(k + "|" + month + "-" + String(d).padStart(2, "0"), ex[xlColName(5 + d) + r]); } }
+  return { month, cells, skip, info };
+}
+/** Sheet XML for the "Hub extra items" sheet. */
+function xlExtraSheet(items, month, val) {
+  const days = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 0)).getUTCDate();
+  const s = (ref, t) => '<c r="' + ref + '" t="inlineStr"><is><t>' + xlEsc(t) + '</t></is></c>', nC = (ref, v) => '<c r="' + ref + '"><v>' + v + '</v></c>';
+  let x = '<row r="1">' + ["Key", "Item", "Category", "Location / Charge to", "Unit"].map((h, i) => s(xlColName(i + 1) + 1, h)).join("");
+  for (let d = 1; d <= 31; d++) x += d <= days ? nC(xlColName(5 + d) + 1, d) : "";
+  x += s(xlColName(37) + 1, "Month total") + "</row>";
+  items.forEach((it, i) => { const r = i + 2; x += '<row r="' + r + '">' + [it.key, it.title, it.cat, [it.loc, it.company].filter(Boolean).join(" – "), it.unit].map((t, c) => s(xlColName(c + 1) + r, t || "")).join("");
+    for (let d = 1; d <= days; d++) { const v = val(it.key + "|" + month + "-" + String(d).padStart(2, "0")); if (v) x += nC(xlColName(5 + d) + r, v); }
+    x += '<c r="' + xlColName(37) + r + '"><f>SUM(F' + r + ':AJ' + r + ')</f></c></row>'; });
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<sheetViews><sheetView workbookViewId="0"><pane xSplit="5" ySplit="1" topLeftCell="F2" activePane="bottomRight" state="frozen"/></sheetView></sheetViews>' +
+    '<cols><col min="1" max="1" width="8" customWidth="1"/><col min="2" max="2" width="26" customWidth="1"/><col min="3" max="3" width="20" customWidth="1"/><col min="4" max="4" width="26" customWidth="1"/><col min="5" max="5" width="8" customWidth="1"/><col min="6" max="36" width="7" customWidth="1"/><col min="37" max="37" width="12" customWidth="1"/></cols>' +
+    '<sheetData>' + x + '</sheetData></worksheet>';
+}
+function zEnsureSheet(z, name) {
+  const have = zSheets(z); if (have[name]) return have[name];
+  let n = 1; while (zFind(z, "xl/worksheets/sheet" + n + ".xml")) n++;
+  const part = "xl/worksheets/sheet" + n + ".xml";
+  let rels = zText(z, "xl/_rels/workbook.xml.rels"), id = 1; while (rels.indexOf('Id="rId' + id + '"') > -1) id++;
+  rels = rels.replace("</Relationships>", '<Relationship Id="rId' + id + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + n + '.xml"/></Relationships>');
+  zPut(z, "xl/_rels/workbook.xml.rels", rels);
+  let wb = zText(z, "xl/workbook.xml"); const ids = (wb.match(/sheetId="(\d+)"/g) || []).map(x => +x.replace(/\D/g, ""));
+  wb = wb.replace("</sheets>", '<sheet name="' + xlEsc(name) + '" sheetId="' + (Math.max(0, ...ids) + 1) + '" r:id="rId' + id + '"/></sheets>');
+  zPut(z, "xl/workbook.xml", wb);
+  let ct = zText(z, "[Content_Types].xml");
+  ct = ct.replace("</Types>", '<Override PartName="/' + part + '" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>');
+  zPut(z, "[Content_Types].xml", ct);
+  return part;
+}
+/** Fill a utilities workbook (Turki's file or the template) with the Hub readings of one month. */
+function xlFillUtilities(u8, month, readings) {
+  const info = xlUtilInfo(u8), z = zOpen(u8), sh = zSheets(z), val = {};
+  readings.filter(u => String(u.date).slice(0, 7) === month && +u.qty).forEach(u => { const k = u.item + "|" + String(u.date).slice(0, 10); val[k] = (val[k] || 0) + (+u.qty); });
+  const days = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 0)).getUTCDate();
+  /* daily sheet */
+  let xml = zText(z, sh["Daily Utilities Filling"]);
+  Object.keys(info.rows).forEach(k => { const r = info.rows[k], m = xlRowRe(r).exec(xml); if (!m) return; let row = m[0];
+    for (let d = 1; d <= 31; d++) { const nr = xlSetCell(row, xlColName(3 + d) + r, d <= days ? val[k + "|" + month + "-" + String(d).padStart(2, "0")] : null); if (nr !== null) row = nr; }
+    xml = xml.slice(0, m.index) + row + xml.slice(m.index + m[0].length); });
+  zPut(z, sh["Daily Utilities Filling"], xml);
+  /* Setup!B4 = first day of the month */
+  let sx = zText(z, sh.Setup); const rm = xlRowRe(4).exec(sx);
+  if (rm) { const nr = xlSetCell(rm[0], "B4", xlSerial(month + "-01")); if (nr) sx = sx.slice(0, rm.index) + nr + sx.slice(rm.index + rm[0].length); }
+  zPut(z, sh.Setup, sx);
+  /* Link sheet: refresh the saved results, so files that read it while it is closed (Monthly Utilities Consumption) see the new figures */
+  if (sh.Link) {
+    const dv = {}; (xml.match(/<c r="([A-Z]+)(\d+)"[^>]*><v>([^<]*)<\/v><\/c>/g) || []).forEach(c => { const m = /<c r="([A-Z]+)(\d+)"[^>]*><v>([^<]*)<\/v>/.exec(c); (dv[m[2]] = dv[m[2]] || {})[m[1]] = +m[3]; });
+    let lx = zText(z, sh.Link);
+    lx = lx.replace(/<row r="(\d+)"[^>]*>[\s\S]*?<\/row>/g, row => {
+      let sum = 0, any = false;
+      row = row.replace(/(<c r="[A-Z]+\d+"[^>]*><f>IF\((\d+)&gt;Setup!\$B\$5,0,N\(INDEX\('Daily Utilities Filling'!\$D\$(\d+):\$AH\$\d+,DAY\(Setup!\$B\$4\+(\d+)\)\)\)\)<\/f>)(?:<v>[^<]*<\/v>)?<\/c>/g, (all, head, nDay, dr, off) => {
+        const v = +nDay > days ? 0 : ((dv[dr] || {})[xlColName(4 + (+off))] || 0); sum += v; any = true; return head + "<v>" + v + "</v></c>"; });
+      if (any) row = row.replace(/(<c r="AH\d+"[^>]*><f[^>]*(?:\/>|>[^<]*<\/f>))(?:<v>[^<]*<\/v>)?<\/c>/, (all, head) => head + "<v>" + sum + "</v></c>");
+      return row; });
+    zPut(z, sh.Link, lx);
+  }
+  /* items that are not rows of the sheet */
+  if (info.extra.length) zPut(z, zEnsureSheet(z, XL_EXTRA), xlExtraSheet(info.extra, month, k => val[k]));
+  let wx = zText(z, "xl/workbook.xml"); if (!/fullCalcOnLoad/.test(wx)) { wx = wx.replace(/<calcPr([^>]*?)\/>/, '<calcPr$1 fullCalcOnLoad="1"/>'); zPut(z, "xl/workbook.xml", wx); }
+  return { bytes: zBytes(z), cells: val, info };
+}
+
+/* ---------------- B. area workbooks ---------------- */
+function xlAreaBook(area, data) {
+  const wb = XLSX.utils.book_new();
+  const info = [["MIDU Logistics Hub – " + AREAS[area]], [],
+    ["This file is linked with the Hub. Columns marked ✎ can be changed here: the change goes into the Hub within about 30 seconds while the Hub is open (or when it is next opened)."],
+    ["Other columns are written by the Hub after every save – change them in the Hub (stock and custody only through GRN / MDS / MRS, approvals in the Hub)."],
+    ["New rows can be added only in Employees and Budget. Rows deleted here are not deleted in the Hub."]];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(info), "About");
+  Object.keys(COLL_AREA).filter(c => COLL_AREA[c] === area && (xlRows(data, c).length || (XL_EDIT[c] && XL_EDIT[c].add))).forEach(c => {
+    const recs = xlRows(data, c), cols = (XL_COLS[c] || Object.keys(recs[0] || {}).filter(k => !Array.isArray(recs[0][k])).map(k => [k, k])).slice();
+    const extra = [...new Set(recs.flatMap(r => Object.keys(r)))].filter(k => !cols.some(x => x[0] === k) && !Array.isArray((recs.find(r => r[k] !== undefined) || {})[k]) && typeof (recs.find(r => r[k] !== undefined) || {})[k] !== "object" && !/^(_|asset$|res$|quotes$)/.test(k));
+    const all = cols.concat(extra.map(k => [k, k])), ed = (XL_EDIT[c] || { f: [] }).f;
+    const rows = [all.map(([k, h]) => ed.indexOf(k) > -1 ? h + XL_EDIT_MARK : h)].concat(recs.map(r => all.map(([k]) => xlCell(r[k]))));
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws["!cols"] = all.map(([, h], i) => ({ wch: Math.min(40, Math.max(8, h.length + 3, ...rows.slice(1, 200).map(r => String(r[i]).length + 1))) }));
+    ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(1, rows.length - 1), c: all.length - 1 } }) };
+    XLSX.utils.book_append_sheet(wb, ws, (XL_NAMES[c] || c).slice(0, 31));
+    if (XL_LINES[c] && recs.some(r => Array.isArray(r.lines) && r.lines.length)) {
+      const lk = [...new Set(recs.flatMap(r => (r.lines || []).flatMap(l => Object.keys(l))))];
+      const lr = [[XL_COLS[c] ? XL_COLS[c][0][1] : "No", "Line"].concat(lk)].concat(recs.flatMap(r => (r.lines || []).map((l, i) => [r[XL_LINES[c]], i + 1].concat(lk.map(k => xlCell(l[k]))))));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(lr), ((XL_NAMES[c] || c) + " lines").slice(0, 31));
+    }
+  });
+  return XLSX.write(wb, { bookType: "xlsx", type: "array", compression: true });
+}
+/** What the Hub writes for the editable columns: {coll:{key:{field:value}}} */
+function xlAreaSnap(area, data) {
+  const out = {};
+  Object.keys(XL_EDIT).filter(c => COLL_AREA[c] === area).forEach(c => { out[c] = {}; xlRows(data, c).forEach(r => { const o = {}; XL_EDIT[c].f.forEach(f => o[f] = xlNorm(f, r[f])); out[c][xlKeyOf(c, r)] = o; }); });
+  return out;
+}
+/** Read the editable columns from an area workbook: {coll:{key:{field:value}}} */
+function xlAreaRead(u8, area) {
+  const wb = XLSX.read(u8, { type: "array" }), out = {};
+  Object.keys(XL_EDIT).filter(c => COLL_AREA[c] === area).forEach(c => {
+    const ws = wb.Sheets[(XL_NAMES[c] || c).slice(0, 31)]; if (!ws) return;
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" }); if (!aoa.length) return;
+    const lab = {}; (XL_COLS[c] || []).forEach(([k, h]) => { lab[h] = k; lab[h + XL_EDIT_MARK] = k; lab[(h + XL_EDIT_MARK).trim()] = k; });
+    const hdr = aoa[0].map(h => lab[String(h).trim()] || lab[String(h).replace(/\s*✎\s*$/, "").trim()] || String(h).replace(/\s*✎\s*$/, "").trim());
+    const keyF = (XL_COLS[c] || [[]])[0][0], ki = hdr.indexOf(keyF); if (ki < 0) return;
+    out[c] = {};
+    aoa.slice(1).forEach(row => { const key = String(row[ki] === undefined ? "" : row[ki]).trim(); if (!key) return; const o = {};
+      XL_EDIT[c].f.forEach(f => { const i = hdr.indexOf(f); if (i > -1) o[f] = xlNorm(f, row[i]); }); out[c][key] = o; });
+  });
+  return out;
+}
+/** Bring changes typed in an area workbook into D. Returns {n, rejected[]} */
+function xlAreaApply(area, E, S) {
+  let n = 0; const rej = [];
+  Object.keys(E).forEach(c => {
+    const ed = XL_EDIT[c]; (S[c] = S[c] || {});
+    Object.keys(E[c]).forEach(key => {
+      const e = E[c][key], s = S[c][key], isObj = c === "budget", recs = isObj ? null : (D[c] || []), rec = isObj ? (D.budget || {})[key] : recs.find(r => xlKeyOf(c, r) === key);
+      if (!rec) {
+        if (s || !ed.add) return;                                   // deleted in the Hub, or adding not allowed
+        if (!Object.values(e).some(v => v !== "")) return;
+        const nr = {}; nr[(XL_COLS[c] || [[]])[0][0]] = key; ed.f.forEach(f => { if (e[f] !== undefined && e[f] !== "") nr[f] = e[f]; });
+        if (c === "emps" && !nr.name) { rej.push(XL_NAMES[c] + " " + key + ": name missing"); return; }
+        if (isObj) { D.budget = D.budget || {}; D.budget[key] = { CAPEX: +nr.CAPEX || 0, OPEX: +nr.OPEX || 0 }; } else { recs.push(nr); D[c] = recs; } n++; return;
+      }
+      ed.f.forEach(f => {
+        if (!(f in e)) return; const ev = e[f], sv = s ? s[f] : undefined, hv = xlNorm(f, rec[f]);
+        if (sv !== undefined && ev === sv) return;                  // not changed in Excel
+        if (sv === undefined && !ed.add) return;                     // row not written by the Hub yet
+        if (ev === hv) return;
+        if (XL_NUM.has(f) && ev !== "" && typeof ev !== "number") { rej.push(XL_NAMES[c] + " " + key + " – " + f + ": not a number"); return; }
+        if (c === "assets" && f === "status" && ev && typeof arStatuses === "function" && arStatuses().indexOf(ev) < 0) { rej.push("Asset " + key + " – status \"" + ev + "\" is not a Hub status"); return; }
+        if (c === "dns" && f === "status" && typeof DNST !== "undefined" && DNST.indexOf(ev) < 0) { rej.push("Debit note " + key + " – status \"" + ev + "\" is not a Hub status"); return; }
+        if (c === "ut" && f === "qty" && (ev === "" ? 0 : ev) < 0) { rej.push("Reading " + key + ": negative"); return; }
+        rec[f] = ev === "" && XL_NUM.has(f) ? 0 : ev; n++;
+      });
+    });
+  });
+  return { n, rej };
+}
+
+/* ---------------- files, sync state, the weekly folder link ---------------- */
+LOCAL.xlKnown = {}; LOCAL.xlDirty = {}; LOCAL.xlMonths = new Set(); LOCAL.xlTimer = null; LOCAL.xlWarned = false; LOCAL.weekly = null;
+async function xlCopies(d, name) {
+  const base = name.replace(/\.xlsx$/i, ""), out = [];
+  for await (const [n, h] of d.entries()) if (h.kind === "file" && n !== name && n.indexOf(base) === 0 && /^(-[^.]+| \(\d+\))\.xlsx$/i.test(n.slice(base.length))) out.push(n);
+  return out;
+}
+async function xlReadFile(d, name) { const fh = await d.getFileHandle(name).catch(() => null); if (!fh) return null; const f = await fh.getFile(); return { f, u8: new Uint8Array(await f.arrayBuffer()) }; }
+const xlSame = (a, b) => { if (!a || a.length !== b.length) return false; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false; return true; };
+async function xlWriteFile(d, name, bytes, id) {
+  const cur = await xlReadFile(d, name), nb = new Uint8Array(bytes);
+  if (!cur || !xlSame(cur.u8, nb)) await writeFileTo(d, name, new Blob([nb], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+  for (const n of await xlCopies(d, name)) await d.removeEntry(n).catch(() => {});
+  LOCAL.xlKnown[id] = (await (await d.getFileHandle(name)).getFile()).lastModified;
+}
+async function xlSyncRead(area) { return (await readJson(await subDir(dataPath(area)), "_excel-sync.json").catch(() => null)) || { v: 2, files: {} }; }
+async function xlSyncWrite(area, j) { j.v = 2; j.saved = new Date().toISOString(); await writeFileTo(await subDir(dataPath(area)), "_excel-sync.json", JSON.stringify(j)); }
+async function xlTemplateBytes() {
+  const t = await subDir(AREAS.ut + "/" + XL_TPL).catch(() => null); if (!t) return null;
+  const fh = await t.getFileHandle(XL_TPL_NAME + ".xlsx").catch(() => null); return fh ? new Uint8Array(await (await fh.getFile()).arrayBuffer()) : null;
+}
+/* Turki's weekly folder (outside MIDU Hub Data): linked once per PC, kept in this browser */
+LOCAL.weeklyInit = async function () {
+  let h = null; try { h = await idb("readonly", s => s.get("utWeekly")); } catch (e) {}
+  if (!h) { LOCAL.weekly = null; return; }
+  try { const p = await h.queryPermission({ mode: "readwrite" }); LOCAL.weekly = { h, ok: p === "granted" }; } catch (e) { LOCAL.weekly = { h, ok: false }; }
+};
+LOCAL.weeklyLink = async function () {
+  let h = LOCAL.weekly && LOCAL.weekly.h;
+  if (h && !LOCAL.weekly.ok) { if ((await h.requestPermission({ mode: "readwrite" })) === "granted") { LOCAL.weekly.ok = true; return h.name; } }
+  h = await window.showDirectoryPicker({ id: "midu-ut-weekly", mode: "readwrite" });
+  if ((await h.requestPermission({ mode: "readwrite" })) !== "granted") throw new Error("Editing files in \"" + h.name + "\" was not allowed.");
+  let found = false; for await (const [n, x] of h.entries()) { if (x.kind === "directory" && XL_MON.indexOf(n) > -1) found = true; if (x.kind === "file" && /^Weekly_Report_Utilities_Back_Charge_MIDU/i.test(n)) found = true; }
+  if (!found) throw new Error("\"" + h.name + "\" does not look like the weekly folder. Pick Utilities › Weekly Reports For Sub-contractors (it has the month folders November, December …).");
+  try { await idb("readwrite", s => s.put(h, "utWeekly")); } catch (e) {}
+  LOCAL.weekly = { h, ok: true }; return h.name;
+};
+LOCAL.weeklyUnlink = async function () { try { await idb("readwrite", s => s.delete("utWeekly")); } catch (e) {} LOCAL.weekly = null; };
+/** The workbook of a month in the weekly folder: existing file whose Setup month matches, else a new one from the template. */
+const XL_MCACHE = {};
+async function xlWeeklyTarget(month) {
+  if (!LOCAL.weekly || !LOCAL.weekly.ok) return null;
+  const root = LOCAL.weekly.h, mName = XL_MON[+month.slice(5, 7) - 1];
+  const d = await root.getDirectoryHandle(mName, { create: true });
+  for await (const [n, h] of d.entries()) {
+    if (h.kind !== "file" || !/^Weekly_Report_Utilities_Back_Charge_MIDU.*\.xlsx$/i.test(n) || /\)(-[^)]+| \(\d+\))\.xlsx$/i.test(n)) continue;
+    const f = await h.getFile(), ck = mName + "/" + n + "|" + f.lastModified;
+    if (!(ck in XL_MCACHE)) { try { XL_MCACHE[ck] = xlUtilInfo(new Uint8Array(await f.arrayBuffer())).month; } catch (e) { XL_MCACHE[ck] = ""; } }
+    if (XL_MCACHE[ck] === month) return { d, name: n, id: "weekly:" + mName + "/" + n };
+  }
+  return { d, name: xlUtilName(month), id: "weekly:" + mName + "/" + xlUtilName(month), isNew: true };
+}
+/** Ask what to do when a workbook is linked for the first time and it differs from the Hub. */
+function xlAskFirst(name, diffs) {
+  return new Promise(res => {
+    const list = diffs.slice(0, 15).map(([k, e, h]) => `<tr><td class="en">${xlEsc(k.split("|")[1])}</td><td>${xlEsc(((D.uitems || []).find(i => i.key === k.split("|")[0]) || {}).title || k.split("|")[0])}</td><td class="num">${h || "–"}</td><td class="num">${e || "–"}</td></tr>`).join("");
+    const o = lockBox(`<h3 style="margin:0 0 6px">${T("Link the Excel workbook", "ربط ملف Excel")}</h3><p style="margin:0 0 8px;color:#444">${xlEsc(name)}<br>${diffs.length} ${T("readings are different in the Hub and in this workbook. Which should be kept?", "قراءة مختلفة بين المنصة وهذا الملف. أيهما يُعتمد؟")}</p>
+      <div style="max-height:240px;overflow:auto"><table class="t" style="font-size:12px"><tr><th>${T("Day", "اليوم")}</th><th>${T("Item", "الصنف")}</th><th>Hub</th><th>Excel</th></tr>${list}</table></div>${diffs.length > 15 ? `<p class="sub">+ ${diffs.length - 15} …</p>` : ""}
+      <button id="xfE" style="${lockBtn};margin-top:12px">${T("Use the Excel values", "اعتماد قيم Excel")}</button>
+      <button id="xfH" style="${lockBtn};background:#fff;color:#1B273D;border:1px solid #cfd6e3;margin-top:8px">${T("Keep the Hub values", "الإبقاء على قيم المنصة")}</button>`);
+    o.querySelector("#xfE").onclick = () => { o.remove(); res("excel"); };
+    o.querySelector("#xfH").onclick = () => { o.remove(); res("hub"); };
+  });
+}
+/** Readings: apply Excel values to D.ut. changes = [[key, value]] */
+function xlApplyReadings(changes) {
+  let n = 0;
+  changes.forEach(([key, e]) => { const u = D.ut.find(r => r.id === key); const [k, date] = key.split("|"), it = (D.uitems || []).find(i => i.key === k); if (!it) return;
+    if (u) { if ((+u.qty || 0) !== e) { u.qty = e; n++; } } else if (e) { D.ut.push({ id: key, item: k, date, type: it.cat, c: it.loc || "", qty: e, ref: "", title: it.title, unit: it.unit || "", company: it.company || "" }); n++; } });
+  return n;
+}
+/** One utilities workbook: import its Excel changes (and its OneDrive conflict copies). Returns changes count. */
+async function xlUtilImport(t, sync) {
+  const snap = sync.files[t.id], files = [t.name].concat(await xlCopies(t.d, t.name)), changes = [];
+  for (const fn of files) {
+    const x0 = await xlReadFile(t.d, fn); if (!x0) continue;
+    if (fn === t.name && snap && x0.f.lastModified === LOCAL.xlKnown[t.id]) continue;
+    let x; try { x = xlReadUtilities(x0.u8); } catch (e) { console.warn("[hub] cannot read", fn, e); continue; }
+    if (!x.month) continue;
+    if (!snap) {                                                 // first link of an existing workbook
+      const hub = {}; (D.ut || []).filter(u => String(u.date).slice(0, 7) === x.month && +u.qty).forEach(u => hub[u.id] = +u.qty);
+      const diffs = [...new Set(Object.keys(hub).concat(Object.keys(x.cells)))].filter(k => !x.skip.has(k) && (x.info.rows[k.split("|")[0]] || x.info.extra.some(i => i.key === k.split("|")[0]) ) && (+x.cells[k] || 0) !== (hub[k] || 0)).sort().map(k => [k, +x.cells[k] || 0, hub[k] || 0]);
+      if (diffs.length && (await xlAskFirst(fn, diffs)) === "excel") diffs.forEach(([k, e]) => changes.push([k, e]));
+      continue;
+    }
+    const S = snap.month === x.month ? snap.cells : {};
+    new Set(Object.keys(x.cells).concat(Object.keys(S))).forEach(key => {
+      if (x.skip.has(key) || key.split("|")[1].slice(0, 7) !== x.month) return;
+      const e = +(x.cells[key] || 0), s0 = +(S[key] || 0); if (e === s0) return;
+      changes.push([key, e]);
+    });
+  }
+  return changes;
+}
+/** Two-way sync of the utilities workbooks of one month (Hub folder + Turki's folder). */
+async function xlUtilMonth(month) {
+  const tpl = await xlTemplateBytes(); if (!tpl) return [];
+  const sync = await xlSyncRead("ut"), targets = [];
+  const hd = await subDir(AREAS.ut + "/" + XL_DIR, true);
+  targets.push({ d: hd, name: xlUtilName(month), id: "hub:" + xlUtilName(month) });
+  const wt = await xlWeeklyTarget(month).catch(e => { console.warn("[hub] weekly folder", e); return null; }); if (wt) targets.push(wt);
+  const changes = [];
+  for (const t of targets) { if (t.isNew) continue; changes.push(...await xlUtilImport(t, sync)); }
+  const n = xlApplyReadings(changes);
+  if (n) { persist(); xlRerender(); toast("✔ " + n + " " + tr("utility readings brought in from Excel", "قراءة خدمات أُدخلت من Excel")); }
+  const done = [];
+  for (const t of targets) {
+    const cur = await xlReadFile(t.d, t.name), base = cur ? cur.u8 : tpl;
+    let r; try { r = xlFillUtilities(base, month, D.ut || []); } catch (e) { console.warn("[hub] not a utilities workbook:", t.name, e); continue; }
+    try { await xlWriteFile(t.d, t.name, r.bytes, t.id); sync.files[t.id] = { month, cells: r.cells, at: new Date().toISOString(), by: LOCAL.user }; done.push(t.id); }
+    catch (e) { xlWarn(t.name, e); }
+  }
+  await xlSyncWrite("ut", sync);
+  return done;
+}
+/** Two-way sync of an area workbook. */
+async function xlAreaSync(area) {
+  const d = await subDir(AREAS[area] + "/" + XL_DIR, true), name = AREAS[area] + " - Hub data.xlsx", id = "area:" + area, sync = await xlSyncRead(area);
+  const snap = sync.files[id], files = [name].concat(await xlCopies(d, name)); let n = 0; const rej = [];
+  if (snap && Object.keys(XL_EDIT).some(c => COLL_AREA[c] === area)) for (const fn of files) {
+    const x0 = await xlReadFile(d, fn); if (!x0) continue;
+    if (fn === name && x0.f.lastModified === LOCAL.xlKnown[id]) continue;
+    let E; try { E = xlAreaRead(x0.u8, area); } catch (e) { console.warn("[hub] cannot read", fn, e); continue; }
+    const r = xlAreaApply(area, E, snap.cells || {}); n += r.n; rej.push(...r.rej);
+  }
+  if (n) { persist(); xlRerender(); toast("✔ " + n + " " + tr("change(s) brought in from Excel", "تغيير أُدخل من Excel") + " (" + AREAS[area] + ")"); }
+  if (rej.length) toast("⚠ " + rej.length + " " + tr("Excel change(s) not accepted: ", "تغيير من Excel غير مقبول: ") + rej.slice(0, 3).join(" · "));
+  try { await xlWriteFile(d, name, xlAreaBook(area, D), id); sync.files[id] = { cells: xlAreaSnap(area, D), at: new Date().toISOString(), by: LOCAL.user }; await xlSyncWrite(area, sync); return name; }
+  catch (e) { xlWarn(name, e); return null; }
+}
+const XL_RERENDER = ["home", "dashWH", "dashPF", "dashHR", "dashMT", "utRep", "utReg", "search", "assetReg", "pr", "po", "fin"];
+function xlRerender() { try { if (typeof view !== "undefined" && XL_RERENDER.indexOf(view) > -1 && !document.querySelector("#ov.on")) render(true); } catch (e) {} }
+function xlWarn(name, e) {
+  console.warn("[hub] Excel", name, e);
+  if (!LOCAL.xlWarned) { LOCAL.xlWarned = true; toast("⚠ " + tr("Excel file not updated (is it open in Excel?): ", "لم يُحدَّث ملف Excel (هل هو مفتوح؟): ") + name + tr(". Nothing is lost – it is tried again every 30 seconds.", ". لا يضيع شيء – تُعاد المحاولة كل 30 ثانية.")); }
+}
+const xlMonthsNow = () => { const now = new Date(), m = [now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0")]; if (now.getDate() <= 10) { const p = new Date(now.getFullYear(), now.getMonth() - 1, 1); m.push(p.getFullYear() + "-" + String(p.getMonth() + 1).padStart(2, "0")); } return m; };
+const xlCan = () => LOCAL.connected && !LOCAL.readOnly && LOCAL.layout === 2 && typeof XLSX !== "undefined" && typeof D !== "undefined" && D && D.ut;
+/** Write (after first bringing in Excel changes) the workbooks of the given areas. */
+async function xlRefreshNow(areas, months) {
+  if (!xlCan()) return [];
+  areas = areas || Object.keys(AREAS).filter(a => LOCAL.areaOK[a]);
+  const done = [];
+  for (const a of areas) {
+    if (!LOCAL.areaOK[a]) continue;
+    try { const r = await xlAreaSync(a); if (r) done.push(r);
+      if (a === "ut") { const ms = new Set((months && months.size ? [...months] : []).concat(xlMonthsNow())); for (const m of ms) done.push(...await xlUtilMonth(m)); }
+    } catch (e) { xlWarn(AREAS[a], e); }
+  }
+  return done;
+}
+LOCAL.xlBusy = Promise.resolve();
+const xlQueue = fn => { const p = LOCAL.xlBusy.then(fn); LOCAL.xlBusy = p.catch(e => console.warn(e)); return p; };
+LOCAL.xlRefresh = (areas, months) => xlQueue(() => xlRefreshNow(areas, months));
+function xlSchedule(areas, months) {
+  areas.forEach(a => LOCAL.xlDirty[a] = 1); (months || []).forEach(m => LOCAL.xlMonths.add(m));
+  clearTimeout(LOCAL.xlTimer);
+  LOCAL.xlTimer = setTimeout(() => { const a = Object.keys(LOCAL.xlDirty), m = LOCAL.xlMonths; LOCAL.xlDirty = {}; LOCAL.xlMonths = new Set(); LOCAL.xlRefresh(a, m); }, 4000);
+}
+/** Every 30 s: has any linked workbook changed (typed in Excel, or synced from another PC)? */
+LOCAL.xlCheck = () => xlQueue(async () => {
+  if (!xlCan()) return;
+  const stale = new Set(), months = new Set();
+  for (const a of Object.keys(AREAS).filter(a => LOCAL.areaOK[a])) {
+    const d = await subDir(AREAS[a] + "/" + XL_DIR).catch(() => null); if (!d) continue;
+    const name = AREAS[a] + " - Hub data.xlsx", x = await d.getFileHandle(name).catch(() => null);
+    if (x && ((await x.getFile()).lastModified !== LOCAL.xlKnown["area:" + a] || (await xlCopies(d, name)).length)) stale.add(a);
+    if (a === "ut") for (const m of xlMonthsNow()) {
+      const ts = [{ d, name: xlUtilName(m), id: "hub:" + xlUtilName(m) }]; const w = await xlWeeklyTarget(m).catch(() => null); if (w && !w.isNew) ts.push(w);
+      for (const t of ts) { const fh = await t.d.getFileHandle(t.name).catch(() => null); if (fh && ((await fh.getFile()).lastModified !== LOCAL.xlKnown[t.id] || (await xlCopies(t.d, t.name)).length)) months.add(m); }
+    }
+  }
+  for (const a of stale) await xlAreaSync(a).catch(e => xlWarn(AREAS[a], e));
+  for (const m of months) await xlUtilMonth(m).catch(e => xlWarn(xlUtilName(m), e));
+});
+setInterval(() => LOCAL.xlCheck(), 30000);
+if (typeof window !== "undefined") window.addEventListener("focus", () => LOCAL.xlCheck());
+/* when the Hub opens: link state of the weekly folder, then make sure every workbook exists and is current */
+LOCAL.xlDaily = async function () { await LOCAL.weeklyInit(); return LOCAL.xlRefresh(); };
 
 /* Screens of an area that is not shared with this person are hidden. */
 (function () {
