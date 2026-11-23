@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611232300"></script>
-<script src="local.js?v=202611232300"></script>
+<script src="m365.js?v=202611232330"></script>
+<script src="local.js?v=202611232330"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -501,7 +501,7 @@ function bindRecent(type){document.querySelectorAll("[data-att]").forEach(b=>b.o
 VIEWS.grn=()=>{const w=whOpts();const ref=!!window.WHREF;
  return head(tr("Receive (GRN)","استلام (GRN)"),tr("One row per item. Pick an existing stock line, or type the name of a NEW item and choose its category, unit and type — the item code and stock line are created automatically. Attach the stamped delivery note.","سطر لكل صنف. اختر سطر مخزون موجوداً أو اكتب اسم صنف جديد واختر الفئة والوحدة والنوع — يُنشأ كود الصنف وسطر المخزون تلقائياً. أرفق مذكرة التسليم المختومة."))+msgBox+(WH_EDIT&&WH_EDIT.type==="GRN"?editBanner():"")+
  (ref?"":`<div class="banner">${tr("Stock lines and categories are not loaded (whref.json missing) — new items cannot be coded.","لم يتم تحميل أسطر المخزون والفئات — لا يمكن ترميز أصناف جديدة.")}</div>`)+
- `<div class="card"><h2>${tr("Delivery details","بيانات التوريد")}</h2><div class="fg">${fld("gNo",tr("GRN No.","رقم الاستلام"),{ro:true,val:nextNo("GRN")})}${fld("gDate",tr("Date received","تاريخ الاستلام"),{type:"date",val:today(),req:true})}${fld("gSup",tr("Supplier","المورد"),{req:true,list:"supL"})}${fld("gPo",tr("PO No. (or PETTY CASH)","رقم أمر الشراء (أو عهدة نثرية)"),{upper:true,list:"poL",ph:"MIDU-PO-26…"})}
+ `<div class="card"><h2>${tr("Delivery details","بيانات التوريد")}</h2><div class="fg">${fld("gNo",tr("GRN No.","رقم الاستلام"),{ro:true,val:nextNo("GRN")})}${fld("gDate",tr("Date received","تاريخ الاستلام"),{type:"date",val:today(),req:true})}${fld("gSup",tr("Supplier","المورد"),{req:true,list:"supL"})}${fld("gPo",tr("PO No. (or PETTY CASH)","رقم أمر الشراء (أو عهدة نثرية)"),{upper:true,list:"poL",ph:"MIDU-PO-26… · PETTY CASH · MBL BC 2601908"})}
  ${fld("gDn",tr("Delivery note No.","رقم مذكرة التسليم"),{req:true,upper:true})}${sel("gWh",tr("Warehouse","المستودع"),w,{req:true})}${sel("gLoc",tr("Stored at – location","مكان التخزين – الموقع"),locOpts(w[0][0]),{req:true})}${fld("gSp",tr("Storage point","نقطة التخزين"),{list:"spL",ph:"Container No-3 · Porta Cabin P-10 Room 01"})}
  ${fld("gBy",tr("Received by","المستلم"),{req:true,list:"staffL"})}${fld("gRem",tr("Remarks","ملاحظات"),{w:"w2"})}</div></div>
  <div class="card"><h2>${tr("Items","الأصناف")}</h2><div style="overflow:auto"><table class="t" id="gLines"><tr><th style="min-width:300px">${tr("Item – pick a stock line or type a NEW item","الصنف – اختر سطر مخزون أو اكتب صنفاً جديداً")}</th><th>${tr("Stock line","سطر المخزون")}</th><th>${tr("Item code","كود الصنف")}</th><th>${tr("Description","الوصف")}</th><th>${tr("Unit","الوحدة")}</th><th>${tr("Department","القسم")}</th><th style="width:90px">${tr("Qty","الكمية")}</th><th style="width:120px">${tr("Condition","الحالة")}</th><th></th></tr></table></div>
@@ -509,7 +509,7 @@ VIEWS.grn=()=>{const w=whOpts();const ref=!!window.WHREF;
  <div class="card"><h2>${tr("Stamped delivery note and checks","مذكرة التسليم المختومة والتحقق")}</h2><div class="fg">${attBox("gAtt",tr("Stamped & signed delivery note (scan or photo)","مذكرة التسليم المختومة والموقعة (مسح أو صورة)"),tr("PDF or photo. Saved in Documents › 01 Warehouse & Assets › 01 Signed GRN.","PDF أو صورة. تُحفظ في Documents › 01 Warehouse & Assets › 01 Signed GRN."))}
  <div class="f w2"><label>${tr("Storekeeper checks","تحقق أمين المستودع")} <span class="req">*</span></label>${chk("gC1",tr("Quantities counted and match the delivery note / PO","الكميات معدودة ومطابقة لمذكرة التسليم / أمر الشراء"))}${chk("gC2",tr("Items inspected – condition recorded for each line","تم فحص الأصناف – الحالة مسجلة لكل سطر"))}${chk("gC3",tr("Delivery note stamped and signed by the storekeeper","مذكرة التسليم مختومة وموقعة من أمين المستودع"))}</div></div>
  <div class="btns"><span style="flex:1"></span><button class="b g" id="gSave">${tr("Save receipt","حفظ الاستلام")}</button></div></div>${recentDocs("GRN")}
- ${dl("itemL",[...whLines().map(slLabel),...D.items.filter(i=>!lineFor(i.code)).map(itemLabel)])}${dl("supL",SUPS)}${dl("poL",["PETTY CASH",...D.pos.filter(p=>p.kind==="PO").map(p=>p.no)])}${dl("spL",WR().sps)}${dl("staffL",[...new Set([...WR().staff.map(s=>s.name),...D.emps.map(e=>e.name)])])}`;};
+ ${dl("itemL",[...whLines().map(slLabel),...D.items.filter(i=>!lineFor(i.code)).map(itemLabel)])}${dl("supL",SUPS)}${dl("poL",["PETTY CASH",...new Set(["MBL BC 2601908",...D.docs.filter(d=>d.type==="GRN"&&/^MBL/i.test(d.po||"")).map(d=>d.po)]),...D.pos.filter(p=>p.kind==="PO").map(p=>p.no)])}${dl("spL",WR().sps)}${dl("staffL",[...new Set([...WR().staff.map(s=>s.name),...D.emps.map(e=>e.name)])])}`;};
 function gRow(){const r=document.createElement("tr");const cats=WR().cats;
  r.innerHTML=`<td><input class="en" list="itemL" data-k="item" lang="en" autocomplete="off" placeholder="${esc(tr("type to search…","اكتب للبحث…"))}"><div data-k="new" style="display:none;margin-top:6px;padding:8px;border:1px dashed #0E7490;border-radius:8px;background:#F0F9FF">
   <div style="font-size:12px;font-weight:700;color:#0E7490;margin-bottom:4px">${tr("NEW item – choose:","صنف جديد – اختر:")}</div>
