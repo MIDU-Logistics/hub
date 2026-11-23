@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611232030"></script>
-<script src="local.js?v=202611232030"></script>
+<script src="m365.js?v=202611232100"></script>
+<script src="local.js?v=202611232100"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -1847,9 +1847,9 @@ function histLinks(){if(typeof LOCAL==="undefined"||!LOCAL.connected)return;cons
   const coll=cs.find(c=>(D[c]||[]).some(r=>KEYS[c](r)===k));if(!coll)return;const td=tr_.lastElementChild;
   td.insertAdjacentHTML("beforeend",` <button class="b l sm" data-hist="${esc(coll)}|${esc(k)}" title="${esc(tr("Change history","سجل التغييرات"))}">🕘</button>`);});}
 const UT_VIEWS=["utDaily","utRep","utBC","utReg"];
-function weeklyBanner(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.layout!==2||LOCAL.readOnly||!LOCAL.areaOK.ut||UT_VIEWS.indexOf(view)<0)return;const w=LOCAL.weekly;if(w&&w.ok)return;if(document.getElementById("wkBan"))return;
+function weeklyBanner(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.layout!==2||LOCAL.readOnly||!LOCAL.areaOK.ut||UT_VIEWS.indexOf(view)<0||LOCAL.weekly===undefined)return;const w=LOCAL.weekly;if(w&&w.ok)return;if(document.getElementById("wkBan"))return;
  const m=$("#main");if(!m)return;const d=document.createElement("div");d.id="wkBan";d.style.cssText="background:#FFF7E0;border:1px solid #F2C94C;border-radius:10px;padding:10px 14px;margin:0 0 12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:13.5px";
- d.innerHTML=`<span>📗 ${w?tr("The weekly Excel folder needs to be allowed again on this PC.","يجب السماح مجدداً بمجلد Excel الأسبوعي على هذا الجهاز."):tr("Turki's weekly Excel files (Utilities › Weekly Reports For Sub-contractors) are not linked on this PC yet. Link them once and they stay in step with the Hub both ways.","ملفات Excel الأسبوعية لتركي غير مربوطة على هذا الجهاز بعد. اربطها مرة واحدة لتبقى متطابقة مع المنصة في الاتجاهين.")}</span><button class="b n sm" id="wkGo">🔗 ${w?tr("Allow again","السماح مجدداً"):tr("Link the weekly Excel folder","ربط مجلد Excel الأسبوعي")}</button>`;
+ d.innerHTML=`<span>📗 ${w?tr("Edge needs your OK again to use the weekly Excel folder (it asks after the app is closed). Click the button – if Edge offers “Allow on every visit”, choose it so it stops asking.","يحتاج Edge موافقتك مجدداً لاستخدام مجلد Excel الأسبوعي. اضغط الزر – وإذا عرض Edge «السماح في كل زيارة» فاختره."):tr("Turki's weekly Excel files (Utilities › Weekly Reports For Sub-contractors) are not linked on this PC yet. Link them once and they stay in step with the Hub both ways.","ملفات Excel الأسبوعية لتركي غير مربوطة على هذا الجهاز بعد. اربطها مرة واحدة لتبقى متطابقة مع المنصة في الاتجاهين.")}</span><button class="b n sm" id="wkGo">🔗 ${w?tr("Allow again","السماح مجدداً"):tr("Link the weekly Excel folder","ربط مجلد Excel الأسبوعي")}</button>`;
  m.insertBefore(d,m.firstChild);
  $("#wkGo").onclick=async()=>{try{const n=await LOCAL.weeklyLink();d.remove();toast("✔ "+tr("Linked: ","تم الربط: ")+n+tr(" – updating the workbooks…"," – جارٍ تحديث الملفات…"));const r=await LOCAL.xlRefresh(["ut"]);toast("✔ "+tr("Excel workbooks in step with the Hub: ","ملفات Excel متطابقة مع المنصة: ")+r.length);}catch(e){if(e.name!=="AbortError")toast("✖ "+e.message);}};}
 const RENDER0=render;render=function(k){RENDER0(k);try{histLinks();weeklyBanner();}catch(e){console.warn(e);}};

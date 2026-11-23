@@ -75,7 +75,7 @@ LOCAL.init = async function () {
   try { if ((await h.queryPermission({ mode: "readwrite" })) !== "granted") { LOCAL.pending = h; return false; } await checkFolder(h); }
   catch (e) { return false; }
   LOCAL.dir = h; LOCAL.connected = true; LOCAL.user = LOCAL.userName() || "Hub user";
-  await LOCAL.signIn(); await LOCAL.offerMigration(); return true;
+  await LOCAL.signIn(); await LOCAL.offerMigration(); await LOCAL.weeklyInit().catch(() => {}); return true;
 };
 /** Button: pick the folder (or re-allow the one picked before). Needs a click. */
 LOCAL.connect = async function () {
@@ -99,6 +99,7 @@ LOCAL.connect = async function () {
   LOCAL.dir = h; LOCAL.connected = true; LOCAL.pending = null;
   step("your name"); await LOCAL.signIn();
   step("area folders"); await LOCAL.offerMigration();
+  await LOCAL.weeklyInit().catch(() => {});
   step("done");
   return true;
 };
@@ -699,7 +700,7 @@ function xlAreaApply(area, E, S) {
 }
 
 /* ---------------- files, sync state, the weekly folder link ---------------- */
-LOCAL.xlKnown = {}; LOCAL.xlDirty = {}; LOCAL.xlMonths = new Set(); LOCAL.xlTimer = null; LOCAL.xlWarned = false; LOCAL.weekly = null;
+LOCAL.xlKnown = {}; LOCAL.xlDirty = {}; LOCAL.xlMonths = new Set(); LOCAL.xlTimer = null; LOCAL.xlWarned = false; LOCAL.weekly = undefined;   // undefined = not checked yet on this open
 async function xlCopies(d, name) {
   const base = name.replace(/\.xlsx$/i, ""), out = [];
   for await (const [n, h] of d.entries()) if (h.kind === "file" && n !== name && n.indexOf(base) === 0 && /^(-[^.]+| \(\d+\))\.xlsx$/i.test(n.slice(base.length))) out.push(n);
