@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611232100"></script>
-<script src="local.js?v=202611232100"></script>
+<script src="m365.js?v=202611232300"></script>
+<script src="local.js?v=202611232300"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -281,6 +281,15 @@ function toast(m){const e=$("#toast");e.textContent=m;e.classList.add("on");setT
 const itemLabel=i=>`${i.code} | ${i.desc}`;
 function parseItem(v){v=(v||"").trim();const code=v.split("|")[0].trim().toUpperCase();return item(code)||D.items.find(i=>i.desc.toLowerCase()===v.toLowerCase());}
 function parseEmp(v){v=(v||"").trim();const m=v.match(/\d{10}/);if(m)return emp(m[0]);const n=v.split("|")[0].trim().toLowerCase();return D.emps.find(e=>e.name.toLowerCase()===n||e.no.toLowerCase()===n);}
+/* People who can return things: employees, everyone items were issued to (MDS), and holders in the Asset register */
+function holderList(){const m=new Map(),add=(name,id)=>{name=String(name||"").trim();id=String(id||"").trim();if(!name&&!id)return;const k=(id||name).toLowerCase();if(!m.has(k))m.set(k,{name:name||id,iqama:id||name});};
+ D.emps.forEach(e=>add(e.name,e.iqama||e.no));D.docs.filter(d=>d.type==="MDS"&&!d.cancelled).forEach(d=>add(d.party,d.iqama));D.assets.filter(a=>a.cust||a.custName).forEach(a=>add(a.custName||(emp(a.cust)||{}).name||a.cust,a.cust||""));return [...m.values()];}
+const holderLabel=p=>p.iqama&&p.iqama!==p.name?`${p.name} | ${p.iqama}`:p.name;
+function parseHolder(v){v=(v||"").trim();if(!v)return null;const e=parseEmp(v);if(e)return {name:e.name,iqama:e.iqama||e.no};const L=holderList(),parts=v.split("|").map(x=>x.trim()),id=(parts[1]||"").toLowerCase(),n=parts[0].toLowerCase();
+ return L.find(p=>id&&p.iqama.toLowerCase()===id)||L.find(p=>p.iqama.toLowerCase()===n||p.name.toLowerCase()===n)||null;}
+/* what a person holds: from MDS/MRS documents, plus assets the Asset register shows with this person (handed over before the Hub) */
+function holdingsOf(p){const h=holdings(p.iqama);const nm=p.name.toLowerCase();
+ D.assets.filter(a=>!h.some(x=>x.asset===a.id)&&((a.cust&&a.cust===p.iqama)||(!a.cust&&a.custName&&a.custName.trim().toLowerCase()===nm))).forEach(a=>h.push({code:a.itemCode||"",asset:a.id,qty:1,doc:tr("Asset register","سجل الأصول"),loan:""}));return h;}
 function holdings(iqama){const h={};
  D.docs.filter(d=>!d.cancelled&&(d.type==="MDS"&&d.dtype!=="Transfer"||d.type==="MRS")&&d.iqama===iqama).forEach(d=>d.lines.forEach(l=>{const k=l.asset||l.code;h[k]=h[k]||{code:l.code,asset:l.asset||"",qty:0,doc:d.no,loan:""};h[k].qty+=d.type==="MDS"?l.qty:-l.qty;if(d.type==="MDS"){h[k].doc=d.no;h[k].loan=d.dtype==="Temporary loan"?d.returnBy:"";}}));
  return Object.values(h).filter(x=>x.qty>0);}
@@ -438,16 +447,16 @@ function logForm(d){
   <div style="font-size:10px;color:#555;margin:8px 0">The receiver confirms receiving the material(s) / asset(s) above in the stated condition and quantity, accepts responsibility for their safe use and custody, and will return reusable items to the Logistics Department (Warehouse &amp; Stores) on request or when no longer needed. Loss or damage must be reported to Logistics immediately.</div>`;
   sig=[["ISSUED BY (STOREKEEPER)",d.by,staffId(d.by),fd(d.date)],["APPROVED BY (LOGISTICS)","Azzam El Masri","1058",fd(d.date)],["RECEIVED BY",d.party,d.iqama,fd(d.date)]];}
  else {
-  const e=D.emps.find(x=>x.iqama===d.iqama||x.no===d.iqama)||{};
+  const e0=D.emps.find(x=>x.iqama===d.iqama||x.no===d.iqama)||{},m0=D.docs.filter(x=>x.type==="MDS"&&x.iqama===d.iqama).pop()||{},e={dept:e0.dept||m0.dept||"",mobile:e0.mobile||m0.mobile||""};
   head=`<table style="width:100%;border-collapse:collapse;font-size:11.5px">${kv("Return No.:",d.no,"Date:",fd(d.date))}${kv("Returned from:",d.party,"Returned to:",[WH[d.wh]?.name,d.loc].filter(Boolean).join(" › "))}</table>
   <div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">RETURNED BY</div><table style="width:100%;border-collapse:collapse;font-size:11px"><tr><td ${td("left")}><b>Name</b></td><td ${td("left")}>${esc(d.party||"")}</td><td ${td("left")}><b>Employee ID</b></td><td ${td("left")}>${esc(d.iqama||"")}</td></tr><tr><td ${td("left")}><b>Department</b></td><td ${td("left")}>${esc(e.dept||"")}</td><td ${td("left")}><b>Mobile</b></td><td ${td("left")}>${esc(e.mobile||"")}</td></tr></table>
   <div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">ITEMS RETURNED</div>`;
   cols=["No.","Item Code / Asset ID","Item Type","Description","Brand / Model","Serial No.","Unit","Qty","Condition"];
   rows=lines.map((l,i)=>{const {ln,it,a}=lineInfo(l);return `<tr><td ${td()}>${i+1}</td><td ${td()}>${esc(l.asset||ln.sl||l.code)}</td><td ${td()}>${esc(a?a.type:(ln.cat||""))}</td><td ${td("left")}>${esc((a&&a.desc)||it.desc||"")}</td><td ${td()}>${esc(a?[a.brand,a.model].filter(Boolean).join(" "):"")}</td><td ${td()}>${esc(a?a.serial||"":"")}</td><td ${td()}>${esc(it.unit||"Pcs")}</td><td ${td()}>${l.qty}</td><td ${td()}>${esc(l.cond||"")}</td></tr>`;}).join("");
   const cs=c=>lines.some(l=>l.cond===c)?"☑":"☐";
-  after=`<div style="font-size:10px;color:#555;margin-top:4px">Total lines: ${lines.length} &nbsp;&nbsp; Total quantity: ${tq}</div><div style="margin-top:8px;font-size:11px"><b>Checked by store:</b> ${cs("Complete")} Complete &nbsp; ${cs("Damaged")} Damaged &nbsp; ${cs("Missing parts")} Missing parts &nbsp;&nbsp; Remarks: ____________________________</div>
+  after=`<div style="font-size:10px;color:#555;margin-top:4px">Total lines: ${lines.length} &nbsp;&nbsp; Total quantity: ${tq}</div><div style="margin-top:8px;font-size:11px"><b>Checked by store:</b> ${cs("Complete")} Complete &nbsp; ${cs("Damaged")} Damaged &nbsp; ${cs("Missing parts")} Missing parts &nbsp;&nbsp; Remarks: ${d.remarks?esc(d.remarks):"____________________________"}</div>
   <div style="font-size:10px;color:#555;margin:8px 0">The items above were returned to the MIDU warehouse in the condition stated. Damaged or missing items are recorded and reported to the Logistics Department. The returning person's responsibility for these items ends with this signed return.</div>`;
-  sig=[["RETURNED BY",d.party,d.iqama,fd(d.date)],["RECEIVED BY (STOREKEEPER)","","",fd(d.date)],["APPROVED BY (LOGISTICS)","Azzam El Masri","1058",fd(d.date)]];}
+  sig=[["RETURNED BY",d.party,d.iqama,fd(d.date)],["RECEIVED BY (STOREKEEPER)",d.by||"",staffId(d.by),fd(d.date)],["APPROVED BY (LOGISTICS)","Azzam El Masri","1058",fd(d.date)]];}
  const empty=Array.from({length:EMPTY},()=>`<tr>${cols.map(()=>`<td ${td()}>&nbsp;</td>`).join("")}</tr>`).join("");
  const sigT=`<table style="width:100%;border-collapse:collapse;margin-top:6px"><tr>${sig.map(s=>`<td style="border:${B};background:#EEF1F6;font-size:10px;font-weight:700;text-align:center;padding:4px;width:26%">${s[0]}</td>`).join("")}<td style="border:${B};background:#EEF1F6;font-size:10px;font-weight:700;text-align:center;padding:4px">WAREHOUSE STAMP</td></tr>
   ${["Name:","ID No.:","Signature:","Date:"].map((k,i)=>`<tr>${sig.map(s=>`<td style="border:${B};font-size:10.5px;padding:6px 5px;height:${i===2?26:14}px">${k} ${esc([s[1],s[2],"",s[3]][i]||"")}</td>`).join("")}${i===0?`<td rowspan="4" style="border:${B};text-align:center;vertical-align:middle">${cfg.st?`<img src="${cfg.st}" style="max-width:110px;max-height:80px;opacity:.9">`:""}</td>`:""}</tr>`).join("")}</table>`;
@@ -510,7 +519,7 @@ function gRow(){const r=document.createElement("tr");const cats=WR().cats;
   <td><input class="en" type="number" min="1" value="1" data-k="qty" style="width:80px"></td><td><select data-k="cond">${condOpts()}</select></td><td><button class="b r sm" data-k="del">✕</button></td>`;
  const q=k=>r.querySelector(`[data-k=${k}]`);
  r._upd=()=>{const v=q("item").value.trim();const l=pickLine(v);r._line=l;r._isNew=!!v&&!l;q("new").style.display=r._isNew?"block":"none";
-  if(l){q("sl").textContent=l.sl||"—";q("code").textContent=l.code;q("desc").textContent=l.desc;q("unit").textContent=l.unit||"—";q("dept").textContent=l.dept||"—";return;}
+  if(l){if(l.sl)q("sl").textContent=l.sl;else q("sl").innerHTML=tag(tr("new line at receipt","سطر جديد عند الاستلام"),"a");q("code").textContent=l.code;q("desc").textContent=l.desc;q("unit").textContent=l.unit||"—";q("dept").textContent=l.dept||"—";return;}
   if(r._isNew){const tb=r.parentNode;const prev=[...(tb?tb.querySelectorAll("tr"):[])].filter(x=>x!==r&&x._newCodes&&x.compareDocumentPosition(r)&Node.DOCUMENT_POSITION_FOLLOWING).map(x=>x._newCodes);
    const nc=q("cat").value?newCodes(q("cat").value,prev):null;r._newCodes=nc;q("sl").innerHTML=nc?`<b>${esc(nc.sl)}</b> ${tag(tr("new","جديد"),"a")}`:"—";q("code").innerHTML=nc?`<b>${esc(nc.code)}</b>`:tr("pick a category","اختر الفئة");q("desc").textContent=v;q("unit").textContent=q("nunit").value||"—";q("dept").textContent=nc?nc.dept:"—";}
   else ["sl","code","desc","unit","dept"].forEach(k=>q(k).textContent="—");};
@@ -522,13 +531,16 @@ BIND.grn=()=>{const tb=$("#gLines");const ED=WH_EDIT&&WH_EDIT.type==="GRN"?D.doc
  else tb.appendChild(gRow());
  $("#gWh").onchange=e=>$("#gLoc").innerHTML=locOpts(e.target.value).map(l=>`<option>${l}</option>`).join("");
  $("#gPo").addEventListener("change",()=>{const p=D.pos.find(x=>x.no===$("#gPo").value);if(p){$("#gSup").value=p.sup;tb.querySelectorAll("tr").forEach((r,i)=>i&&r.remove());p.lines.filter(l=>l.code).forEach(l=>{const r=gRow();tb.appendChild(r);const ln=lineFor(l.code);r.querySelector("[data-k=item]").value=ln?slLabel(ln):itemLabel(item(l.code));r._upd();r.querySelector("[data-k=qty]").value=Math.max(l.qty-poRecv(p,l),0)||l.qty;});}});
- $("#gSave").onclick=async()=>{if(!checkReq($("#main")))return msg("err",ERR.req());const lines=[],newItems=[];
+ $("#gSave").onclick=async()=>{if(!checkReq($("#main")))return msg("err",ERR.req());const lines=[],newItems=[],slNew=[],slItems=[];
   for(const r of [...tb.querySelectorAll("tr")].slice(1)){r._upd();const v=r.querySelector("[data-k=item]").value.trim();if(!v)continue;const qn=+r.querySelector("[data-k=qty]").value;if(!(qn>0))return msg("err",ERR.qty());const cond=r.querySelector("[data-k=cond]").value;
    if(r._isNew){const nc=r._newCodes,u=r.querySelector("[data-k=nunit]").value,k=r.querySelector("[data-k=nkind]").value;
     if(!nc||!u||!k)return msg("err",tr("NEW item “","الصنف الجديد «")+esc(v)+tr("”: choose category, unit and Asset / Consumable.","»: اختر الفئة والوحدة وأصل / مستهلك."));
     const it={code:nc.code,desc:v,unit:u,kind:k,min:0,price:0,sl:nc.sl,dept:nc.dept,cat:nc.cat,loc:$("#gLoc").value,sp:$("#gSp").value.trim(),created:today(),createdBy:(typeof LOCAL!=="undefined"&&LOCAL.user)||""};newItems.push(it);
     lines.push({code:it.code,sl:it.sl,desc:it.desc,unit:u,dept:it.dept,qty:qn,cond,isNew:true});}
-   else{const l=r._line;lines.push({code:l.code,sl:l.sl||"",desc:l.desc,unit:l.unit,dept:l.dept||"",qty:qn,cond});}}
+   else{const l=r._line;let sl=l.sl||"";
+    if(!sl){const key=String(l.code).split("-").slice(1,3).join("-"),nc=WR().cats.some(c=>c.key===key)?newCodes(key,[...tb.querySelectorAll("tr")].map(x=>x._newCodes).filter(Boolean).concat(slNew)):null;
+     if(nc){sl=nc.sl;slNew.push({sl,code:l.code});const it=item(l.code);if(it)slItems.push([it,sl]);}}
+    lines.push({code:l.code,sl,desc:l.desc,unit:l.unit,dept:l.dept||"",qty:qn,cond,...(sl&&!l.sl?{newSl:true}:{})});}}
   if(!lines.length)return msg("err",ERR.lines());
   const f=$("#gAtt").files[0];const oldAtt=ED?(ED.att||[]):[];if(!f&&!oldAtt.some(a=>a.kind==="dn"))return msg("err",tr("Attach the stamped delivery note (scan or photo).","أرفق مذكرة التسليم المختومة (مسح أو صورة)."));
   if(!$("#gC1").checked||!$("#gC2").checked||!$("#gC3").checked)return msg("err",tr("Tick the three storekeeper checks.","حدد خانات التحقق الثلاث."));
@@ -536,8 +548,8 @@ BIND.grn=()=>{const tb=$("#gLines");const ED=WH_EDIT&&WH_EDIT.type==="GRN"?D.doc
   const no=ED?ED.no:nextNo("GRN");let att=null;if(f){try{att=await saveAtt(f,ATT_DIR.GRN,no,"stamped delivery note "+$("#gDn").value.trim()+(ED?" (edit "+today()+")":""));att.kind="dn";}catch(e){return msg("err",tr("The delivery note could not be saved: ","تعذر حفظ مذكرة التسليم: ")+esc(e.message));}}
   const doc={no,type:"GRN",date:$("#gDate").value,party:$("#gSup").value.trim(),po:$("#gPo").value.trim(),dn:$("#gDn").value.trim(),wh:$("#gWh").value,loc:$("#gLoc").value,sp:$("#gSp").value.trim(),by:$("#gBy").value.trim(),remarks:$("#gRem").value.trim(),checks:{qty:true,inspected:true,stamped:true},att:[...oldAtt,...(att?[att]:[])],lines};
   if(ED){whReverse(ED,false);doc.edited={at:today(),by:(typeof LOCAL!=="undefined"&&LOCAL.user)||""};D.docs.splice(D.docs.indexOf(ED),1,doc);}else D.docs.push(doc);
-  newItems.forEach(it=>D.items.push(it));lines.forEach(l=>addStock(l.code,doc.wh,doc.loc,l.qty));WH_EDIT=null;persist();delete KEEP.grn;render();
-  saved(doc.no,doc,"g");if(newItems.length)toast("✔ "+newItems.length+" "+tr("new item(s) coded: ","صنف جديد تم ترميزه: ")+newItems.map(i=>i.code+" / "+i.sl).join(", "));};};
+  newItems.forEach(it=>D.items.push(it));slItems.forEach(([it,sl])=>{it.sl=sl;it.loc=it.loc||doc.loc;it.sp=it.sp||doc.sp;});lines.forEach(l=>addStock(l.code,doc.wh,doc.loc,l.qty));WH_EDIT=null;persist();delete KEEP.grn;render();
+  saved(doc.no,doc,"g");if(newItems.length||slItems.length)toast("✔ "+tr("New stock line(s): ","سطر مخزون جديد: ")+[...newItems.map(i=>i.code+" / "+i.sl),...slItems.map(([i,sl])=>i.code+" / "+sl)].join(", "));};};
 
 /* ============================ ISSUE (MDS) ============================ */
 VIEWS.mds=()=>{const w=whOpts();return head(tr("Issue (MDS)","صرف (MDS)"),tr("Issue to a person or transfer to another location. Stock and custody update at once. Print the dispatch sheet, get it signed and stamped, then attach it below.","صرف لشخص أو تحويل لموقع آخر. يتحدث المخزون والعهدة فوراً. اطبع ورقة الصرف ووقّعها واختمها ثم أرفقها أدناه."))+msgBox+(WH_EDIT&&WH_EDIT.type==="MDS"?editBanner():"")+
@@ -586,16 +598,19 @@ BIND.mds=()=>{const tb=$("#mLines");const ED=WH_EDIT&&WH_EDIT.type==="MDS"?D.doc
   lines.forEach(l=>{if(l.asset){const a=D.assets.find(x=>x.id===l.asset);a.cust=custKey;a.custName=doc.party;a.status="In Use";}else addStock(l.code,wh,loc,-l.qty);});WH_EDIT=null;persist();delete KEEP.mds;render();saved(doc.no,doc);};};
 
 VIEWS.mrs=()=>{const w=whOpts();return head(tr("Return (MRS)","إرجاع (MRS)"),tr("Pick the person — everything they hold appears. Tick what comes back.","اختر الشخص — تظهر كل عهدته. حدّد ما تم إرجاعه."))+msgBox+
- `<div class="card"><div class="fg">${fld("rNo",tr("Document No.","رقم المستند"),{ro:true,val:nextNo("MRS")})}${fld("rDate",tr("Date","التاريخ"),{type:"date",val:today(),req:true})}${fld("rP",tr("Person returning","الشخص المُرجِع"),{req:true,list:"empL",w:"w2"})}${sel("rWh",tr("Warehouse","المستودع"),w,{req:true})}${sel("rLoc",tr("Storage location","موقع التخزين"),locOpts(w[0][0]),{req:true})}</div></div>
- <div class="card"><h2>${tr("Items held by this person","ما في عهدة هذا الشخص")}</h2><div id="rHeld" class="empty">—</div><div class="btns"><span style="flex:1"></span><button class="b t" id="rSave">${tr("Save return","حفظ الإرجاع")}</button></div></div>${recentDocs("MRS")}${empDl()}`;};
+ `<div class="card"><div class="fg">${fld("rNo",tr("Document No.","رقم المستند"),{ro:true,val:nextNo("MRS")})}${fld("rDate",tr("Date","التاريخ"),{type:"date",val:today(),req:true})}${fld("rP",tr("Person returning","الشخص المُرجِع"),{req:true,list:"holdL",w:"w2"})}${sel("rWh",tr("Warehouse","المستودع"),w,{req:true})}${sel("rLoc",tr("Storage location","موقع التخزين"),locOpts(w[0][0]),{req:true})}
+ ${fld("rBy",tr("Received by (storekeeper)","استلمه (أمين المستودع)"),{req:true,list:"staffL",val:(typeof LOCAL!=="undefined"&&LOCAL.connected&&LOCAL.user)||""})}${fld("rRem",tr("Remarks","ملاحظات"),{w:"w2"})}
+ <div class="f w2"><label>${tr("Signed return sheet (optional now)","ورقة الإرجاع الموقعة (اختياري الآن)")}</label><input id="rAtt" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*" capture="environment"></div></div></div>
+ <div class="card"><h2>${tr("Items held by this person","ما في عهدة هذا الشخص")}</h2><div id="rHeld" class="empty">—</div><div class="btns"><span style="flex:1"></span><button class="b t" id="rSave">${tr("Save return","حفظ الإرجاع")}</button></div></div>${recentDocs("MRS")}${dl("holdL",holderList().map(holderLabel))}${dl("staffL",[...new Set([...WR().staff.map(s=>s.name),...D.emps.map(e=>e.name)])])}`;};
 BIND.mrs=()=>{bindRecent("MRS");$("#rWh").onchange=e=>$("#rLoc").innerHTML=locOpts(e.target.value).map(l=>`<option>${l}</option>`).join("");
- const show=()=>{const p=parseEmp($("#rP").value),box=$("#rHeld");if(!p){box.className="empty";box.textContent="—";return;}const h=holdings(p.iqama);if(!h.length){box.className="empty";box.textContent=tr("This person holds nothing.","لا يوجد شيء في عهدة هذا الشخص.");return;}
-  box.className="";box._h=h;box.innerHTML=`<table class="t"><tr><th></th><th>${tr("Item / Asset","الصنف / الأصل")}</th><th>${tr("Description","الوصف")}</th><th>${tr("Held","في العهدة")}</th><th>${tr("Return qty","كمية الإرجاع")}</th><th>${tr("Condition","الحالة")}</th><th>MDS</th></tr>${h.map((x,i)=>`<tr data-i="${i}"><td><input type="checkbox" class="chk" data-k="on"></td><td class="en"><b>${esc(x.asset||x.code)}</b></td><td class="en">${esc(item(x.code)?.desc||"")}${x.loan?" "+tag(tr("loan","إعارة")+" → "+x.loan,"a"):""}</td><td class="num">${x.qty}</td><td><input class="en" type="number" min="1" max="${x.qty}" value="${x.qty}" data-k="q" ${x.asset?"readonly":""} style="width:80px"></td><td><select data-k="c"><option value="Complete">${tr("Complete","مكتمل")}</option><option value="Damaged">${tr("Damaged","تالف")}</option><option value="Missing parts">${tr("Missing parts","ناقص قطع")}</option></select></td><td class="en">${x.doc}</td></tr>`).join("")}</table>`;};
+ const show=()=>{const p=parseHolder($("#rP").value),box=$("#rHeld");if(!p){box.className="empty";box.textContent=$("#rP").value.trim()?tr("Not found – pick the name from the list.","غير موجود – اختر الاسم من القائمة."):"—";return;}if(box._key===p.iqama&&box.querySelector("tr[data-i]"))return;box._key=p.iqama;const h=holdingsOf(p);if(!h.length){box.className="empty";box.textContent=tr("This person holds nothing.","لا يوجد شيء في عهدة هذا الشخص.");return;}
+  box.className="";box._h=h;box.innerHTML=`<table class="t"><tr><th></th><th>${tr("Item / Asset","الصنف / الأصل")}</th><th>${tr("Description","الوصف")}</th><th>${tr("Held","في العهدة")}</th><th>${tr("Return qty","كمية الإرجاع")}</th><th>${tr("Condition","الحالة")}</th><th>MDS</th></tr>${h.map((x,i)=>`<tr data-i="${i}"><td><input type="checkbox" class="chk" data-k="on"></td><td class="en"><b>${esc(x.asset||x.code)}</b></td><td class="en">${esc((x.asset&&(D.assets.find(a=>a.id===x.asset)||{}).desc)||item(x.code)?.desc||"")}${x.loan?" "+tag(tr("loan","إعارة")+" → "+x.loan,"a"):""}</td><td class="num">${x.qty}</td><td><input class="en" type="number" min="1" max="${x.qty}" value="${x.qty}" data-k="q" ${x.asset?"readonly":""} style="width:80px"></td><td><select data-k="c"><option value="Complete">${tr("Complete","مكتمل")}</option><option value="Damaged">${tr("Damaged","تالف")}</option><option value="Missing parts">${tr("Missing parts","ناقص قطع")}</option></select></td><td class="en">${x.doc}</td></tr>`).join("")}</table>`;};
  $("#rP").addEventListener("change",show);show();
- $("#rSave").onclick=()=>{if(!checkReq($("#main")))return msg("err",ERR.req());const p=parseEmp($("#rP").value);if(!p)return msg("err",ERR.emp());const h=$("#rHeld")._h||[],lines=[];
+ $("#rSave").onclick=async()=>{if(!checkReq($("#main")))return msg("err",ERR.req());const p=parseHolder($("#rP").value);if(!p)return msg("err",ERR.emp());const h=$("#rHeld")._h||[],lines=[];
   $("#rHeld").querySelectorAll("tr[data-i]").forEach(r=>{if(!r.querySelector("[data-k=on]").checked)return;const x=h[+r.dataset.i];const q=Math.min(+r.querySelector("[data-k=q]").value,x.qty);if(q>0)lines.push({code:x.code,asset:x.asset,qty:q,cond:r.querySelector("[data-k=c]").value});});
-  if(!lines.length)return msg("err",ERR.lines());const doc={no:nextNo("MRS"),type:"MRS",date:$("#rDate").value,party:p.name,iqama:p.iqama,wh:$("#rWh").value,loc:$("#rLoc").value,lines};
-  lines.forEach(l=>{if(l.asset){const a=D.assets.find(x=>x.id===l.asset);a.cust="";a.wh=doc.wh;a.loc=doc.loc;a.status=l.cond==="Damaged"?"Damaged":"In Stock";}else if(l.cond!=="Damaged")addStock(l.code,doc.wh,doc.loc,l.qty);});D.docs.push(doc);persist();delete KEEP.mrs;render();saved(doc.no,doc,"t");};};
+  if(!lines.length)return msg("err",ERR.lines());const no=nextNo("MRS"),att=[];const f=$("#rAtt").files[0];if(f){try{const a=await saveAtt(f,ATT_DIR.MRS,no,"signed return");a.kind="signed";att.push(a);}catch(e){return msg("err",esc(e.message));}}
+  const doc={no,type:"MRS",date:$("#rDate").value,party:p.name,iqama:p.iqama,wh:$("#rWh").value,loc:$("#rLoc").value,by:$("#rBy").value.trim(),remarks:$("#rRem").value.trim(),att,lines};
+  lines.forEach(l=>{if(l.asset){const a=D.assets.find(x=>x.id===l.asset);a.cust="";a.custName="";a.wh=doc.wh;a.loc=doc.loc;a.status=l.cond==="Damaged"?"Damaged":"In Stock";}else if(l.cond!=="Damaged")addStock(l.code,doc.wh,doc.loc,l.qty);});D.docs.push(doc);persist();delete KEEP.mrs;render();saved(doc.no,doc,"t");};};
 
 function nextAssetId(px){const n=D.assets.filter(a=>a.id.startsWith(px+"-")).map(a=>+a.id.split("-")[1]).reduce((m,x)=>Math.max(m,x),0)+1;return `${px}-${String(n).padStart(3,"0")}`;}
 VIEWS.asset=()=>{const w=whOpts(),at=D.assetTypes[0];return head(tr("New asset","أصل جديد"),tr("The Asset ID is generated from the asset type.","رقم الأصل يُنشأ تلقائياً من نوع الأصل."))+msgBox+
@@ -1372,6 +1387,10 @@ function weeklyHtml(m,kind){const env=kind==="env";const R=env?["Potable water",
 /* Weekly Diesel & Concrete Trips report – format agreed with Concrete (Turki's dashboard report, A4 landscape) */
 const TK_N="#1F2A44",TK_H="#E9EDF4",TK_F="#DCE1EA",TK_B="1px solid #C9CFDA";
 const TK_PL=["ShinYoung","Benteler","JVIS","FAXGIN","LEAR"];
+/* diesel page: ShinYoung and JVIS each have two generators shown on their own rows */
+const TK_DZ_ROWS=["ShinYoung – MIDU Complex","ShinYoung – Workshop","Benteler","JVIS – Offices","JVIS – Workshop","FAXGIN","LEAR"];
+function tkDieselRow(u){const c=tkCompany(u);if(u.type!=="Generators diesel"||!TK_PL.includes(c))return c;const it=uItem(u.item)||{},loc=String(it.loc||u.c||""),sub=(loc.split(/\s[–-]\s/)[1]||"").trim();
+ const k=sub?c+" – "+sub:c;return TK_DZ_ROWS.includes(k)?k:c;}
 function tkCompany(u){const it=uItem(u.item)||{},loc=String(it.loc||u.c||""),t=u.type;
  if(t==="Equipment diesel"){const own=/MIDU/i.test(loc)?"MIDU":/concrete/i.test(loc)?"Concrete":loc||"Other";return own+" – "+String(it.title||"").replace(/Trcuk/i,"Truck");}
  if(t==="Tower lights diesel")return /laydown/i.test(loc)?"Store / Laydown Area":"Tower Lights";
@@ -1393,10 +1412,10 @@ function tkWeekHtml(m,st){const days=Array.from({length:7},(_,i)=>addDays(st,i))
  const sig=()=>`<table style="width:100%;margin-top:${PD>1?12:6}px;border-collapse:collapse"><tr><td style="width:48%;vertical-align:top;padding:0"><div style="background:${TK_N};color:#fff;font-weight:700;font-size:8.5px;padding:3px 6px">CHECKED BY: MIDU LOGISTICS</div><div style="border:${TK_B};border-top:0;font-size:8.5px;padding:4px 8px;line-height:16px">Name:<br>Signature:<br>Date:</div></td><td style="width:4%"></td><td style="vertical-align:top;padding:0"><div style="background:${TK_N};color:#fff;font-weight:700;font-size:8.5px;padding:3px 6px">APPROVED BY: CONCRETE LOGISTICS</div><div style="border:${TK_B};border-top:0;font-size:8.5px;padding:4px 8px;line-height:16px">Name:<br>Signature:<br>Date:</div></td></tr></table>`;
  const R=D.ut.filter(u=>days.includes(u.date));
  /* page 1 – diesel by company */
- const DT=["Generators diesel","Equipment diesel"],dr=R.filter(u=>DT.includes(u.type));const comps={};dr.forEach(u=>{const c=tkCompany(u);(comps[c]=comps[c]||days.map(()=>0))[days.indexOf(u.date)]+=u.qty;});
- const order=[...TK_PL,...Object.keys(comps).filter(c=>!TK_PL.includes(c)&&!/^(Concrete|MIDU) – /.test(c)),...Object.keys(comps).filter(c=>/^Concrete – /.test(c)).sort(),...Object.keys(comps).filter(c=>/^MIDU – /.test(c)).sort()];
+ const DT=["Generators diesel","Equipment diesel"],dr=R.filter(u=>DT.includes(u.type));const comps={};dr.forEach(u=>{const c=tkDieselRow(u);(comps[c]=comps[c]||days.map(()=>0))[days.indexOf(u.date)]+=u.qty;});
+ const order=[...TK_DZ_ROWS,...Object.keys(comps).filter(c=>!TK_DZ_ROWS.includes(c)&&!/^(Concrete|MIDU) – /.test(c)),...Object.keys(comps).filter(c=>/^Concrete – /.test(c)).sort(),...Object.keys(comps).filter(c=>/^MIDU – /.test(c)).sort()];
  const tot=days.map((_,i)=>order.reduce((a,c)=>a+((comps[c]||[])[i]||0),0));
- const p1=`<div style="page-break-after:always">${head("Diesel consumption by company (generators + equipment)")}<table style="width:100%;border-collapse:collapse">${cols("Company")}${order.filter(c=>TK_PL.includes(c)||(comps[c]||[]).some(v=>v)).map(c=>row(esc(c),"LTR",comps[c]||days.map(()=>0))).join("")}${row("TOTAL DIESEL","LTR",tot,{bold:true,bg:TK_H})}</table>${sig()}</div>`;
+ const p1=`<div style="page-break-after:always">${head("Diesel consumption by company (generators + equipment)")}<table style="width:100%;border-collapse:collapse">${cols("Company")}${order.filter(c=>TK_DZ_ROWS.includes(c)||(comps[c]||[]).some(v=>v)).map(c=>row(esc(c),"LTR",comps[c]||days.map(()=>0))).join("")}${row("TOTAL DIESEL","LTR",tot,{bold:true,bg:TK_H})}</table>${sig()}</div>`;
  /* page 2 – concrete trips by company */
  PD=1;const TT=[["Concrete trucks","Concrete Trucks","Trips"],["Concrete vacuum","Concrete Vacuum","Trips"],["Concrete waste skip","Concrete Waste Skip","Skips"],["Garbage skip","Garbage Skip","Skips"]];
  const tc={};R.filter(u=>TT.some(t=>t[0]===u.type)).forEach(u=>{const c=tkCompany(u);tc[c]=tc[c]||{};(tc[c][u.type]=tc[c][u.type]||days.map(()=>0))[days.indexOf(u.date)]+=u.qty;});
