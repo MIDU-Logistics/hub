@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611242200"></script>
-<script src="local.js?v=202611242200"></script>
+<script src="m365.js?v=202611242300"></script>
+<script src="local.js?v=202611242300"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -1766,7 +1766,7 @@ async function sigLoad(name){if(!name)return null;const k=name.trim().toLowerCas
 /* Fill signature placeholders in any open document once the image is loaded */
 function sigFill(){document.querySelectorAll("img[data-signame]").forEach(im=>{const u=SIG[im.dataset.signame];if(u){im.src=u;im.style.display="block";im.removeAttribute("data-signame");}});}
 const sigImg=name=>{if(!name)return "";const k=name.trim().toLowerCase(),u=SIG[k];if(u)return `<img src="${u}" style="max-height:46px;max-width:96%;display:block;margin:0 auto">`;
- setTimeout(()=>sigLoad(name).then(sigFill),0);return `<img data-signame="${esc(k)}" alt="" style="max-height:46px;max-width:96%;display:none;margin:0 auto">`;};
+ delete SIG_MISS[k];setTimeout(()=>sigLoad(name).then(u=>{sigFill();if(!u)setTimeout(()=>{delete SIG_MISS[k];sigLoad(name).then(sigFill);},1500);}),0);return `<img data-signame="${esc(k)}" alt="" style="max-height:46px;max-width:96%;display:none;margin:0 auto">`;};
 const prLegacyOpen=p=>!p.status&&!p.pd&&!D.cqs.some(c=>c.pr===p.no)&&!D.pos.some(o=>o.pr===p.no);
 const prActive=p=>p.status!=="Deleted";
 function prBtns(p){const pr=`<button class="b l sm" data-doc="${p.no}">${tr("Print","طباعة")}</button>`;
@@ -1892,8 +1892,8 @@ function openModal(title,html,fname){$("#mTitle").textContent=title;$("#mBody").
  $("#mDl").style.display=DLAPI?"inline-block":"none";$("#mPr").style.display=DLAPI?"none":"inline-block";$("#mPr").textContent=tr("Print / Save as PDF","طباعة / حفظ PDF");$("#mPr").onclick=()=>{try{hubPrintDoc()}catch(e){window.print()}};
  $("#mHint").textContent=DLAPI?tr("Use “Download for printing”, open the file and print.","استخدم «تنزيل للطباعة» ثم افتح الملف واطبعه."):tr("Prints only this document. Choose “Save as PDF” as the printer to keep a PDF copy.","يطبع هذا المستند فقط. اختر «Save as PDF» كطابعة لحفظ نسخة PDF.");
  $("#mDrive").style.display=GAS?"inline-block":"none";$("#mDrive").textContent=/^(GRN|MDS|MRS)-/.test(fname)?tr("Save unsigned PDF to OneDrive","حفظ PDF غير موقّع في OneDrive"):tr("Save PDF to OneDrive","حفظ PDF في OneDrive");
- $("#mDrive").onclick=()=>{$("#mDrive").disabled=true;GAS.withSuccessHandler(r=>{$("#mDrive").disabled=false;$("#mHint").innerHTML=`✔ ${tr("Saved in OneDrive","حُفظ في OneDrive")}: <a href="${r.url}" target="_blank">${esc(r.path)}</a>`;}).withFailureHandler(e=>{$("#mDrive").disabled=false;toast("✖ "+e.message);}).savePdf(docPage(html,fname),fname,pdfFolder(fname));};
- $("#mDl").onclick=async()=>{const css=[...document.styleSheets[0].cssRules].filter(r=>r.selectorText&&r.selectorText.startsWith(".doc")).map(r=>r.cssText).join("\n");try{await DLAPI.save({filename:fname+".html",data:`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fname}</title><style>body{margin:0}@page{size:A4;margin:12mm}${css}</style></head><body>${html}<script>window.onload=()=>window.print()<\/script></body></html>`});}catch(e){}};}
+ $("#mDrive").onclick=()=>{$("#mDrive").disabled=true;GAS.withSuccessHandler(r=>{$("#mDrive").disabled=false;$("#mHint").innerHTML=`✔ ${tr("Saved in OneDrive","حُفظ في OneDrive")}: <a href="${r.url}" target="_blank">${esc(r.path)}</a>`;}).withFailureHandler(e=>{$("#mDrive").disabled=false;toast("✖ "+e.message);}).savePdf(docPage($("#mBody").innerHTML,fname),fname,pdfFolder(fname));};
+ $("#mDl").onclick=async()=>{const css=[...document.styleSheets[0].cssRules].filter(r=>r.selectorText&&r.selectorText.startsWith(".doc")).map(r=>r.cssText).join("\n");try{await DLAPI.save({filename:fname+".html",data:`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fname}</title><style>body{margin:0}@page{size:A4;margin:12mm}${css}</style></head><body>${$("#mBody").innerHTML}<script>window.onload=()=>window.print()<\/script></body></html>`});}catch(e){}};}
 function pdfFolder(no){const ym=today().slice(0,7);const p=[[/^GRN-/,"01 Warehouse & Assets/07 Printed forms (unsigned)/GRN/"+ym],[/^MDS-/,"01 Warehouse & Assets/07 Printed forms (unsigned)/MDS/"+ym],[/^MRS-/,"01 Warehouse & Assets/07 Printed forms (unsigned)/MRS/"+ym],[/^AHS-/,"01 Warehouse & Assets/04 Asset Handover Sheets/"+ym],[/^SC-/,"01 Warehouse & Assets/05 Stock Counts"],[/^PR-/,"03 Procurement/01 Purchase Requests/"+ym],[/^CQS-/,"03 Procurement/02 CQS/"+ym],[/^MIDU-PO-/,"03 Procurement/03 Purchase Orders/"+ym],[/^PC-/,"03 Procurement/04 Petty Cash/"+ym],[/^ASP-MIDU-/,"02 Utilities/05 Debit Notes/"+ym],[/^MR-/,"06 Maintenance/02 Maintenance Requests/"+ym],[/^MCL-/,"06 Maintenance/01 Monthly Checklists"],[/^ATT-/,"05 HR/04 Monthly Attendance Reports"],[/^CLR-|^Clearance/,"05 HR/05 Clearances"]].find(([re])=>re.test(no));return p?p[1]:"00 System/Other Documents";}
 function docPage(html,fname){const css=[...document.styleSheets[0].cssRules].filter(r=>r.selectorText&&r.selectorText.startsWith(".doc")).map(r=>r.cssText).join("\n");return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fname}</title><style>body{margin:0}@page{size:A4;margin:12mm}${css}</style></head><body>${html}</body></html>`;}
 function openDoc(d){if(!d)return;if(typeof d==="string"){const no=(d.match(/Document No\.<\/span><b>([^<]+)/)||[,"Document"])[1];return openModal(no,d,no);}if(d.html)return openModal(d.no,d.html,d.no);openModal(d.no,whDoc(d),d.no);}
