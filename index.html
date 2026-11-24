@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611241000"></script>
-<script src="local.js?v=202611241000"></script>
+<script src="m365.js?v=202611241100"></script>
+<script src="local.js?v=202611241100"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -1029,8 +1029,8 @@ function poDoc(p){if(p.kind==="PC")return pcDoc(p);const L=p.lines||[],sub=L.red
  <tr>${ppL("Method")}<td colspan="2" style="border:${PP_B};font-size:8.5px;padding:3px">Purchase Order</td><td colspan="3" style="font-size:8.5px;font-weight:700;color:${PP_N};padding:3px">Total Amount incl. VAT (SAR)</td>${ppC("<b>"+ppM(sub+vat)+"</b>","right")}</tr>
  <tr>${ppL("Amount in<br>words")}<td colspan="6" style="border:${PP_B};background:${PP_Y};font-size:8.5px;padding:4px">${words(sub+vat)}</td></tr></table>
  <table style="width:100%;border-collapse:collapse;margin-top:18px"><tr><th style="background:${PP_N};border:${PP_B};width:10%"></th>${ppTh("Prepared by (Procurement)","","22%")}${ppTh("Project Director","","33%")}${ppTh("Finance Manager","","13%")}${ppTh("CEO","")}</tr>
- <tr>${ppL("Name")}${ppC("Raghad Ahmad Altowirgi")}${ppC("Najed Fakhreddine")}${ppC("Osama Al Saggaf")}${ppC("Marwan Telmesani")}</tr>
- <tr>${ppL("Status")}${ppC("")}${p.ap!==undefined?["PD","FM","CEO"].map(r=>ppC(apCell("po",p,r))).join(""):ppC(esc(sig.pd||""))+ppC(esc(sig.fm||""))+ppC(esc(sig.ceo||""))}</tr><tr style="height:40px">${ppL("Signature")}${ppC("")}${p.ap!==undefined?["PD","FM","CEO"].map(r=>ppC(apSigCell("po",p,r))).join(""):ppC("")+ppC("")+ppC("")}</tr></table>
+ <tr>${ppL("Name")}${ppC(esc(poIssName(p)))}${ppC("Najed Fakhreddine")}${ppC("Osama Al Saggaf")}${ppC("Marwan Telmesani")}</tr>
+ <tr>${ppL("Status")}${ppC(poIssCell(p))}${p.ap!==undefined?["PD","FM","CEO"].map(r=>ppC(apCell("po",p,r))).join(""):ppC(esc(sig.pd||""))+ppC(esc(sig.fm||""))+ppC(esc(sig.ceo||""))}</tr><tr style="height:40px">${ppL("Signature")}${ppC(poIssSig(p))}${p.ap!==undefined?["PD","FM","CEO"].map(r=>ppC(apSigCell("po",p,r))).join(""):ppC("")+ppC("")+ppC("")}</tr></table>
  <table style="border-collapse:collapse;margin-top:8px;width:60%"><tr>${ppL("Fully signed?")}${ppC("<b>"+(poSigned(p)?"Yes":"No")+"</b>")}</tr></table>
  <table style="width:100%;border-collapse:collapse;margin-top:14px"><tr>${ppL("Deliveries")}${ppC(esc(D.docs.filter(d=>d.type==="GRN"&&!d.cancelled&&d.po===p.no).map(d=>d.no+" ("+d.date+")").join(", ")||"No deliveries yet"))}</tr><tr>${ppL("Invoices")}${ppC(esc(D.invs.filter(v=>v.po===p.no).map(v=>v.no+(v.paid?" – paid "+v.paid:"")).join(", ")||"No invoices yet"))}</tr></table></div>`;}
 const fhead=(en,ar)=>`<div style="background:${PP_N};color:#fff;text-align:center;font-weight:700;font-size:13px;padding:5px;font-family:Georgia,serif">MIDU COMPANY LTD &nbsp;| &nbsp;<span dir="rtl">شركة مايدو المحدودة</span></div><div style="text-align:center;font-weight:700;font-size:11px;margin-top:5px;font-family:Georgia,serif">${en} &nbsp;| &nbsp;<span dir="rtl">${ar}</span></div><div style="text-align:center;font-size:7.5px;font-style:italic;color:#555;margin:2px 0 14px">Finance Department &nbsp;| &nbsp;<span dir="rtl">الإدارة المالية</span></div>`;
@@ -2128,6 +2128,23 @@ function whSigRows(d,old,sid){const c=whChain(d),iss=whIss(d),R=(t,r,n)=>[t,n,si
  if(d.type==="GRN")return [old[0],R("RECEIVED BY (STOREKEEPER)","SK",iss),...sic,...lm];
  if(d.type==="MDS")return [R("ISSUED BY (STOREKEEPER)","SK",iss),...sic,...lm,old[2]];
  return [old[0],R("RECEIVED BY (STOREKEEPER)","SK",iss),...sic,...lm];}
+
+
+/* ===== Update 35: PO issuer (Procurement – Rawan Alharbi) signs with her PIN when the PO is issued ===== */
+const PO_ISSUER="Rawan Alharbi";
+AP_ROLE.ISS="Issued by (Procurement)";
+const poIssRec=p=>(p.ap||[]).filter(a=>a.role==="ISS").pop();
+const poIssName=p=>(poIssRec(p)||{}).by||p.issuedBy||PO_ISSUER;
+function poIssCell(p){const a=poIssRec(p);if(!a)return p.ap!==undefined?`<span style="color:#8A94A6">Pending e-signature</span>`:"";
+ return a.fp===apFp("po",p)?`Issued<br><span style="font-size:7.5px">${esc(apDt(a.at))} · ref ${a.fp}</span>`:`<span style="color:#C00000">Changed after issue – re-sign needed</span>`;}
+const poIssSig=p=>{const a=poIssRec(p);return a&&a.fp===apFp("po",p)?sigImg(a.by):"";};
+function poIssSign(p){apPinDlg(tr("Sign PO as issuer","التوقيع على أمر الشراء كمُصدِر")+" – "+p.no,`<p style="margin:0 0 6px"><b>${esc(p.no)}</b> · ${esc(p.sup||"")} · ${money(poTotal(p))} SAR ${tr("excl. VAT","قبل الضريبة")}</p><p style="margin:0;color:#5B6476">${tr("Enter your PIN to sign the PO electronically as the issuer. It then goes to","أدخل رمزك للتوقيع كمُصدِر. ثم يذهب إلى")} <b>${esc(APPR.FM)}</b>.</p>`,false,sig=>{
+  p.issuedBy=sig.by;p.ap=[...(p.ap||[]).filter(a=>a.role!=="ISS"),{role:"ISS",...sig,fp:apFp("po",p)}];persist();render();toast("✔ "+p.no+" "+tr("signed – sent to","وُقّع – أُرسل إلى")+" "+APPR.FM);});
+ const g=$("#apGo");if(g)g.textContent="✍ "+tr("Sign","توقيع");}
+{const B0=BIND.po;BIND.po=()=>{B0();const s=$("#oSave");if(!s||s._iss)return;const o=s.onclick;s._iss=1;
+ s.onclick=async ev=>{const n=D.pos.length;await o.call(s,ev);if(D.pos.length>n){const p=D.pos[D.pos.length-1];if(p.kind==="PO"&&typeof LOCAL!=="undefined"&&LOCAL.connected&&!LOCAL.readOnly){p.issuedBy=apMe();persist();setTimeout(()=>poIssSign(p),150);}}};
+ document.querySelectorAll("[data-poiss]").forEach(b=>b.onclick=()=>{const p=D.pos.find(x=>x.no===b.dataset.poiss);if(p)poIssSign(p);});};}
+{const V0=VIEWS.po;VIEWS.po=()=>{let h=V0();D.pos.filter(p=>p.kind==="PO"&&p.ap!==undefined&&!p.cancelled&&!p.rej).forEach(p=>{const a=poIssRec(p);if((!a||a.fp!==apFp("po",p))&&(p.issuedBy||"").toLowerCase()===apMe().toLowerCase())h=h.replace(`<b>${p.no}</b>`,`<b>${p.no}</b> <button class="b g sm" data-poiss="${esc(p.no)}">✍ ${tr("Sign as issuer","وقّع كمُصدِر")}</button>`);});return h;};}
 
 </script>
 </body>
