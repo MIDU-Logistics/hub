@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611250000"></script>
-<script src="local.js?v=202611250000"></script>
+<script src="m365.js?v=202611250100"></script>
+<script src="local.js?v=202611250100"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -2457,6 +2457,23 @@ document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.clos
 /* approvers see the quotation files in My approvals */
 {const V0=VIEWS.appr;VIEWS.appr=()=>{let h=V0();return h.replace(/<td class="en"><b>(CQS-[^<]+)<\/b><\/td>/g,(m,no)=>{const c=D.cqs.find(x=>x.no===no);return c&&(c.quotes||[]).some(q=>q.att)?`<td class="en"><b>${no}</b><div class="hint">${qtLinks(c)}</div></td>`:m;});};}
 {const B0=BIND.appr;BIND.appr=()=>{B0();document.querySelectorAll("[data-qatt]").forEach(a=>a.onclick=ev=>{ev.preventDefault();const [no,i]=a.dataset.qatt.split("|");qtOpen(no,i);});};}
+
+/* ===================== Update 49: Purchaser (Bandar Nasser) on PO and petty cash ===================== */
+const PURCHASER="Bandar Nasser";HUB_MAIL.bandarnasser=HUB_MAIL.bandarnasser||"b.saleh@msb.com";
+const buyerOpts=()=>{const L=[PURCHASER];try{(LOCAL.users||[]).filter(u=>u.active!==false&&/procurement/i.test(u.role||"")).forEach(u=>{if(!L.some(x=>whL(x)===whL(u.name)))L.push(u.name);});}catch(e){}return L;};
+{const V1=VIEWS.po;VIEWS.po=()=>{let h=V1();D.pos.forEach(p=>{if(p.buyer)h=h.replace(`<td class="en"><b>${p.no}</b></td>`,`<td class="en"><b>${p.no}</b><div class="hint">${tr("Purchaser","المشتري")}: ${esc(p.buyer)}</div></td>`);});const opt=buyerOpts().map(n=>`<option>${esc(n)}</option>`).join("");
+ const box=id=>`<div class="f"><label>${tr("Purchaser","المشتري")} <span style="color:#D2463C">*</span></label><select id="${id}">${opt}</select></div>`;
+ h=h.replace(/(<div class="card" id="tabpo"><div class="fg">)/,`$1${box("oBuyer")}`).replace(/(<div class="card" id="tabpc" style="display:none"><div class="fg">)/,`$1${box("cBuyer")}`);return h;};}
+{const B0=BIND.po;BIND.po=()=>{B0();
+ const wrap=(id,kind,selId)=>{const b=$(id);if(!b||b._buy)return;b._buy=1;const o=b.onclick;b.onclick=async ev=>{const n=D.pos.length;await o.call(b,ev);if(D.pos.length>n){const p=D.pos[D.pos.length-1];if(p.kind===kind){p.buyer=($(selId)||{}).value||PURCHASER;persist();render();}}};};
+ wrap("#oSave","PO","#oBuyer");wrap("#cSave","PC","#cBuyer");};}
+/* petty cash e-signature: the first signer is the purchaser */
+{const k=esK("pcv");if(k){k.steps=(iss,o)=>[["PREP","Purchaser",(o&&o.buyer)||iss],["FM","Approved by (Finance Manager)",ES_OSAMA]];k.issuerOf=o=>o.buyer||o.by||PURCHASER;}}
+/* e-mail the purchaser when a PO is fully approved (go ahead and buy) */
+function buyerMailScan(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.readOnly)return;
+ D.pos.filter(p=>p.kind==="PO"&&p.buyer&&!p.cancelled&&p.ap!==undefined&&apDone("po",p)).forEach(p=>{p.mailed=p.mailed||{};if(p.mailed.buyer)return;p.mailed.buyer=new Date().toISOString();
+  mailSend(p.buyer,`PO approved – please proceed: ${p.no}`,[`<b>${esc(p.no)}</b> to <b>${esc(p.sup||"")}</b> (${money(poTotal(p)*1.15)} SAR incl. VAT) is now fully approved (FM, PD, CEO).`,`PR ${esc(p.pr||"")} · CQS ${esc(p.cqs||"")}. Please send the PO to the supplier and follow up the delivery.`],"po");});}
+{const P2=persist;persist=function(...a){try{buyerMailScan();}catch(e){console.warn(e);}return P2.apply(this,a);};}
 /* e-mails: collect for 2.5 s so several signatures in a row become one e-mail per person */
 {const S0=mailSend;let BUF=[],T=null;
  mailSend=function(to,subj,lines,scr){BUF.push({to,subj,lines,scr});clearTimeout(T);T=setTimeout(()=>{const G={};BUF.forEach(m=>(G[m.to]=G[m.to]||[]).push(m));BUF=[];
