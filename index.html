@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611241500"></script>
-<script src="local.js?v=202611241500"></script>
+<script src="m365.js?v=202611241600"></script>
+<script src="local.js?v=202611241600"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -2193,6 +2193,35 @@ const whCanCancel=()=>whIsAdmin();
  return h;};}
 {const E0=whEdit;whEdit=function(no,type){const d=D.docs.find(x=>x.no===no);if(!whCanEdit(d))return toast("🔒 "+tr("Only the Logistics Manager can edit saved documents.","فقط مدير اللوجستيات يمكنه التعديل."));return E0(no,type);};}
 {const C0=whCancel;whCancel=function(no){if(!whCanCancel())return toast("🔒 "+tr("Only the Logistics Manager can cancel documents.","فقط مدير اللوجستيات يمكنه الإلغاء."));return C0(no);};}
+
+/* ===== Update 40: "Send for e-signature" – bring documents saved before update 34 into the cycle (admin only) ===== */
+const whNorm=s=>String(s||"").toLowerCase().replace(/[^a-z]/g,"");
+function whGuessIssuer(d){const U=(LOCAL.users||[]).filter(u=>u.active!==false);const b=whNorm(d.by);if(!b)return "";
+ let u=U.find(x=>whNorm(x.name)===b)||U.find(x=>whNorm(x.name).startsWith(b))||U.find(x=>b.startsWith(whNorm(x.name.split(" ")[0])));return u?u.name:"";}
+const whLegacy=d=>!!d&&["GRN","MDS","MRS"].includes(d.type)&&!d.cancelled&&!whUsed(d);
+function whSend(d,issuer){d.ap=[];d.whc={SIC:whSIC(),LM:WH_LM};d.savedBy=issuer;d.esent={at:new Date().toISOString(),by:apMe()};delete d.rej;}
+function whSendDlg(list){if(!list.length)return;const U=(LOCAL.users||[]).filter(u=>u.active!==false).map(u=>u.name);
+ openModal(tr("Send for e-signature","إرسال للتوقيع الإلكتروني"),`<div style="padding:16px 22px;font-size:14px"><p style="margin:0 0 10px;color:#5B6476">${tr("Each document goes to the person who saved it (the issuer). He signs with his PIN in Warehouse approvals, then it comes to you for approval. If you are the issuer, you sign now and it is approved.","يذهب كل مستند إلى من أصدره ليوقّع برمزه، ثم يأتيك للاعتماد.")}</p>
+ <table class="t"><tr><th>${tr("Document","المستند")}</th><th>${tr("Party","الطرف")}</th><th>${tr("Saved by","حُفظ بواسطة")}</th><th>${tr("Issuer who signs","المُصدِر الموقّع")}</th></tr>${list.map((d,i)=>`<tr><td class="en"><b>${esc(d.no)}</b></td><td class="en">${esc(d.party||"")}</td><td class="en">${esc(d.by||"")}</td><td><select data-wi="${i}">${U.map(n=>`<option${n===(whGuessIssuer(d)||WH_LM)?" selected":""}>${esc(n)}</option>`).join("")}</select></td></tr>`).join("")}</table>
+ <div style="margin-top:14px"><button class="b g" id="whSendGo">✉ ${tr("Send","إرسال")} (${list.length})</button></div></div>`,"");
+ ["#mPr","#mDrive","#mDl"].forEach(id=>{const e=$(id);if(e)e.style.display="none";});const h=$("#mHint");if(h)h.textContent="";
+ $("#whSendGo").onclick=()=>{const mine=[];list.forEach((d,i)=>{const n=$(`[data-wi="${i}"]`).value;whSend(d,n);if(whL(n)===whL(apMe()))mine.push(d);});persist();$("#ov").classList.remove("on");render();
+  toast("✔ "+list.length+" "+tr("sent for e-signature","أُرسلت للتوقيع"));const next=()=>{const d=mine.shift();if(!d)return;whSign(d);const go=$("#apGo");if(go){const o=go.onclick;go.onclick=async()=>{await o();setTimeout(next,250);};}};setTimeout(next,300);};}
+/* button on each old document (admin) */
+{const RD2=recentDocs;recentDocs=function(type){let h=RD2(type);if(!whIsAdmin()||typeof LOCAL==="undefined"||!LOCAL.connected)return h;
+ D.docs.filter(d=>d.type===type).slice(-12).filter(whLegacy).forEach(d=>{h=h.replace(`>${esc(d.no)}</b>`,`>${esc(d.no)}</b> <button class="b sm" data-wsend="${esc(d.no)}" title="${esc(tr("Saved before e-signatures – send it to the issuer to sign","حُفظ قبل التوقيع الإلكتروني"))}">✉ ${tr("Send for e-signature","إرسال للتوقيع")}</button>`);});return h;};}
+/* card in Warehouse approvals: all old documents at once */
+{const V0=VIEWS.whappr;VIEWS.whappr=()=>{let h=V0();if(!whIsAdmin()||typeof LOCAL==="undefined"||!LOCAL.connected)return h;const L=D.docs.filter(whLegacy);if(!L.length)return h;
+ const card=`<div class="card"><h2>${tr("Saved before e-signatures","حُفظت قبل التوقيع الإلكتروني")} (${L.length})</h2><p class="hint">${tr("These documents have no electronic signatures yet. Send them to the issuer – he signs with his PIN, then you approve.","لا تحمل هذه المستندات توقيعاً إلكترونياً. أرسلها للمُصدِر ليوقّع ثم تعتمدها.")}</p>
+ <table class="t"><tr><th></th><th>${tr("No.","الرقم")}</th><th>${tr("Date","التاريخ")}</th><th>${tr("Party","الطرف")}</th><th>${tr("Saved by","حُفظ بواسطة")}</th><th>${tr("Signed scan","نسخة موقعة")}</th><th></th></tr>${L.map(d=>`<tr><td>${tag(d.type,d.type==="GRN"?"g":d.type==="MDS"?"b":"a")}</td><td class="en"><b>${esc(d.no)}</b></td><td class="en">${esc(d.date)}</td><td class="en">${esc(d.party||"")}</td><td class="en">${esc(d.by||"")}</td><td>${(d.att||[]).length?tag(tr("Attached","مرفقة"),"g"):tag(tr("Missing","غير مرفق"),"r")}</td><td><button class="b l sm" data-whdoc="${esc(d.no)}">${tr("View","عرض")}</button> <button class="b sm" data-wsend="${esc(d.no)}">✉ ${tr("Send","إرسال")}</button></td></tr>`).join("")}</table>
+ <div class="btns"><button class="b g" id="whSendAll">✉ ${tr("Send all","إرسال الكل")} (${L.length})</button></div></div>`;
+ const i=h.indexOf('<div class="card">');return i<0?h+card:h.slice(0,i)+card+h.slice(i);};}
+{const WB=whBind;whBind=function(){WB();document.querySelectorAll("[data-wsend]").forEach(b=>b.onclick=()=>{const d=D.docs.find(x=>x.no===b.dataset.wsend);if(d&&whLegacy(d))whSendDlg([d]);});
+ const a=$("#whSendAll");if(a)a.onclick=()=>whSendDlg(D.docs.filter(whLegacy));};}
+
+
+/* anyone with a warehouse document waiting for his signature can open Warehouse approvals */
+{const C0=M365.can;M365.can=v=>C0(v)||(v==="whappr"&&(()=>{try{return whWaiting().length>0;}catch(e){return false;}})());}
 
 </script>
 </body>
