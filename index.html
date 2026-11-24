@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611240900"></script>
-<script src="local.js?v=202611240900"></script>
+<script src="m365.js?v=202611241000"></script>
+<script src="local.js?v=202611241000"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -354,7 +354,9 @@ let NAV=()=>[
  [tr("Tools","أدوات")],[1,"search","⌕","#2C3B57",tr("Search","بحث")],[1,"forms","🖨","#2C3B57",tr("Blank forms","النماذج الفارغة")],[1,"users","☷","#2C3B57",tr("Hub users","مستخدمو المنصة")]];
 let view="home";
 function navAllowed(){const n=NAV().filter(x=>x.length===1||M365.can(x[1]));return n.filter((x,i)=>x.length>1||(n[i+1]&&n[i+1].length>1));}
-function drawNav(){$("#nav").innerHTML=navAllowed().map(n=>n.length===1?`<div class="grp">${esc(n[0])}</div>`:`<button data-v="${n[1]}" class="${view===n[1]?"on":""}"><span class="ic" style="background:${n[3]}">${n[2]}</span>${esc(n[4])}</button>`).join("");
+/* menu label + optional red count badge (the badge is built by the Hub itself, the label is escaped) */
+function navLab(t){t=String(t);const k=t.indexOf(" <b style=\"background:#D2463C");return k<0?esc(t):esc(t.slice(0,k))+t.slice(k);}
+function drawNav(){$("#nav").innerHTML=navAllowed().map(n=>n.length===1?`<div class="grp">${esc(n[0])}</div>`:`<button data-v="${n[1]}" class="${view===n[1]?"on":""}"><span class="ic" style="background:${n[3]}">${n[2]}</span>${navLab(n[4])}</button>`).join("");
  $("#nav").querySelectorAll("button").forEach(b=>b.onclick=()=>go(b.dataset.v));}
 function drawSite(){const cur=$("#site").value||"ALL";$("#site").innerHTML=`<option value="ALL">${tr("All sites","كل المواقع")}</option>`+Object.entries(WH).map(([k,w])=>`<option value="${k}">${w.name}</option>`).join("");$("#site").value=cur;}
 function applyLang(){document.documentElement.lang=L;document.documentElement.dir=L==="ar"?"rtl":"ltr";
@@ -473,9 +475,10 @@ function logForm(d){
   after=`<div style="font-size:10px;color:#555;margin-top:4px">Total lines: ${lines.length} &nbsp;&nbsp; Total quantity: ${tq}</div><div style="margin-top:8px;font-size:11px"><b>Checked by store:</b> ${cs("Complete")} Complete &nbsp; ${cs("Damaged")} Damaged &nbsp; ${cs("Missing parts")} Missing parts &nbsp;&nbsp; Remarks: ${d.remarks?esc(d.remarks):"____________________________"}</div>
   <div style="font-size:10px;color:#555;margin:8px 0">The items above were returned to the MIDU warehouse in the condition stated. Damaged or missing items are recorded and reported to the Logistics Department. The returning person's responsibility for these items ends with this signed return.</div>`;
   sig=[["RETURNED BY",d.party,d.iqama,fd(d.date)],["RECEIVED BY (STOREKEEPER)",d.by||"",staffId(d.by),fd(d.date)],["APPROVED BY (LOGISTICS)","Azzam El Masri","1058",fd(d.date)]];}
+ if(typeof whUsed==="function"&&whUsed(d))sig=whSigRows(d,sig,staffId);
  const empty=Array.from({length:EMPTY},()=>`<tr>${cols.map(()=>`<td ${td()}>&nbsp;</td>`).join("")}</tr>`).join("");
- const sigT=`<table style="width:100%;border-collapse:collapse;margin-top:6px"><tr>${sig.map(s=>`<td style="border:${B};background:#EEF1F6;font-size:10px;font-weight:700;text-align:center;padding:4px;width:26%">${s[0]}</td>`).join("")}<td style="border:${B};background:#EEF1F6;font-size:10px;font-weight:700;text-align:center;padding:4px">WAREHOUSE STAMP</td></tr>
-  ${["Name:","ID No.:","Signature:","Date:"].map((k,i)=>`<tr>${sig.map(s=>`<td style="border:${B};font-size:10.5px;padding:6px 5px;height:${i===2?26:14}px">${k} ${esc([s[1],s[2],"",s[3]][i]||"")}</td>`).join("")}${i===0?`<td rowspan="4" style="border:${B};text-align:center;vertical-align:middle">${cfg.st?`<img src="${cfg.st}" style="max-width:110px;max-height:80px;opacity:.9">`:""}</td>`:""}</tr>`).join("")}</table>`;
+ const sigT=`<table style="width:100%;border-collapse:collapse;margin-top:6px"><tr>${sig.map(s=>`<td style="border:${B};background:#EEF1F6;font-size:10px;font-weight:700;text-align:center;padding:4px;width:${Math.floor(78/sig.length)}%">${s[0]}</td>`).join("")}<td style="border:${B};background:#EEF1F6;font-size:10px;font-weight:700;text-align:center;padding:4px">WAREHOUSE STAMP</td></tr>
+  ${["Name:","ID No.:","Signature:","Date:"].map((k,i)=>`<tr>${sig.map(s=>`<td style="border:${B};font-size:10.5px;padding:6px 5px;height:${i===2?26:14}px">${k} ${s[4]&&i>=2?whPrint(d,s[4],i):esc([s[1],s[2],"",s[3]][i]||"")}</td>`).join("")}${i===0?`<td rowspan="4" style="border:${B};text-align:center;vertical-align:middle">${cfg.st?`<img src="${cfg.st}" style="max-width:110px;max-height:80px;opacity:.9">`:""}</td>`:""}</tr>`).join("")}</table>`;
  const X=d.cancelled?`<div style="border:2px solid #B42318;color:#B42318;font-weight:700;text-align:center;padding:6px;margin:8px 0">CANCELLED ${esc(d.cancelled.at)} — ${esc(d.cancelled.reason)}</div>`:"";
  return `<div class="doc xl" style="font-family:Arial,Helvetica,sans-serif;color:#111;padding:20px 26px"><div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid ${N};padding-bottom:6px"><div><div style="font-size:20px;font-weight:800;color:#000">${cfg.t}</div><div style="font-size:9.5px;color:#555;margin-top:3px">MIDU PROJECT &nbsp;|&nbsp; LOGISTICS DEPARTMENT &nbsp;|&nbsp; WAREHOUSE &amp; STORES &nbsp; • &nbsp; Form ${cfg.f}</div></div><img src="${LOGO}" style="height:30px"></div>
  <div style="height:10px"></div>${X}${head}<table style="width:100%;border-collapse:collapse"><tr>${cols.map(c=>`<th ${th}>${c}</th>`).join("")}</tr>${rows}${empty}</table>${after}${sigT}
@@ -2028,6 +2031,104 @@ function startData(run){GAS=run;D=emptyD();$("#refresh").style.display="inline-b
  loadServer(()=>{applyLang();if(M365.can("att")&&!MISSING.includes("Attendance Punches"))GAS.withSuccessHandler(r=>{if(r.imported)toast("✔ "+r.imported+" "+tr("new attendance punches imported","بصمة حضور جديدة تم استيرادها"));if(view==="att")render();}).withFailureHandler(()=>{}).importAttendance();});}
 M365.init().then(async ok=>{if(ok)return startData(M365.run);if(await LOCAL.init())return startData(LOCAL.run);applyLang();});
 if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+/* ===================== Update 34: warehouse electronic approval (GRN / MDS / MRS) =====================
+   Chain (frozen on each document when it is saved):
+     SK  = issuer – the signed-in person who saved it (storekeeper / store in-charge) signs with his PIN
+     SIC = Store In-charge – any active Hub user with role "storeincharge" (skipped while there is none,
+           and skipped when he or the Logistics Manager is the issuer)
+     LM  = Logistics Manager – Azzam El Masri (skipped when he is the issuer – his issuer signature counts)
+   Stock and custody still change on save. "Not approve" sends it back: the issuer edits (re-sign) or cancels.
+   Documents saved before update 34 have no d.ap and are left as they were. */
+const WH_LM="Azzam El Masri";
+const WH_ROLE={SK:"Issuer",SIC:"Store In-charge",LM:"Logistics Manager"};
+const whL=s=>String(s||"").trim().toLowerCase();
+function whSIC(){try{const u=(LOCAL.users||[]).find(u=>u.active!==false&&String(u.role||"").toLowerCase().split(/[,;]/).map(x=>x.trim()).includes("storeincharge"));return u?u.name:"";}catch(e){return "";}}
+function whFp(d){const x=[d.no,d.type,d.date,d.party||"",d.iqama||"",d.wh||"",d.loc||"",d.to||"",d.dtype||"",d.po||"",d.dn||"",d.returnBy||"",(d.lines||[]).map(l=>[l.code||"",l.sl||"",l.asset||"",+l.qty||0,l.cond||"",l.bm||"",l.sn||""])];
+ const s=JSON.stringify(x);let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}return h.toString(16).padStart(8,"0").toUpperCase();}
+const whUsed=d=>!!d&&Array.isArray(d.ap)&&!!d.whc;
+const whGet=(d,r)=>(d.ap||[]).filter(a=>a.role===r).pop();
+const whIss=d=>(whGet(d,"SK")||{}).by||d.savedBy||"";
+function whChain(d){const iss=whIss(d),c=["SK"];if(d.whc.SIC&&whL(d.whc.SIC)!==whL(iss)&&whL(iss)!==whL(d.whc.LM))c.push("SIC");if(whL(iss)!==whL(d.whc.LM))c.push("LM");return c;}
+const whName=(d,r)=>r==="SK"?(d.savedBy||whIss(d)):(d.whc||{})[r]||"";
+const whOk=(d,r)=>{const a=whGet(d,r);return !!a&&a.fp===whFp(d);};
+const whNext=d=>{if(!whUsed(d)||d.cancelled||d.rej)return null;for(const r of whChain(d))if(!whOk(d,r))return r;return null;};
+const whDone=d=>whUsed(d)&&!d.cancelled&&!d.rej&&!whNext(d);
+/* the record that signs a print row: LM row falls back to the issuer when the LM issued it himself */
+const whRec=(d,r)=>{if(r!=="SK"&&!whChain(d).includes(r))return whGet(d,"SK");return whGet(d,r);};
+function whWaiting(){const me=whL(apMe());if(!me)return [];return D.docs.filter(whUsed).map(d=>[d,whNext(d)]).filter(([d,r])=>r&&whL(whName(d,r))===me);}
+function whTag(d){if(!whUsed(d)||d.cancelled)return "";
+ if(d.rej)return tag(tr("Not approved","غير معتمد")+" – "+WH_ROLE[d.rej.role],"r");
+ const n=whNext(d);if(!n)return tag("✔ "+tr("Approved","معتمد"),"g");
+ if((d.ap||[]).some(a=>a.fp!==whFp(d)))return tag(tr("Changed – re-sign needed","تغيّر – يلزم إعادة التوقيع"),"r");
+ return tag((n==="SK"?tr("Waiting issuer signature","بانتظار توقيع المُصدِر"):tr("Waiting","بانتظار")+" "+WH_ROLE[n])+" – "+whName(d,n),"a");}
+function whBtns(d){const n=whNext(d);if(!n||whL(whName(d,n))!==whL(apMe()))return "";
+ if(n==="SK")return `<button class="b g sm" data-whsign="${esc(d.no)}">✍ ${tr("Sign","توقيع")}</button>`;
+ return `<button class="b g sm" data-whok="${esc(d.no)}">✔ ${tr("Approve","اعتماد")}</button> <button class="b r sm" data-whrej="${esc(d.no)}">✕ ${tr("Not approve","عدم اعتماد")}</button>`;}
+function whTrail(d){if(!whUsed(d))return "";return (d.ap||[]).map(a=>`<div class="hint">✔ ${a.role==="SK"?tr("Issued","أصدره"):WH_ROLE[a.role]}: <b>${esc(a.by)}</b> · ${esc(apDt(a.at))}${a.fp!==whFp(d)?" · <b style='color:#C0392B'>"+tr("changed after signing","تغيّر بعد التوقيع")+"</b>":""}${a.pinReset&&a.pinResetBy!==a.by?` · <b style="color:#B45309">⚠ ${tr("PIN was reset by","أعيد تعيين الرمز بواسطة")} ${esc(a.pinResetBy||"?")}</b>`:""}</div>`).join("")+(d.rej?`<div class="hint" style="color:#C0392B">✕ ${WH_ROLE[d.rej.role]}: <b>${esc(d.rej.by)}</b> · ${esc(apDt(d.rej.at))} · ${esc(d.rej.reason)}</div>`:"");}
+function whSigNames(){new Set([WH_LM,whSIC(),...D.docs.filter(whUsed).flatMap(d=>(d.ap||[]).map(a=>a.by))].filter(Boolean)).forEach(n=>{try{sigLoad(n);}catch(e){}});}
+const WH_TYPE={GRN:tr("receipt (GRN)","استلام"),MDS:tr("issue (MDS)","صرف"),MRS:tr("return (MRS)","إرجاع")};
+function whInfo(d,txt){return `<p style="margin:0 0 6px"><b>${esc(d.no)}</b> · ${esc(d.party||"")} · ${(d.lines||[]).length} ${tr("line(s)","سطر")} · ${(d.lines||[]).reduce((a,l)=>a+(+l.qty||0),0)} ${tr("qty","كمية")}</p><p style="margin:0;color:#5B6476">${txt} <button class="b l sm" id="whView">${tr("View","عرض")} ${d.type}</button></p>`;}
+function whBindView(d){const v=$("#whView");if(v)v.onclick=()=>openDoc(findDoc(d.no));}
+/* issuer signature – right after saving, or later with the ✍ Sign button */
+function whSign(d){const nx=()=>{const c=whChain(d);return c[1]?whName(d,c[1]):"";};
+ apPinDlg(tr("Sign as issuer","التوقيع كمُصدِر")+" – "+d.no,whInfo(d,tr("Saved. Stock and custody are already updated. Enter your PIN to sign it electronically – it then goes to ","تم الحفظ. أدخل رمزك للتوقيع إلكترونياً – ثم يذهب إلى ")+"<b>"+esc(nx()||tr("nobody – approved","لا أحد – معتمد"))+"</b>."),false,sig=>{
+  d.by=sig.by;d.savedBy=sig.by;d.ap=[{role:"SK",...sig,fp:whFp(d)}];delete d.rej;persist();render();const n=whNext(d);
+  toast("✔ "+d.no+" "+(n?tr("signed – sent to","وُقّع – أُرسل إلى")+" "+whName(d,n):tr("signed and approved","وُقّع واعتُمد")));});
+ const g=$("#apGo");if(g)g.textContent="✍ "+tr("Sign","توقيع");whBindView(d);}
+function whAct(d,reject){const r=whNext(d);if(!r||r==="SK")return;if(whL(whName(d,r))!==whL(apMe()))return toast("✖ "+tr("Only","فقط")+" "+whName(d,r)+" "+tr("can do this.","يمكنه ذلك."));
+ apPinDlg((reject?tr("Not approve","عدم اعتماد"):tr("Approve","اعتماد"))+" "+d.no+" – "+WH_ROLE[r],whInfo(d,reject?tr("It goes back to the issuer with your reason. He edits it (and signs again) or cancels it.","يعود للمُصدِر مع السبب."):tr("Your signature and the date are added and it moves to the next step automatically.","يُضاف توقيعك والتاريخ وينتقل للخطوة التالية تلقائياً.")),reject,(sig,reason)=>{
+  if(reject)d.rej={role:r,by:sig.by,at:sig.at,reason};else d.ap=[...(d.ap||[]).filter(a=>a.role!==r),{role:r,...sig,fp:whFp(d)}];
+  persist();render();const n=whNext(d);toast("✔ "+d.no+" "+(reject?tr("returned to","أُعيد إلى")+" "+whIss(d):n?tr("approved – sent to","اعتُمد – أُرسل إلى")+" "+whName(d,n):tr("fully approved","اعتُمد بالكامل")));});
+ whBindView(d);}
+function whBind(){whSigNames();const f=no=>D.docs.find(x=>x.no===no);
+ document.querySelectorAll("[data-whsign]").forEach(b=>b.onclick=()=>{const d=f(b.dataset.whsign);if(d)whSign(d);});
+ document.querySelectorAll("[data-whok]").forEach(b=>b.onclick=()=>{const d=f(b.dataset.whok);if(d)whAct(d,false);});
+ document.querySelectorAll("[data-whrej]").forEach(b=>b.onclick=()=>{const d=f(b.dataset.whrej);if(d)whAct(d,true);});
+ document.querySelectorAll("[data-whdoc]").forEach(b=>b.onclick=()=>openDoc(findDoc(b.dataset.whdoc)));
+ document.querySelectorAll("[data-whgo]").forEach(b=>b.onclick=()=>go(b.dataset.whgo));}
+/* start the cycle on every new or edited GRN / MDS / MRS */
+function whStart(d){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.readOnly)return;
+ d.ap=[];d.whc={SIC:whSIC(),LM:WH_LM};d.savedBy=apMe();delete d.rej;persist();setTimeout(()=>whSign(d),150);}
+function whWrapSave(id,type){const s=$("#"+id);if(!s||!s.onclick||s._wh)return;const o=s.onclick;s._wh=1;
+ s.onclick=async ev=>{const ed=WH_EDIT&&WH_EDIT.type===type?WH_EDIT.no:null,prev=ed?D.docs.find(x=>x.no===ed):null,n0=D.docs.filter(x=>x.type===type).length;
+  await o.call(s,ev);let d=null;
+  if(ed){const x=D.docs.find(y=>y.no===ed);if(x&&x!==prev)d=x;}else{const L=D.docs.filter(x=>x.type===type);if(L.length>n0)d=L[L.length-1];}
+  if(d&&!d.cancelled)whStart(d);};}
+[["grn","gSave","GRN"],["mds","mSave","MDS"],["mrs","rSave","MRS"]].forEach(([v,id,t])=>{const B0=BIND[v];BIND[v]=()=>{B0();whWrapSave(id,t);};});
+/* status + buttons in "Recent documents" */
+{const RD0=recentDocs;recentDocs=function(type){let h=RD0(type);D.docs.filter(d=>d.type===type).slice(-12).forEach(d=>{const st=whTag(d)+" "+whBtns(d);if(st.trim())h=h.replace(`>${esc(d.no)}</b>`,`>${esc(d.no)}</b> ${st}`);});return h;};}
+{const BR0=bindRecent;bindRecent=function(type){BR0(type);whBind();};}
+/* Warehouse approvals screen */
+VIEWS.whappr=()=>{const W=whWaiting(),me=whL(apMe());const ty=t=>tag(t,t==="GRN"?"g":t==="MDS"?"b":"a");
+ const row=([d,r])=>`<tr><td>${ty(d.type)}</td><td class="en"><b>${esc(d.no)}</b></td><td class="en">${esc(d.date)}</td><td class="en">${esc(d.party||"")}</td><td class="num">${(d.lines||[]).length}</td><td>${whTrail(d)||"—"}</td><td style="white-space:nowrap"><button class="b l sm" data-whdoc="${esc(d.no)}">${tr("View","عرض")}</button> ${whBtns(d)}</td></tr>`;
+ const back=D.docs.filter(d=>whUsed(d)&&d.rej&&!d.cancelled);
+ const mine=D.docs.filter(d=>whUsed(d)&&((d.ap||[]).some(a=>whL(a.by)===me)||(d.rej&&whL(d.rej.by)===me))).slice(-15).reverse();
+ const sic=whSIC();
+ return head(tr("Warehouse approvals","اعتمادات المستودع"),tr("Receipts, issues and returns waiting for an electronic signature. Chain: issuer → ","الاستلام والصرف والإرجاع بانتظار التوقيع الإلكتروني. التسلسل: المُصدِر → ")+(sic?tr("Store In-charge","مسؤول المستودع")+" ("+esc(sic)+") → ":"")+tr("Logistics Manager","مدير اللوجستيات")+" ("+WH_LM+").")+msgBox+
+ `<div class="card"><h2>${tr("Waiting for me","بانتظاري")} (${W.length})</h2>${W.length?`<table class="t"><tr><th></th><th>${tr("No.","الرقم")}</th><th>${tr("Date","التاريخ")}</th><th>${tr("Party","الطرف")}</th><th class="num">${tr("Lines","الأسطر")}</th><th>${tr("Signed so far","التواقيع")}</th><th></th></tr>${W.map(row).join("")}</table>`:`<p class="hint">${tr("Nothing is waiting for you.","لا يوجد ما ينتظرك.")}</p>`}</div>
+ ${back.length?`<div class="card"><h2>${tr("Returned – not approved","معادة – غير معتمدة")} (${back.length})</h2><p class="hint">${tr("The issuer opens the screen, clicks ✎ Edit, corrects and saves (signs again) – or Cancel. Returns (MRS) can only be cancelled and done again.","يفتح المُصدِر الشاشة ويعدّل ويحفظ (ويوقّع مجدداً) أو يلغي.")}</p><table class="t">${back.map(d=>`<tr><td>${ty(d.type)}</td><td class="en"><b>${esc(d.no)}</b></td><td class="en">${esc(d.party||"")}</td><td>${whTrail(d)}</td><td style="white-space:nowrap"><button class="b l sm" data-whdoc="${esc(d.no)}">${tr("View","عرض")}</button> <button class="b sm" data-whgo="${d.type.toLowerCase()}">${tr("Open","فتح")} ${d.type}</button></td></tr>`).join("")}</table></div>`:""}
+ ${mine.length?`<div class="card"><h2>${tr("Signed by me","وقّعتها")}</h2><table class="t">${mine.map(d=>`<tr><td>${ty(d.type)}</td><td class="en"><b>${esc(d.no)}</b></td><td>${whTag(d)}</td><td>${whTrail(d)}</td><td><button class="b l sm" data-whdoc="${esc(d.no)}">${tr("View","عرض")}</button></td></tr>`).join("")}</table></div>`:""}`;};
+BIND.whappr=()=>whBind();
+/* roles, area folder and menu */
+if(typeof M365_ROLES!=="undefined"){M365_ROLES.storeincharge=["home","dashWH","grn","mds","mrs","whappr","assetReg","count","labels","forms","search"];
+ ["storekeeper","logistics"].forEach(r=>{if(Array.isArray(M365_ROLES[r])&&!M365_ROLES[r].includes("whappr"))M365_ROLES[r].push("whappr");});}
+if(typeof HUB_ROLES!=="undefined"&&!HUB_ROLES.some(r=>r[0]==="storeincharge"))HUB_ROLES.splice(4,0,["storeincharge","Store In-charge – GRN, MDS, MRS, stock count; checks warehouse documents"]);
+if(typeof VIEW_AREA!=="undefined")VIEW_AREA.whappr="wh";
+{const N0=NAV;NAV=()=>{const n=N0();const i=n.findIndex(x=>x[1]==="mrs");const w=whWaiting().length;if(i>-1)n.splice(i+1,0,[1,"whappr","✔","#1E9E6A",tr("Warehouse approvals","اعتمادات المستودع")+(w?` <b style="background:#D2463C;color:#fff;border-radius:9px;padding:0 6px;font-size:11px">${w}</b>`:"")]);return n;};}
+{const R0=render;render=function(k){R0(k);try{const w=whWaiting().length;if(w&&view!=="whappr"&&!document.getElementById("whBan")&&M365.can("whappr")){const m=$("#main");const b=document.createElement("div");b.id="whBan";b.className="banner";b.style.cssText="cursor:pointer;background:#E7F6EE;border-color:#1E9E6A;color:#14532D";b.innerHTML=`🔔 <b>${w}</b> ${tr("warehouse document(s) waiting for your signature","مستند مستودع بانتظار توقيعك")} – ${tr("open Warehouse approvals","افتح اعتمادات المستودع")}`;b.onclick=()=>go("whappr");m.prepend(b);}}catch(e){console.warn(e);}};}
+/* print: electronic signature cell */
+function whPrint(d,r,i){const rec=whRec(d,r);
+ if(i===3){if(!rec||rec.fp!==whFp(d))return "";const [y,m,dd]=rec.at.slice(0,10).split("-");return `${dd} / ${m} / ${y}`;}
+ if(d.rej&&d.rej.role===r)return `<b style="color:#C00000">Not approved</b>`;
+ if(!rec)return `<span style="color:#8A94A6">Pending e-signature</span>`;
+ if(rec.fp!==whFp(d))return `<span style="color:#C00000">Changed after signing – re-sign needed</span>`;
+ return `${sigImg(rec.by)}<span style="display:block;text-align:center;font-size:7.5px;color:#444">e-signed ${esc(apDt(rec.at))} · ref ${rec.fp}</span>`;}
+function whSigRows(d,old,sid){const c=whChain(d),iss=whIss(d),R=(t,r,n)=>[t,n,sid(n),"",r];
+ const sic=c.includes("SIC")?[R("CHECKED BY (STORE IN-CHARGE)","SIC",d.whc.SIC)]:[],lm=[R("APPROVED BY (LOGISTICS MANAGER)","LM",d.whc.LM)];lm[0][2]=lm[0][2]||"1058";
+ if(d.type==="GRN")return [old[0],R("RECEIVED BY (STOREKEEPER)","SK",iss),...sic,...lm];
+ if(d.type==="MDS")return [R("ISSUED BY (STOREKEEPER)","SK",iss),...sic,...lm,old[2]];
+ return [old[0],R("RECEIVED BY (STOREKEEPER)","SK",iss),...sic,...lm];}
+
 </script>
 </body>
 </html>
