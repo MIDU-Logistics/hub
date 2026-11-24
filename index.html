@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611242300"></script>
-<script src="local.js?v=202611242300"></script>
+<script src="m365.js?v=202611250000"></script>
+<script src="local.js?v=202611250000"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -2415,6 +2415,48 @@ document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.clos
  <p style="margin:0;color:#5B6476">${tr("Your signature (Prepared by) is added to the PR now. It then goes to","يُضاف توقيعك (مقدم الطلب) الآن ثم يذهب إلى")} <b>${esc(APPR.PD)}</b> ${tr("for approval. After sending it can no longer be edited.","للاعتماد. بعد الإرسال لا يمكن تعديله.")}</p>`,false,sig=>{
   Object.assign(p,{status:"PD",toPdOn:today(),toPdBy:sig.by,prepSigned:true,prepBy:sig.by,prepAt:sig.at});prAddNewItems(p);persist();render();toast("✔ "+p.no+" "+tr("signed and sent to the Project Director","وُقّع وأُرسل لمدير المشروع"));});
  const g=$("#apGo");if(g)g.textContent="✍ "+tr("Sign and send to PD","توقيع وإرسال");};}
+
+/* ===================== Update 48: quotations must be attached =====================
+   CQS: every quotation line needs its quotation file (PDF / photo); L2 PRs (≥ 5,000 SAR) need 3 quotations.
+   Files are saved in 03 Procurement/02 Quotations/<PR No.>/. PO cannot be issued unless all CQS quotations are attached. */
+const QT_DIR=pr=>"03 Procurement/02 Quotations/"+String(pr||"no PR").replace(/[\\/:*?"<>|]/g,"-");
+const prEst=p=>(p&&p.lines||[]).reduce((a,l)=>a+l.qty*l.est,0);
+const qtNeed=prNo=>prEst(D.prs.find(p=>p.no===prNo))>=5000?3:1;
+const cqsAttOk=c=>!!c&&(c.quotes||[]).length>0&&(c.quotes||[]).every(q=>q.att&&q.att.path);
+const qtSafe=x=>String(x||"").replace(/[\\/:*?"<>|]/g,"-").slice(0,60);
+function qtLinks(c){return (c.quotes||[]).map((q,i)=>q.att?`<a href="#" data-qatt="${esc(c.no)}|${i}" title="${esc(q.att.name)}">📎 ${esc(q.sup)}</a>`:`<span style="color:#C0392B">✕ ${esc(q.sup)}</span>`).join(" &nbsp;");}
+{const V0=VIEWS.cqs;VIEWS.cqs=()=>{let h=V0();
+ h=h.replace(`<th>${tr("Valid quote?","عرض ساري؟")}</th></tr>`,`<th>${tr("Valid quote?","عرض ساري؟")}</th><th>${tr("Quotation file","ملف العرض")} <span style="color:#D2463C">*</span></th></tr>`);
+ h=h.split(`<select data-q="valid"><option value="1">Yes</option><option value="0">No</option></select></td>`).join(`<select data-q="valid"><option value="1">Yes</option><option value="0">No</option></select></td><td><input type="file" data-q="file" accept=".pdf,image/*" style="max-width:190px"></td>`);
+ h=h.replace(`<span id="qRec" class="hint"></span>`,`<span id="qRec" class="hint"></span><span id="qNeed" class="hint" style="margin-inline-start:10px"></span>`);
+ D.cqs.forEach(c=>{h=h.replace(new RegExp(`(<td class="en">${c.pr}</td><td class="en">)`),`<td class="en">${c.pr}<div class="hint">${qtLinks(c)}${cqsAttOk(c)?"":` <button class="b a sm" data-qadd="${esc(c.no)}">📎 ${tr("Attach quotations","إرفاق العروض")}</button>`}</div></td><td class="en">`);});
+ return h;};}
+function qtOpen(no,i){const c=D.cqs.find(x=>x.no===no);const q=c&&c.quotes[+i];if(q&&q.att)openAtt(q.att);}
+function qtAddDlg(c){openModal(tr("Attach quotations","إرفاق العروض")+" – "+c.no,`<div style="padding:18px 22px;font-size:14px"><p style="margin:0 0 10px">${tr("PR","الطلب")} <b>${esc(c.pr||c.prCancelled||"")}</b> · ${tr("attach the quotation received from each supplier.","أرفق عرض السعر من كل مورد.")}</p>
+ <table class="t">${(c.quotes||[]).map((q,i)=>`<tr><td class="en"><b>${esc(q.sup)}</b></td><td class="num">${money(q.price)}</td><td>${q.att?`📎 ${esc(q.att.name)}`:`<input type="file" data-qf="${i}" accept=".pdf,image/*">`}</td></tr>`).join("")}</table>
+ <div style="margin-top:12px"><button class="b g" id="qaGo">💾 ${tr("Save","حفظ")}</button> <span id="qaE" style="color:#D2463C;font-size:13px"></span></div></div>`,"");
+ $("#qaGo").onclick=async()=>{const e=$("#qaE");e.textContent="";const ins=[...document.querySelectorAll("[data-qf]")];if(ins.some(x=>!x.files[0])){e.textContent=tr("Attach a file for every supplier.","أرفق ملفاً لكل مورد.");return;}
+  try{$("#qaGo").disabled=true;for(const x of ins){const i=+x.dataset.qf,q=c.quotes[i];q.att=await saveAtt(x.files[0],QT_DIR(c.pr||c.prCancelled),c.no,"Quotation "+(i+1)+" - "+qtSafe(q.sup));}
+   persist();$("#ov").classList.remove("on");render();toast("✔ "+tr("Quotations attached","تم إرفاق العروض"));}catch(x){$("#qaGo").disabled=false;e.textContent=x.message;}};}
+{const B0=BIND.cqs;BIND.cqs=()=>{B0();
+ document.querySelectorAll("[data-qatt]").forEach(a=>a.onclick=ev=>{ev.preventDefault();const [no,i]=a.dataset.qatt.split("|");qtOpen(no,i);});
+ document.querySelectorAll("[data-qadd]").forEach(b=>b.onclick=()=>{const c=D.cqs.find(x=>x.no===b.dataset.qadd);if(c)qtAddDlg(c);});
+ const pr=$("#qPr"),need=()=>{const n=$("#qNeed");if(n&&pr&&pr.value)n.innerHTML=`${tr("This PR needs","هذا الطلب يحتاج")} <b>${qtNeed(pr.value)}</b> ${tr("quotation(s), each with its file attached.","عرض/عروض، كل عرض مع ملفه.")}`;};if(pr){pr.addEventListener("change",need);need();}
+ const s=$("#qSave");if(!s)return;const orig=s.onclick;
+ s.onclick=async()=>{if(!$("#qPr").value)return msg("err",ERR.req());
+  const rows=[...$("#qTab").querySelectorAll("tr")].slice(1).filter(r=>r.querySelector("[data-q=sup]").value.trim()&&+r.querySelector("[data-q=price]").value>0);
+  const miss=rows.filter(r=>!(r.querySelector("[data-q=file]")||{}).files||!r.querySelector("[data-q=file]").files[0]).map(r=>r.querySelector("[data-q=sup]").value.trim());
+  if(miss.length)return msg("err",tr("Attach the quotation file for: ","أرفق ملف العرض لـ: ")+`<b class="en">${miss.map(esc).join(", ")}</b>`);
+  const n=qtNeed($("#qPr").value);if(rows.length<n)return msg("err",tr(`This PR is ${money(prEst(D.prs.find(p=>p.no===$("#qPr").value)))} SAR – ${n} quotations are required (you entered ${rows.length}).`,`هذا الطلب يحتاج ${n} عروض (أدخلت ${rows.length}).`));
+  const files=rows.map(r=>({sup:r.querySelector("[data-q=sup]").value.trim(),f:r.querySelector("[data-q=file]").files[0]}));const prNo=$("#qPr").value,cno=seqNo("CQS-26-",D.cqs.map(c=>c.no));
+  s.disabled=true;let att=[];try{for(let i=0;i<files.length;i++)att.push({sup:files[i].sup,a:await saveAtt(files[i].f,QT_DIR(prNo),cno,"Quotation "+(i+1)+" - "+qtSafe(files[i].sup))});}catch(e){s.disabled=false;return msg("err",tr("The quotation could not be saved: ","تعذر حفظ العرض: ")+esc(e.message));}
+  const before=D.cqs.length;orig.call(s);s.disabled=false;if(D.cqs.length>before){const c=D.cqs[D.cqs.length-1];(c.quotes||[]).forEach(q=>{const x=att.find(a=>a.sup===q.sup&&!a.used);if(x){q.att=x.a;x.used=1;}});persist();render();}};};}
+/* PO: blocked until every quotation in the CQS is attached */
+document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.closest("#oSave");if(!b)return;const d=($("#oPrev")||{})._d;if(!d||!d.c)return;if(cqsAttOk(d.c))return;
+ ev.preventDefault();ev.stopImmediatePropagation();msg("err",`${tr("PO cannot be issued: the quotations of","لا يمكن إصدار أمر الشراء: عروض")} <b class="en">${esc(d.c.no)}</b> ${tr("are not attached. Open Comparative quotations (CQS) and click “Attach quotations”.","غير مرفقة. افتح المقارنات واضغط «إرفاق العروض».")}`);},true);
+/* approvers see the quotation files in My approvals */
+{const V0=VIEWS.appr;VIEWS.appr=()=>{let h=V0();return h.replace(/<td class="en"><b>(CQS-[^<]+)<\/b><\/td>/g,(m,no)=>{const c=D.cqs.find(x=>x.no===no);return c&&(c.quotes||[]).some(q=>q.att)?`<td class="en"><b>${no}</b><div class="hint">${qtLinks(c)}</div></td>`:m;});};}
+{const B0=BIND.appr;BIND.appr=()=>{B0();document.querySelectorAll("[data-qatt]").forEach(a=>a.onclick=ev=>{ev.preventDefault();const [no,i]=a.dataset.qatt.split("|");qtOpen(no,i);});};}
 /* e-mails: collect for 2.5 s so several signatures in a row become one e-mail per person */
 {const S0=mailSend;let BUF=[],T=null;
  mailSend=function(to,subj,lines,scr){BUF.push({to,subj,lines,scr});clearTimeout(T);T=setTimeout(()=>{const G={};BUF.forEach(m=>(G[m.to]=G[m.to]||[]).push(m));BUF=[];
