@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611241600"></script>
-<script src="local.js?v=202611241600"></script>
+<script src="m365.js?v=202611241700"></script>
+<script src="local.js?v=202611241700"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -2222,6 +2222,33 @@ function whSendDlg(list){if(!list.length)return;const U=(LOCAL.users||[]).filter
 
 /* anyone with a warehouse document waiting for his signature can open Warehouse approvals */
 {const C0=M365.can;M365.can=v=>C0(v)||(v==="whappr"&&(()=>{try{return whWaiting().length>0;}catch(e){return false;}})());}
+
+/* ===== Update 41: e-mail alerts – the Hub drops one small file per e-mail in 00 System/_mail outbox;
+   a Power Automate flow (Azzam's Outlook) sends it and deletes the file. ===== */
+const HUB_URL="https://midu-logistics.github.io/hub/";
+const HUB_MAIL={"azzamelmasri":"m.elmasri@midu.com.sa","mazharashraf":"m.ashraf@midu.com.sa","turkialghamdi":"t.alghamdi@midu.com.sa","najedfakhreddine":"nfakhreddine@midu.com.sa","osamaalsaggaf":"o.alsaggaf@midu.com.sa","raghadaltowirgi":"r.altowirgi@midu.com.sa","kaidalharbi":"kaid@midu.com.sa","marwantelmesani":"marwan@midu.com.sa","rawanalharbi":"r.alharbi@midu.com.sa"};
+const mailOf=n=>{const k=String(n||"").toLowerCase().replace(/[^a-z]/g,"");const u=(typeof LOCAL!=="undefined"&&LOCAL.users||[]).find(x=>String(x.name||"").toLowerCase().replace(/[^a-z]/g,"")===k);return (u&&u.email)||HUB_MAIL[k]||"";};
+const MAIL_DIR="00 System/_mail outbox";
+function mailSend(toName,subject,lines,screen){const to=mailOf(toName);if(!to||typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.readOnly||!LOCAL.uploadDoc)return;
+ const body=`<div style="font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#1E2433"><p>Dear ${esc(toName)},</p>${lines.map(l=>`<p>${l}</p>`).join("")}<p><a href="${HUB_URL}#${screen}" style="background:#1B273D;color:#fff;padding:8px 14px;border-radius:6px;text-decoration:none">Open MIDU Logistics Hub</a></p><p style="color:#5B6476;font-size:12px">Open the Hub, click ⟳ if needed, and sign with your PIN.<br>This is an automatic message from MIDU Logistics Hub – sent by ${esc(apMe())}.</p></div>`;
+ const id=new Date().toISOString().replace(/[-:.TZ]/g,"").slice(0,17)+"-"+Math.random().toString(36).slice(2,7);
+ const blob=new Blob([JSON.stringify({to,toName,subject,body,from:apMe(),at:new Date().toISOString()})],{type:"application/json"});
+ LOCAL.uploadDoc(MAIL_DIR,id+".json",blob).catch(e=>console.warn("mail outbox",e));}
+const TYPE_NAME={GRN:"Material Receiving Note (GRN)",MDS:"Material Dispatch Sheet (MDS)",MRS:"Material Return Sheet (MRS)",pr:"Purchase Request",cqs:"Comparative Quotation Sheet (CQS)",po:"Purchase Order"};
+/* one e-mail per waiting step: d.mailed remembers what was already sent */
+function mailScan(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.readOnly)return;const me=whL(apMe());const Q={};const mailQueue=(to,subj,lines,scr)=>{(Q[to]=Q[to]||[]).push({subj,lines,scr});};
+ const once=(d,key,fn)=>{d.mailed=d.mailed||{};if(d.mailed[key])return;d.mailed[key]=new Date().toISOString();fn();};
+ /* warehouse */
+ D.docs.filter(d=>whUsed(d)&&!d.cancelled).forEach(d=>{const n=whNext(d),tn=TYPE_NAME[d.type],k=(d.ap||[]).length+"|"+(d.esent?d.esent.at:"");
+  if(n){const who=whName(d,n);if(who&&whL(who)!==me)once(d,"w"+n+"|"+k,()=>mailQueue(who,`${n==="SK"?"Signature":"Approval"} required: ${d.no}`,[`Your ${n==="SK"?"electronic signature":"approval"} is required on <b>${esc(d.no)}</b> – ${tn}.`,`Party: ${esc(d.party||"")} · Date: ${esc(d.date||"")} · ${(d.lines||[]).length} line(s)`,`Step: <b>${n==="SK"?"Issuer":WH_ROLE[n]}</b>. Open <b>Warehouse approvals</b>.`],"whappr"));}
+  else if(d.rej){const iss=whIss(d);if(iss&&whL(iss)!==me)once(d,"wrej|"+d.rej.at,()=>mailQueue(iss,`Not approved: ${d.no}`,[`<b>${esc(d.no)}</b> – ${tn} was <b>not approved</b> by ${esc(d.rej.by)}.`,`Reason: <i>${esc(d.rej.reason)}</i>`,`Please correct it (✎ Edit) and sign again.`],d.type.toLowerCase()));}
+  else if(whDone(d)){const iss=whIss(d);if(iss&&whL(iss)!==me)once(d,"wdone|"+k,()=>mailQueue(iss,`Approved: ${d.no}`,[`<b>${esc(d.no)}</b> – ${tn} is now <b>fully approved</b>.`],d.type.toLowerCase()));}});
+ /* procurement */
+ const pend=[];D.prs.forEach(p=>{if(p.status==="PD"&&!p.pd&&!p.cancelled)pend.push(["pr",p,"PD"]);});
+ D.cqs.filter(c=>c.ap!==undefined).forEach(c=>{const r=apNext("cqs",c);if(r)pend.push(["cqs",c,r]);});D.pos.filter(p=>p.kind==="PO"&&p.ap!==undefined).forEach(p=>{const r=apNext("po",p);if(r)pend.push(["po",p,r]);});
+ pend.forEach(([k,d,r])=>{const who=APPR[r];if(!who||whL(who)===me)return;once(d,"p"+r+"|"+(d.ap||[]).length,()=>mailQueue(who,`Approval required: ${d.no}`,[`Your approval as <b>${AP_ROLE[r]}</b> is required on <b>${esc(d.no)}</b> – ${TYPE_NAME[k]}.`,k==="po"?`Supplier: ${esc(d.sup||"")} · ${money(poTotal(d))} SAR excl. VAT`:k==="cqs"?`Selected supplier: ${esc(d.sel||"")}`:`Cost center: ${esc(d.cc||"")} · Requested by ${esc(d.req||"")}`,`Open <b>My approvals</b>.`],"appr"));}); Object.entries(Q).forEach(([to,L])=>{if(L.length===1)return mailSend(to,L[0].subj,L[0].lines,L[0].scr);
+  mailSend(to,`${L.length} documents need your signature / approval`,[`The following documents are waiting for you in MIDU Logistics Hub:`,"<ul>"+L.map(x=>`<li><b>${esc(x.subj)}</b></li>`).join("")+"</ul>"],L[0].scr);});}
+{const P0=persist;persist=function(...a){try{mailScan();}catch(e){console.warn(e);}return P0.apply(this,a);};}
 
 </script>
 </body>
