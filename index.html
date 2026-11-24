@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611250700"></script>
-<script src="local.js?v=202611250700"></script>
+<script src="m365.js?v=202611250800"></script>
+<script src="local.js?v=202611250800"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -1928,7 +1928,7 @@ const apGet=(d,r)=>(d.ap||[]).filter(a=>a.role===r).pop();
 const apOk=(k,d,r)=>{const a=apGet(d,r);return !!a&&a.fp===apFp(k,d);};
 const apStale=(k,d)=>(d.ap||[]).some(a=>a.fp!==apFp(k,d));
 const apUsed=(k,d)=>k==="pr"?!!d.ap:d.ap!==undefined;
-const apNext=(k,d)=>{if(d.rej||d.cancelled||d.status==="Deleted")return null;if(k==="pr"&&(d.status!=="PD"||d.pd))return null;for(const r of CHAIN[k])if(!apOk(k,d,r))return r;return null;};
+const apNext=(k,d)=>{if(d.rej||d.cancelled||d.status==="Deleted")return null;if(k!=="pr"&&(d.ap===undefined||d.legacy))return null;if(k==="pr"&&(d.status!=="PD"||d.pd))return null;for(const r of CHAIN[k])if(!apOk(k,d,r))return r;return null;};
 const apDone=(k,d)=>CHAIN[k].every(r=>apOk(k,d,r));
 const apMe=()=>(typeof LOCAL!=="undefined"&&LOCAL.user)||"";
 const apMyRoles=()=>Object.keys(APPR).filter(r=>APPR[r].toLowerCase()===apMe().trim().toLowerCase());
