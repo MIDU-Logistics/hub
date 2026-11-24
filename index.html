@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611242100"></script>
-<script src="local.js?v=202611242100"></script>
+<script src="m365.js?v=202611242200"></script>
+<script src="local.js?v=202611242200"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -1850,13 +1850,13 @@ function prDoc(p){const L=p.lines||[],tot=L.reduce((a,l)=>a+l.qty*l.est,0),c=D.c
  const lab=(en,ar,x)=>td(`<span><b>${en}</b>${ar?` / <span dir="rtl">${ar}</span>`:""}</span>`,x);
  const st=prStage(p),S=STG()[st],rej=p.status==="Rejected",stTxt=rej?"NOT APPROVED by the Project Director – "+(p.rejReason||""):(S?S[0]:"")+(o?" – "+o.no:c?" – "+c.no:"");
  const rows=Array.from({length:Math.max(15,L.length)},(_,i)=>{const l=L[i];if(!l)return `<tr style="height:20px">${td(i+1,"text-align:center")}${td("")}${td("")}${td("")}${td("")}${td("")}${td("")}${td("")}</tr>`;
-  return `<tr style="height:20px">${td(i+1,"text-align:center")}${td(esc(l.code||""))}${td(esc(l.desc)+(l.descAr?` – <span dir="rtl">${esc(l.descAr)}</span>`:""))}${td(esc(it(l.code).kind||(l.cls==="CAPEX"?"Asset":"Consumable")))}${td(esc(l.unit||it(l.code).unit||"Pcs"))}${td(l.qty)}${td(ppM(l.est))}${td(ppM(l.qty*l.est))}</tr>`;}).join("");
+  return `<tr style="height:20px">${td(i+1,"text-align:center")}${td(esc(l.code||""),"white-space:nowrap;font-size:8pt")}${td(esc(l.desc)+(l.descAr?` – <span dir="rtl">${esc(l.descAr)}</span>`:""))}${td(esc(it(l.code).kind||(l.cls==="CAPEX"?"Asset":"Consumable")))}${td(esc(l.unit||it(l.code).unit||"Pcs"))}${td(l.qty)}${td(ppM(l.est))}${td(ppM(l.qty*l.est))}</tr>`;}).join("");
  const th=(en,ar,x)=>`<td style="border:${B};background:${N};color:#fff;font-weight:700;font-size:8.5pt;text-align:center;padding:2px;${x||""}">${en}<br><span dir="rtl">${ar}</span></td>`;
  const sh=(en,ar,cs)=>`<td colspan="${cs||1}" style="border:${B};background:#F2F2F2;font-weight:700;font-size:8.5pt;text-align:center;padding:2px">${en}<br><span dir="rtl">${ar}</span></td>`;
  const sl=(en,ar)=>`<td style="border:${B};font-size:7.5pt;font-weight:700;padding:1px 4px">${en} / <span dir="rtl">${ar}</span></td>`;
  const sent=p.status!=="Draft";
  return `<div class="doc xl" style="${F};color:#000;padding:6px 10px"><style>@page{size:A4 portrait;margin:10mm}</style><table style="width:100%;border-collapse:collapse;table-layout:fixed;${F}">
- <colgroup>${[9,17,38,11,8,8,13,14].map(w=>`<col style="width:${(w/118*100).toFixed(2)}%">`).join("")}</colgroup>
+ <colgroup>${[7,19,38,11,7,7,13,14].map(w=>`<col style="width:${(w/118*100).toFixed(2)}%">`).join("")}</colgroup>
  <tr style="height:35px"><td colspan="8" style="background:${N};color:#fff;font-weight:700;font-size:14pt;text-align:center">MIDU COMPANY LTD &nbsp;| &nbsp;<span dir="rtl">شركة مايدو المحدودة</span></td></tr>
  <tr><td colspan="8" style="font-weight:700;font-size:12pt;text-align:center;padding-top:3px">PURCHASE REQUEST &nbsp; | &nbsp; <span dir="rtl">طلب شراء</span></td></tr>
  <tr><td colspan="8" style="font-style:italic;font-size:9pt;text-align:center">Logistics Department &nbsp;| &nbsp;<span dir="rtl">إدارة الخدمات اللوجستية</span></td></tr>
@@ -1871,13 +1871,15 @@ function prDoc(p){const L=p.lines||[],tot=L.reduce((a,l)=>a+l.qty*l.est,0),c=D.c
  <tr><td></td>${td("<b>Quotations needed</b>")}${td(tot>=5000?"3 quotations + CQS":"1 quotation")}<td colspan="5"></td></tr>
  <tr><td></td>${td("<b>Status</b>")}${td(esc(stTxt),(rej?"color:#C00000;font-weight:700;":"")+'" colspan="6')}</tr>
  <tr style="height:14px"><td colspan="8"></td></tr>
- <tr style="height:40px"><td style="border:${B}"></td>${sh("Prepared by (Logistics)","مقدم الطلب")}${sh("Direct Manager - Project Director","المدير المباشر - مدير المشروع",3)}${sh("Received by Procurement","استلام المشتريات",3)}</tr>
- <tr>${sl("Name","الاسم")}${td(esc(p.req||"Azzam El Masri"))}${td("Najed Fakhreddine",'" colspan="3')}${td(esc(p.rcvName||"Raghad Ahmad Altowirgi"),'" colspan="3')}</tr>
- <tr>${sl("Status","الحالة")}${td(sent?"Submitted":"Draft")}${td(rej?"<b style='color:#C00000'>Not approved</b>":p.pd?"Approved":"",'" colspan="3')}${td(prRcvOk(p)?"Received":(p.rcvEs&&!p.cancelled?(p.rcvEs.rej?"<b style='color:#C00000'>Returned</b>":"<span style='color:#8A94A6'>Pending e-signature</span>"):""),'" colspan="3')}</tr>
- <tr>${sl("Date","التاريخ")}${td(ppD(p.date))}${td(ppD(rej?p.rejDate:(p.pdDate||"")),'" colspan="3')}${td(prRcvOk(p)?ppD(p.rcvDate||""):"",'" colspan="3')}</tr>
- <tr style="height:53px">${sl("Signature","التوقيع")}${td(p.prepSigned?sigImg(p.req):"","padding:1px")}${td(rej?(p.rejSigned?sigImg(p.rejBy):""):p.pdSigned?sigImg(p.pdBy):"",'padding:1px" colspan="3')}${td(prRcvOk(p)?sigImg(p.rcvBy||"Raghad Altowirgi"):"",'padding:1px" colspan="3')}</tr>
- <tr style="height:20px"><td colspan="8"></td></tr>
- <tr><td colspan="8" style="font-size:7.5pt;text-align:center">info@midu.com.sa &nbsp; | &nbsp; www.midu.com.sa</td></tr></table></div>`;}
+</table>
+ <table style="width:100%;border-collapse:collapse;table-layout:fixed;${F}"><colgroup><col style="width:10%"><col style="width:30%"><col style="width:30%"><col style="width:30%"></colgroup>
+ <tr style="height:40px"><td style="border:${B}"></td>${sh("Prepared by (Logistics)","مقدم الطلب")}${sh("Direct Manager - Project Director","المدير المباشر - مدير المشروع")}${sh("Received by Procurement","استلام المشتريات")}</tr>
+ <tr>${sl("Name","الاسم")}${td(esc(p.req||"Azzam El Masri"))}${td("Najed Fakhreddine",'')}${td(esc(p.rcvName||"Raghad Ahmad Altowirgi"),'')}</tr>
+ <tr>${sl("Status","الحالة")}${td(sent?"Submitted":"Draft")}${td(rej?"<b style='color:#C00000'>Not approved</b>":p.pd?"Approved":"",'')}${td(prRcvOk(p)?"Received":(p.rcvEs&&!p.cancelled?(p.rcvEs.rej?"<b style='color:#C00000'>Returned</b>":"<span style='color:#8A94A6'>Pending e-signature</span>"):""),'')}</tr>
+ <tr>${sl("Date","التاريخ")}${td(ppD(p.date))}${td(ppD(rej?p.rejDate:(p.pdDate||"")),'')}${td(prRcvOk(p)?ppD(p.rcvDate||""):"",'')}</tr>
+ <tr style="height:60px">${sl("Signature","التوقيع")}${td(p.prepSigned?sigImg(p.req):"","padding:1px")}${td(rej?(p.rejSigned?sigImg(p.rejBy):""):p.pdSigned?sigImg(p.pdBy):"",'padding:1px')}${td(prRcvOk(p)?sigImg(p.rcvBy||"Raghad Altowirgi"):"",'padding:1px')}</tr>
+ <tr style="height:20px"><td colspan="4"></td></tr>
+ <tr><td colspan="4" style="font-size:7.5pt;text-align:center">info@midu.com.sa &nbsp; | &nbsp; www.midu.com.sa</td></tr></table></div>`;}
 
 const mrDoc_old=q=>gdoc({title:"MAINTENANCE REQUEST",no:q.no,date:q.date,meta:[["Requested by",q.by],["Location",q.loc],["Asset ID",q.asset],["Asset",D.assets.find(a=>a.id===q.asset)?.desc||""],["Category",q.cat],["Priority",q.prio],["Assigned to",q.to],["Status",q.status]],cols:["Problem description","Action taken","Completed on"],rows:[[q.desc,"",""]],sig:["Requested by","Maintenance technician","Logistics approval"]});
 const mclDoc_old=x=>gdoc({title:"MONTHLY MAINTENANCE CHECKLIST",no:x.no,date:x.date,meta:[["Month",x.month],["Location",x.loc],["Checked by",x.by]],cols:["#","Category","Check point","Result","Remarks"],rows:x.res.map(r=>[r.i+1,MCL_T[r.i][0],MCL_T[r.i][1],r.s,r.rem]),sig:["Checked by","Maintenance supervisor","Logistics approval"]});
