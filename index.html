@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611241700"></script>
-<script src="local.js?v=202611241700"></script>
+<script src="m365.js?v=202611241800"></script>
+<script src="local.js?v=202611241800"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -1131,7 +1131,7 @@ const clHead=(t,form)=>`<div style="display:flex;justify-content:space-between;a
 const clSig=()=>`<table style="width:100%;border-collapse:collapse;margin-top:14px"><tr>${["Prepared by (Inspector / Requester)","Checked by (Maintenance Supervisor)","Approved by (Logistics Manager)"].map(t=>`<th style="background:#1F3864;color:#fff;font-size:9.5px;padding:4px;border:1px solid #8EA9DB;text-align:center">${t}</th>`).join("")}</tr>${["Name:","Signature:","Date:"].map((k,i)=>`<tr>${[0,1,2].map(j=>`<td style="border:1px solid #8EA9DB;font-size:9.5px;padding:5px;height:${i===1?22:12}px">${k} ${i===0&&j===2?"<b>Azzam El Masri</b>":""}</td>`).join("")}</tr>`).join("")}</table>`;
 const clTd=(v,x)=>`<td style="border:1px solid #8EA9DB;font-size:9.5px;padding:4px 5px;${x||""}">${v===undefined||v===null?"":v}</td>`;
 const clTh=(v,w)=>`<th style="background:#D9E1F2;border:1px solid #8EA9DB;font-size:9.5px;padding:4px;text-align:center;${w?"width:"+w:""}">${v}</th>`;
-const mrDoc=q=>{const a=D.assets.find(x=>x.id===q.asset)||{};
+let mrDoc=q=>{const a=D.assets.find(x=>x.id===q.asset)||{};
  return `<div class="doc xl" style="font-family:Arial,Helvetica,sans-serif;color:#111;padding:16px 22px">${clHead("JOB / WORK REQUEST","MIDU-LOG-CL-06")}
  <table style="width:100%;border-collapse:collapse;margin-top:14px;font-size:10px"><tr><td style="padding:2px 0;width:50%"><b>Project:</b> ASP &nbsp;&nbsp;&nbsp; <b>Request No.:</b> ${esc(q.no)}</td><td><b>Date:</b> ${esc((q.date||"").split("-").reverse().join(" / "))}</td></tr>
  <tr><td style="padding:2px 0"><b>Requested by:</b> ${esc(q.by||"")}</td><td><b>Location:</b> ${esc(q.loc||"")}</td></tr><tr><td style="padding:2px 0"><b>Asset ID:</b> ${esc(q.asset||"")} ${a.desc?"– "+esc(a.desc):""}</td><td><b>Category:</b> ${esc(q.cat||"")} &nbsp;&nbsp; <b>Priority:</b> ${esc(q.prio||"")}</td></tr>
@@ -1140,7 +1140,7 @@ const mrDoc=q=>{const a=D.assets.find(x=>x.id===q.asset)||{};
  <table style="width:100%;border-collapse:collapse;margin-top:10px"><tr>${clTh("ACTION TAKEN","55%")}${clTh("Materials used","25%")}${clTh("Completed on")}</tr>${[0,1,2,3].map(()=>`<tr>${clTd("","height:18px")}${clTd("")}${clTd("")}</tr>`).join("")}</table>
  <div style="font-size:9px;margin-top:6px">Legend: &nbsp; √ = Good / Compliant &nbsp;&nbsp;&nbsp; X = Poor / Non-Compliant &nbsp;&nbsp;&nbsp; NA = Not Applicable</div>${clSig()}
  <div style="display:flex;justify-content:space-between;font-size:8.5px;color:#555;margin-top:8px"><span>Form No: MIDU-LOG-CL-06 | Rev. 1</span><span>MIDU Logistics – Job / Work Request</span></div></div>`;};
-const mclDoc=x=>`<div class="doc xl" style="font-family:Arial,Helvetica,sans-serif;color:#111;padding:16px 22px">${clHead("MONTHLY MAINTENANCE CHECKLIST","MIDU-LOG-CL-00")}
+let mclDoc=x=>`<div class="doc xl" style="font-family:Arial,Helvetica,sans-serif;color:#111;padding:16px 22px">${clHead("MONTHLY MAINTENANCE CHECKLIST","MIDU-LOG-CL-00")}
  <table style="width:100%;border-collapse:collapse;margin-top:14px;font-size:10px"><tr><td style="padding:2px 0;width:50%"><b>Project:</b> ASP &nbsp;&nbsp;&nbsp; <b>Checklist No.:</b> ${esc(x.no)}</td><td><b>Month:</b> ${esc(x.month||"")}</td></tr><tr><td style="padding:2px 0"><b>Location:</b> ${esc(x.loc||"")}</td><td><b>Inspected By:</b> ${esc(x.by||"")} &nbsp;&nbsp; <b>Inspection Date:</b> ${esc((x.date||"").split("-").reverse().join(" / "))}</td></tr></table>
  <table style="width:100%;border-collapse:collapse;margin-top:10px"><tr>${clTh("S#","5%")}${clTh("SYSTEM","18%")}${clTh("INSPECTION ITEMS","40%")}${clTh("Result","10%")}${clTh("Remarks")}</tr>${(x.res||[]).map(r=>`<tr>${clTd(r.i+1,"text-align:center")}${clTd(esc(MCL_T[r.i][0]))}${clTd(esc(MCL_T[r.i][1]))}${clTd(r.s==="OK"?"√":r.s==="Not OK"?"X":r.s==="N/A"?"NA":esc(r.s||""),"text-align:center;font-weight:700")}${clTd(esc(r.rem||""))}</tr>`).join("")}</table>
  <div style="font-size:9px;margin-top:6px">Legend: &nbsp; √ = Good / Compliant &nbsp;&nbsp;&nbsp; X = Poor / Non-Compliant &nbsp;&nbsp;&nbsp; NA = Not Applicable</div>
@@ -2249,6 +2249,115 @@ function mailScan(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.readO
  pend.forEach(([k,d,r])=>{const who=APPR[r];if(!who||whL(who)===me)return;once(d,"p"+r+"|"+(d.ap||[]).length,()=>mailQueue(who,`Approval required: ${d.no}`,[`Your approval as <b>${AP_ROLE[r]}</b> is required on <b>${esc(d.no)}</b> – ${TYPE_NAME[k]}.`,k==="po"?`Supplier: ${esc(d.sup||"")} · ${money(poTotal(d))} SAR excl. VAT`:k==="cqs"?`Selected supplier: ${esc(d.sel||"")}`:`Cost center: ${esc(d.cc||"")} · Requested by ${esc(d.req||"")}`,`Open <b>My approvals</b>.`],"appr"));}); Object.entries(Q).forEach(([to,L])=>{if(L.length===1)return mailSend(to,L[0].subj,L[0].lines,L[0].scr);
   mailSend(to,`${L.length} documents need your signature / approval`,[`The following documents are waiting for you in MIDU Logistics Hub:`,"<ul>"+L.map(x=>`<li><b>${esc(x.subj)}</b></li>`).join("")+"</ul>"],L[0].scr);});}
 {const P0=persist;persist=function(...a){try{mailScan();}catch(e){console.warn(e);}return P0.apply(this,a);};}
+
+/* ===================== Update 42: e-signatures for Maintenance, Utilities debit notes, HR requests and Asset handover =====================
+   One engine for all: record o[key] = {steps:[[role,label,name]], ap:[{role,by,at,fp,…}], issuer, sent, rej}
+   PREP = the person who saved it (signs with PIN), then the fixed approvers. A step whose person already signed earlier is skipped. */
+const ES_TURKI="Turki Al Ghamdi",ES_KAID="Kaid Alharbi",ES_NAJED="Najed Fakhreddine";
+const ES_K=[
+ {id:"mreq",coll:"mreq",key:"es",scr:"mreq",area:"mt",label:"Maintenance request",title:o=>o.desc||"",issuerOf:o=>o.by,
+  fields:o=>[o.no,o.date,o.by,o.asset,o.loc,o.cat,o.prio,o.desc],steps:iss=>[["PREP","Prepared by (Requester)",iss],["MS","Checked by (Maintenance Supervisor)",ES_TURKI],["LM","Approved by (Logistics Manager)",WH_LM]],doc:o=>mrDoc(o)},
+ {id:"mcl",coll:"mcl",key:"es",scr:"mcl",area:"mt",label:"Maintenance checklist",title:o=>(o.loc||"")+" · "+(o.month||""),issuerOf:o=>o.by,
+  fields:o=>[o.no,o.month,o.loc,o.by,o.date,(o.res||[]).map(r=>[r.i,r.s,r.rem])],steps:iss=>[["PREP","Prepared by (Inspector)",iss],["MS","Checked by (Maintenance Supervisor)",ES_TURKI],["LM","Approved by (Logistics Manager)",WH_LM]],doc:o=>mclDoc(o)},
+ {id:"dn",coll:"dns",key:"es",scr:"utBC",area:"ut",label:"Debit note",title:o=>(o.contractor||"")+" · "+(o.period||""),issuerOf:()=>WH_LM,
+  fields:o=>[o.no,o.contractor,o.period,o.date,o.vat,(o.lines||[]).map(l=>[l.type,+l.qty,l.unit,+l.rate])],steps:iss=>[["PREP","Prepared by (Logistics Manager)",iss],["PD","Approved by (Project Director)",ES_NAJED]],doc:o=>dnDoc(o)},
+ {id:"areq",coll:"areq",key:"es",scr:"att",area:"hr",label:"HR request",title:o=>[o.type+(o.leaveType?" ("+o.leaveType+")":""),(typeof emp==="function"&&emp(o.emp)?.name)||o.emp||"",o.date||[o.from,o.to].filter(Boolean).join(" → ")].filter(Boolean).join(" · "),issuerOf:o=>o.requestedBy,
+  fields:o=>[o.no,o.type,o.emp,o.leaveType,o.date,o.from,o.to,o.inTime,o.outTime,o.reason],steps:(iss,o)=>o&&o.status&&o.status!=="Pending"&&!(o.es&&o.es.ap&&o.es.ap.length)?[["PREP","Entered by (HR)",iss]]:[["PREP","Requested / entered by",iss],["HR","Approved by (HR)",ES_KAID]],doc:null},
+ {id:"ahs",coll:"docs",key:"ahsEs",scr:"mds",area:"wh",label:"Asset handover sheet",title:o=>(o.party||"")+" · "+(o.lines||[]).filter(l=>l.asset).map(l=>l.asset).join(", "),issuerOf:()=>WH_LM,
+  applies:o=>!o.cancelled&&(o.type==="AHS"||(o.type==="MDS"&&(o.lines||[]).some(l=>l.asset))),
+  fields:o=>[o.no,o.date,o.party,o.iqama,(o.lines||[]).filter(l=>l.asset).map(l=>[l.asset,l.cond,l.bm||"",l.sn||""])],steps:()=>[["LM","Issued by (Logistics / Asset Management)",WH_LM],["HR","Reviewed & agreed by (HR)",ES_KAID]],doc:o=>ahsForm(o)}];
+const esK=id=>ES_K.find(k=>k.id===id);
+const esNo=(k,o)=>k.id==="ahs"?(o.type==="AHS"?o.no:`AHS-${(o.date||"").replace(/-/g,"")}-${o.no}`):o.no;
+const esList=k=>(D[k.coll]||[]).filter(o=>o&&(!k.applies||k.applies(o)));
+function esFp(k,o){const s=JSON.stringify(k.fields(o));let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}return h.toString(16).padStart(8,"0").toUpperCase();}
+const esR=(k,o)=>o&&o[k.key];
+const esGet=(k,o,r)=>((esR(k,o)||{}).ap||[]).filter(a=>a.role===r).pop();
+const esOk=(k,o,r)=>{const a=esGet(k,o,r);return !!a&&a.fp===esFp(k,o);};
+function esChain(k,o){const R=esR(k,o);if(!R)return [];const seen=[];return R.steps.filter(([r,,n])=>{const x=whL(n);if(!x||seen.includes(x))return false;seen.push(x);return true;});}
+function esNext(k,o){const R=esR(k,o);if(!R||o.cancelled||R.rej)return null;for(const [r] of esChain(k,o))if(!esOk(k,o,r))return r;return null;}
+const esDone=(k,o)=>!!esR(k,o)&&!o.cancelled&&!esR(k,o).rej&&!esNext(k,o);
+const esStep=(k,o,r)=>esChain(k,o).find(s=>s[0]===r)||(esR(k,o)||{steps:[]}).steps.find(s=>s[0]===r)||[r,r,""];
+const esName=(k,o,r)=>esStep(k,o,r)[2];
+const esIssuer=(k,o)=>{const c=esChain(k,o);return c.length?c[0][2]:"";};
+function esWaiting(){const me=whL(apMe()),out=[];if(!me)return out;ES_K.forEach(k=>esList(k).forEach(o=>{const r=esNext(k,o);if(r&&whL(esName(k,o,r))===me)out.push([k,o,r]);}));return out;}
+function esStart(k,o,issuer){const iss=issuer||apMe();o[k.key]={steps:k.steps(iss,o),ap:[],issuer:iss,sent:{at:new Date().toISOString(),by:apMe()}};}
+function esTag(k,o){const R=esR(k,o);if(!R)return "";if(o.cancelled)return "";if(R.rej)return tag(tr("Not approved","غير معتمد")+" – "+esStep(k,o,R.rej.role)[1].replace(/ \(.*/,""),"r");const n=esNext(k,o);if(!n)return tag("✔ "+tr("Approved","معتمد"),"g");
+ if((R.ap||[]).some(a=>a.fp!==esFp(k,o)))return tag(tr("Changed – re-sign needed","تغيّر – يلزم إعادة التوقيع"),"r");return tag(tr("Waiting","بانتظار")+" – "+esName(k,o,n),"a");}
+function esTrail(k,o){const R=esR(k,o);if(!R)return "";return (R.ap||[]).map(a=>`<div class="hint">✔ ${esc(esStep(k,o,a.role)[1])}: <b>${esc(a.by)}</b> · ${esc(apDt(a.at))}${a.fp!==esFp(k,o)?" · <b style='color:#C0392B'>"+tr("changed after signing","تغيّر بعد التوقيع")+"</b>":""}${a.pinReset&&a.pinResetBy!==a.by?` · <b style="color:#B45309">⚠ PIN reset by ${esc(a.pinResetBy||"?")}</b>`:""}</div>`).join("")+(R.rej?`<div class="hint" style="color:#C0392B">✕ ${esc(R.rej.by)} · ${esc(apDt(R.rej.at))} · ${esc(R.rej.reason)}</div>`:"");}
+const esFirstOf=(k,o)=>k.id==="ahs"||k.id==="dn"?WH_LM:(whGuessIssuer({by:k.issuerOf(o)})||WH_LM);
+function esView(k,o){if(k.doc)return openDoc(k.doc(o));openModal(esNo(k,o),`<div style="padding:18px 22px;font-size:14px"><h3 style="margin:0 0 8px">${esc(k.label)} ${esc(esNo(k,o))}</h3><table class="t">${Object.entries(o).filter(([x,v])=>!["es","ahsEs","mailed","file"].includes(x)&&typeof v!=="object"&&v!=="").map(([x,v])=>`<tr><td class="hint">${esc(x)}</td><td class="en">${esc(v)}</td></tr>`).join("")}</table>${esPanel(k,o)}</div>`,"");}
+/* module hooks when the last step is done / not approved */
+function esAfter(k,o,reject,sig,reason){if(k.id==="areq"){const R=esR(k,o);if(reject){o.status="Rejected";o.decidedBy=sig.by;o.decidedOn=today();o.rejReason=reason;}else if(esDone(k,o)&&R.steps.some(s=>s[0]==="HR")){o.status="Approved";o.decidedBy=sig.by;o.decidedOn=today();}}}
+function esSign(k,o,r,reject){const who=esName(k,o,r);if(whL(who)!==whL(apMe()))return toast("✖ "+tr("Only","فقط")+" "+who+" "+tr("can sign this step.","يمكنه توقيع هذه الخطوة."));const st=esStep(k,o,r),first=esChain(k,o)[0][0]===r;
+ const nxt=()=>{const n=esNext(k,o);return n?esName(k,o,n):"";};
+ apPinDlg((reject?tr("Not approve","عدم اعتماد"):first?tr("Sign","توقيع"):tr("Approve","اعتماد"))+" – "+k.label+" "+esNo(k,o),`<p style="margin:0 0 6px"><b>${esc(esNo(k,o))}</b> · ${esc(k.title(o))}</p><p style="margin:0;color:#5B6476">${esc(st[1])}. ${reject?tr("It goes back to the person who prepared it, with your reason.","يعود لمن أعده مع السبب."):tr("Your signature and the date are added; it then moves to the next person automatically.","يُضاف توقيعك والتاريخ وينتقل تلقائياً.")} <button class="b l sm" id="esViewB">${tr("View","عرض")}</button></p>`,reject,(sig,reason)=>{
+  const R=esR(k,o);if(reject)R.rej={role:r,by:sig.by,at:sig.at,reason};else R.ap=[...(R.ap||[]).filter(a=>a.role!==r),{role:r,...sig,fp:esFp(k,o)}];esAfter(k,o,reject,sig,reason);persist();render();
+  const n=nxt();toast("✔ "+esNo(k,o)+" "+(reject?tr("returned","أُعيد"):n?tr("signed – sent to","وُقّع – أُرسل إلى")+" "+n:tr("fully signed","مكتمل التوقيع")));});
+ if(!reject&&first){const g=$("#apGo");if(g)g.textContent="✍ "+tr("Sign","توقيع");}const v=$("#esViewB");if(v)v.onclick=()=>esView(k,o);}
+/* print: electronic signatures block added to the form */
+function esPanel(k,o){const R=esR(k,o);if(!R)return "";const B="1px solid #8EA9DB",ch=esChain(k,o),w=Math.floor(100/ch.length);
+ const cell=r=>{const a=esGet(k,o,r);if(R.rej&&R.rej.role===r)return `<b style="color:#C00000">Not approved</b><div style="font-size:8px">${esc(R.rej.reason)}</div>`;if(!a)return `<span style="color:#8A94A6">Pending e-signature</span>`;
+  if(a.fp!==esFp(k,o))return `<span style="color:#C00000">Changed after signing – re-sign needed</span>`;return `${sigImg(a.by)}<span style="display:block;text-align:center;font-size:7.5px;color:#444">e-signed ${esc(apDt(a.at))} · ref ${a.fp}</span>`;};
+ return `<table style="width:100%;border-collapse:collapse;margin-top:10px"><tr><th colspan="${ch.length}" style="background:#1B273D;color:#fff;font-size:9.5px;padding:4px;border:${B}">ELECTRONIC SIGNATURES (MIDU Logistics Hub)</th></tr><tr>${ch.map(s=>`<th style="background:#EEF1F6;font-size:9px;padding:4px;border:${B};width:${w}%">${esc(s[1].toUpperCase())}</th>`).join("")}</tr>
+ <tr>${ch.map(s=>`<td style="border:${B};font-size:9.5px;padding:4px 5px">Name: <b>${esc(s[2])}</b></td>`).join("")}</tr><tr>${ch.map(s=>`<td style="border:${B};padding:4px;height:44px;text-align:center;vertical-align:middle">${cell(s[0])}</td>`).join("")}</tr></table>`;}
+const esInject=(html,k,o)=>{const p=esPanel(k,o);if(!p)return html;const i=html.lastIndexOf("</div>");return i<0?html+p:html.slice(0,i)+p+html.slice(i);};
+mrDoc=(F=>q=>esInject(F(q),esK("mreq"),q))(mrDoc);mclDoc=(F=>x=>esInject(F(x),esK("mcl"),x))(mclDoc);
+dnDoc=(F=>d=>esInject(F(d),esK("dn"),d))(dnDoc);ahsForm=(F=>d=>esInject(F(d),esK("ahs"),d))(ahsForm);
+/* new items start the cycle automatically (items that existed when the data loaded are left alone) */
+let ES_SEEN=null;const esSeenKey=(k,o)=>k.id+"|"+(o.no||"");
+function esSeenInit(){if(ES_SEEN||!LASTLOAD)return;ES_SEEN=new Set();ES_K.forEach(k=>esList(k).forEach(o=>ES_SEEN.add(esSeenKey(k,o))));}
+function esAutoStart(){if(!ES_SEEN||typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.readOnly)return [];const mine=[];
+ ES_K.forEach(k=>esList(k).forEach(o=>{const s=esSeenKey(k,o);if(ES_SEEN.has(s))return;ES_SEEN.add(s);if(esR(k,o)||o.cancelled)return;esStart(k,o,k.id==="ahs"||k.id==="dn"?WH_LM:apMe());const n=esNext(k,o);if(n&&whL(esName(k,o,n))===whL(apMe()))mine.push([k,o,n]);}));return mine;}
+{const R0=render;render=function(x){try{esSeenInit();}catch(e){}return R0(x);};}
+{const P1=persist;persist=function(...a){let mine=[];try{mine=esAutoStart();}catch(e){console.warn(e);}try{esMailScan();}catch(e){console.warn(e);}const r=P1.apply(this,a);
+ if(mine.length){const next=()=>{const x=mine.shift();if(!x)return;const [k,o,n]=x;if(esNext(k,o)!==n)return next();esSign(k,o,n,false);const g=$("#apGo");if(g){const f=g.onclick;g.onclick=async()=>{await f();setTimeout(next,250);};}};setTimeout(next,350);}return r;};}
+/* e-mails for these documents (same outbox as update 41) */
+function esMailScan(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.readOnly)return;const me=whL(apMe()),Q={};const q=(to,subj,lines,scr)=>(Q[to]=Q[to]||[]).push({subj,lines,scr});
+ ES_K.forEach(k=>esList(k).forEach(o=>{const R=esR(k,o);if(!R||o.cancelled)return;o.mailed=o.mailed||{};const once=(key,fn)=>{if(o.mailed[key])return;o.mailed[key]=new Date().toISOString();fn();};const no=esNo(k,o),cnt=(R.ap||[]).length+"|"+(R.sent?R.sent.at:"");
+  const n=esNext(k,o);if(n){const who=esName(k,o,n);if(who&&whL(who)!==me)once(k.id+n+"|"+cnt,()=>q(who,`${esChain(k,o)[0][0]===n?"Signature":"Approval"} required: ${no}`,[`Your electronic signature is required on <b>${esc(no)}</b> – ${esc(k.label)}.`,esc(k.title(o)),`Step: <b>${esc(esStep(k,o,n)[1])}</b>. Open <b>My signatures</b>.`],"esign"));}
+  else if(R.rej){const iss=esIssuer(k,o);if(iss&&whL(iss)!==me)once(k.id+"rej|"+R.rej.at,()=>q(iss,`Not approved: ${no}`,[`<b>${esc(no)}</b> – ${esc(k.label)} was <b>not approved</b> by ${esc(R.rej.by)}.`,`Reason: <i>${esc(R.rej.reason)}</i>`],"esign"));}
+  else if(esDone(k,o)){const iss=esIssuer(k,o);if(iss&&whL(iss)!==me)once(k.id+"done|"+cnt,()=>q(iss,`Approved: ${no}`,[`<b>${esc(no)}</b> – ${esc(k.label)} is now <b>fully signed</b>.`],"esign"));}}));
+ Object.entries(Q).forEach(([to,L])=>{if(L.length===1)return mailSend(to,L[0].subj,L[0].lines,L[0].scr);mailSend(to,`${L.length} documents need your signature / approval`,[`The following documents are waiting for you in MIDU Logistics Hub:`,"<ul>"+L.map(x=>`<li><b>${esc(x.subj)}</b></li>`).join("")+"</ul>"],"esign");});}
+/* HR request screen: Approve / Reject now go through the PIN signature when the request is in the e-signature cycle */
+document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.closest("#qList [data-ok],#qList [data-no]");if(!b)return;const k=esK("areq"),no=b.dataset.ok||b.dataset.no,o=(D.areq||[]).find(x=>x.no===no);if(!o||!esR(k,o))return;
+ ev.preventDefault();ev.stopImmediatePropagation();const n=esNext(k,o);if(!n)return toast(tr("Already decided.","تم البت فيه."));esSign(k,o,n,!!b.dataset.no);},true);
+/* "My signatures" screen – every area in one place */
+VIEWS.esign=()=>{const W=esWaiting(),me=whL(apMe()),adm=whIsAdmin();
+ const row=([k,o,r])=>`<tr><td>${tag(k.label,"b")}</td><td class="en"><b>${esc(esNo(k,o))}</b></td><td class="en">${esc(k.title(o))}</td><td>${esc(esStep(k,o,r)[1])}</td><td>${esTrail(k,o)||"—"}</td><td style="white-space:nowrap"><button class="b l sm" data-esv="${k.id}|${esc(o.no)}">${tr("View","عرض")}</button> <button class="b g sm" data-esok="${k.id}|${esc(o.no)}">${esChain(k,o)[0][0]===r?"✍ "+tr("Sign","توقيع"):"✔ "+tr("Approve","اعتماد")}</button>${esChain(k,o)[0][0]===r?"":` <button class="b r sm" data-esno="${k.id}|${esc(o.no)}">✕ ${tr("Not approve","عدم اعتماد")}</button>`}</td></tr>`;
+ const all=[];ES_K.forEach(k=>esList(k).forEach(o=>all.push([k,o])));
+ const back=all.filter(([k,o])=>esR(k,o)&&esR(k,o).rej&&!o.cancelled&&(adm||whL(esIssuer(k,o))===me));
+ const mine=all.filter(([k,o])=>esR(k,o)&&((esR(k,o).ap||[]).some(a=>whL(a.by)===me))).slice(-20).reverse();
+ const old=adm?all.filter(([k,o])=>!esR(k,o)&&!o.cancelled):[];
+ const wh=typeof whWaiting==="function"?whWaiting().length:0,pr=typeof apWaiting==="function"?apWaiting().length:0;
+ return head(tr("My signatures","توقيعاتي"),tr("Maintenance requests and checklists, debit notes, HR requests and asset handover sheets waiting for your electronic signature (PIN).","طلبات وقوائم الصيانة، إشعارات المدين، طلبات الموارد البشرية ونماذج تسليم الأصول بانتظار توقيعك الإلكتروني."))+msgBox+
+ ((wh||pr)?`<div class="banner" style="background:#F3E8FF;border-color:#7C3AED;color:#4C1D95">${wh?`<a href="#" data-esgo="whappr"><b>${wh}</b> ${tr("in Warehouse approvals","في اعتمادات المستودع")}</a>`:""}${wh&&pr?" · ":""}${pr?`<a href="#" data-esgo="appr"><b>${pr}</b> ${tr("in My approvals (Procurement)","في اعتماداتي (المشتريات)")}</a>`:""}</div>`:"")+
+ `<div class="card"><h2>${tr("Waiting for me","بانتظاري")} (${W.length})</h2>${W.length?`<table class="t"><tr><th></th><th>${tr("No.","الرقم")}</th><th>${tr("Details","التفاصيل")}</th><th>${tr("My step","خطوتي")}</th><th>${tr("Signed so far","التواقيع")}</th><th></th></tr>${W.map(row).join("")}</table>`:`<p class="hint">${tr("Nothing is waiting for you.","لا يوجد ما ينتظرك.")}</p>`}</div>
+ ${back.length?`<div class="card"><h2>${tr("Returned – not approved","معادة – غير معتمدة")}</h2><p class="hint">${tr("Correct it in its screen, then click Sign again to restart the signatures.","صحّحه في شاشته ثم اضغط توقيع لإعادة التوقيعات.")}</p><table class="t">${back.map(([k,o])=>`<tr><td>${tag(k.label,"r")}</td><td class="en"><b>${esc(esNo(k,o))}</b></td><td>${esTrail(k,o)}</td><td style="white-space:nowrap"><button class="b l sm" data-esv="${k.id}|${esc(o.no)}">${tr("View","عرض")}</button> <button class="b sm" data-esre="${k.id}|${esc(o.no)}">✍ ${tr("Sign again","توقيع مجدداً")}</button></td></tr>`).join("")}</table></div>`:""}
+ ${old.length?`<div class="card"><h2>${tr("Saved before e-signatures","حُفظت قبل التوقيع الإلكتروني")} (${old.length})</h2><p class="hint">${tr("Only you (admin) see this. Send a document to start its signatures – the first signer is shown.","يظهر لك فقط. أرسل المستند لبدء التوقيعات.")}</p><table class="t">${old.map(([k,o])=>`<tr><td>${tag(k.label,"")}</td><td class="en"><b>${esc(esNo(k,o))}</b></td><td class="en">${esc(k.title(o))}</td><td class="en">${esc(esFirstOf(k,o))}${whL(esFirstOf(k,o))!==whL(k.issuerOf(o)||"")&&k.issuerOf(o)?`<div class="hint">${tr("saved by","حُفظ بواسطة")} ${esc(k.issuerOf(o))}</div>`:""}</td><td style="white-space:nowrap"><button class="b l sm" data-esv="${k.id}|${esc(o.no)}">${tr("View","عرض")}</button> <button class="b sm" data-essend="${k.id}|${esc(o.no)}">✉ ${tr("Send","إرسال")}</button></td></tr>`).join("")}</table><div class="btns"><button class="b g" id="esSendAll">✉ ${tr("Send all","إرسال الكل")} (${old.length})</button></div></div>`:""}
+ ${mine.length?`<div class="card"><h2>${tr("Signed by me","وقّعتها")}</h2><table class="t">${mine.map(([k,o])=>`<tr><td>${tag(k.label,"g")}</td><td class="en"><b>${esc(esNo(k,o))}</b></td><td>${esTag(k,o)}</td><td>${esTrail(k,o)}</td><td><button class="b l sm" data-esv="${k.id}|${esc(o.no)}">${tr("View","عرض")}</button></td></tr>`).join("")}</table></div>`:""}`;};
+BIND.esign=()=>{whSigNames();const f=v=>{const [id,no]=v.split("|");const k=esK(id);return [k,esList(k).find(o=>o.no===no)];};
+ document.querySelectorAll("[data-esv]").forEach(b=>b.onclick=()=>{const [k,o]=f(b.dataset.esv);if(o)esView(k,o);});
+ document.querySelectorAll("[data-esok],[data-esno]").forEach(b=>b.onclick=()=>{const [k,o]=f(b.dataset.esok||b.dataset.esno);if(!o)return;const r=esNext(k,o);if(r)esSign(k,o,r,!!b.dataset.esno);});
+ document.querySelectorAll("[data-esre]").forEach(b=>b.onclick=()=>{const [k,o]=f(b.dataset.esre);if(!o)return;const iss=esIssuer(k,o);esStart(k,o,iss);persist();render();const r=esNext(k,o);if(r&&whL(esName(k,o,r))===whL(apMe()))esSign(k,o,r,false);});
+ document.querySelectorAll("[data-essend]").forEach(b=>b.onclick=()=>{const [k,o]=f(b.dataset.essend);if(!o)return;const iss=esFirstOf(k,o);esStart(k,o,iss);persist();render();const r=esNext(k,o);if(r&&whL(esName(k,o,r))===whL(apMe()))esSign(k,o,r,false);else toast("✔ "+tr("Sent to","أُرسل إلى")+" "+esName(k,o,r));});
+ const sa=$("#esSendAll");if(sa)sa.onclick=()=>{const L=[];ES_K.forEach(k=>esList(k).forEach(o=>{if(!esR(k,o)&&!o.cancelled){esStart(k,o,esFirstOf(k,o));L.push([k,o]);}}));persist();render();
+  const mine=L.map(([k,o])=>[k,o,esNext(k,o)]).filter(([k,o,r])=>r&&whL(esName(k,o,r))===whL(apMe()));toast("✔ "+L.length+" "+tr("sent for e-signature","أُرسلت للتوقيع"));
+  const next=()=>{const x=mine.shift();if(!x)return;esSign(x[0],x[1],x[2],false);const g=$("#apGo");if(g){const f0=g.onclick;g.onclick=async()=>{await f0();setTimeout(next,250);};}};setTimeout(next,300);};
+ document.querySelectorAll("[data-esgo]").forEach(a=>a.onclick=e=>{e.preventDefault();go(a.dataset.esgo);});};
+{const C1=M365.can;M365.can=v=>v==="esign"?true:C1(v);}
+{const N1=NAV;NAV=()=>{const n=N1();const w=esWaiting().length;const i=n.findIndex(x=>x[1]==="home");n.splice(i+1,0,[null,"esign","✍","#0F766E",tr("My signatures","توقيعاتي")+(w?` <b style="background:#D2463C;color:#fff;border-radius:9px;padding:0 6px;font-size:11px">${w}</b>`:"")]);return n;};}
+{const R1=render;render=function(x){R1(x);try{const w=esWaiting().length;if(w&&view!=="esign"&&!document.getElementById("esBan")){const m=$("#main");const b=document.createElement("div");b.id="esBan";b.className="banner";b.style.cssText="cursor:pointer;background:#E6F4F1;border-color:#0F766E;color:#134E4A";b.innerHTML=`✍ <b>${w}</b> ${tr("document(s) waiting for your e-signature","مستند بانتظار توقيعك")} – ${tr("open My signatures","افتح توقيعاتي")}`;b.onclick=()=>go("esign");m.prepend(b);}}catch(e){}};}
+/* status tag in the module lists */
+{const tagRows=(id,h)=>{const k=esK(id);esList(k).forEach(o=>{const t=esTag(k,o);if(t)h=h.replace(`<b>${o.no}</b></td>`,`<b>${o.no}</b> ${t}</td>`);});return h;};
+ ["mreq","mcl"].forEach(v=>{const V=VIEWS[v];VIEWS[v]=()=>tagRows(v,V());});}
+
+
+/* e-mails: collect for 2.5 s so several signatures in a row become one e-mail per person */
+{const S0=mailSend;let BUF=[],T=null;
+ mailSend=function(to,subj,lines,scr){BUF.push({to,subj,lines,scr});clearTimeout(T);T=setTimeout(()=>{const G={};BUF.forEach(m=>(G[m.to]=G[m.to]||[]).push(m));BUF=[];
+  Object.entries(G).forEach(([to,L])=>{if(L.length===1)return S0(to,L[0].subj,L[0].lines,L[0].scr);
+   const items=L.flatMap(m=>/documents need your signature/.test(m.subj)?(String(m.lines[1]||"").match(/<li>.*?<\/li>/g)||[]):[`<li><b>${esc(m.subj)}</b></li>`]);
+   S0(to,`${items.length} documents need your attention`,[`The following documents are waiting for you in MIDU Logistics Hub:`,"<ul>"+items.join("")+"</ul>"],L[0].scr);});},2500);};}
 
 </script>
 </body>
