@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611241300"></script>
-<script src="local.js?v=202611241300"></script>
+<script src="m365.js?v=202611241400"></script>
+<script src="local.js?v=202611241400"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -2073,7 +2073,7 @@ function whInfo(d,txt){return `<p style="margin:0 0 6px"><b>${esc(d.no)}</b> · 
 function whBindView(d){const v=$("#whView");if(v)v.onclick=()=>openDoc(findDoc(d.no));}
 /* issuer signature – right after saving, or later with the ✍ Sign button */
 function whSign(d){const nx=()=>{const c=whChain(d);return c[1]?whName(d,c[1]):"";};
- apPinDlg(tr("Sign as issuer","التوقيع كمُصدِر")+" – "+d.no,whInfo(d,tr("Saved. Stock and custody are already updated. Enter your PIN to sign it electronically – it then goes to ","تم الحفظ. أدخل رمزك للتوقيع إلكترونياً – ثم يذهب إلى ")+"<b>"+esc(nx()||tr("nobody – approved","لا أحد – معتمد"))+"</b>."),false,sig=>{
+ apPinDlg(tr("Sign as issuer","التوقيع كمُصدِر")+" – "+d.no,whInfo(d,(nx()?tr("Saved. Stock and custody are already updated. Enter your PIN to sign it electronically – it then goes to ","تم الحفظ. أدخل رمزك للتوقيع إلكترونياً – ثم يذهب إلى ")+"<b>"+esc(nx())+"</b> "+tr("for approval.","للاعتماد."):tr("Saved. Stock and custody are already updated. Enter your PIN to sign it electronically. As you are the Logistics Manager, your signature also counts as the approval – no further approval is needed.","تم الحفظ. أدخل رمزك للتوقيع. بصفتك مدير اللوجستيات يُعتبر توقيعك اعتماداً – لا يلزم اعتماد آخر."))),false,sig=>{
   d.by=sig.by;d.savedBy=sig.by;d.ap=[{role:"SK",...sig,fp:whFp(d)}];delete d.rej;persist();render();const n=whNext(d);
   toast("✔ "+d.no+" "+(n?tr("signed – sent to","وُقّع – أُرسل إلى")+" "+whName(d,n):tr("signed and approved","وُقّع واعتُمد")));});
  const g=$("#apGo");if(g)g.textContent="✍ "+tr("Sign","توقيع");whBindView(d);}
@@ -2176,6 +2176,10 @@ function mSrcAv(r){const l=r._line;if(!l)return;const v=r.querySelector("[data-k
  r.querySelector("[data-k=av]").innerHTML=`<b>${here}</b> ${esc(l.unit||"")}${all!==here?`<div class="sub" style="font-size:11px">${tr("total","الإجمالي")} ${all}</div>`:""}`;}
 function mdsFrom(d){const S=[...new Set((d.lines||[]).filter(l=>!l.asset).map(l=>[WH[l.wh||d.wh]?.name,l.loc||d.loc].filter(Boolean).join(" › ")))];
  return S.length>1?S.join("  ·  "):S[0]||[WH[d.wh]?.name,d.loc].filter(Boolean).join(" › ");}
+
+
+/* ===== Update 38: PIN dialogs show only the PIN box (no Print / Save PDF buttons) ===== */
+{const P0=apPinDlg;apPinDlg=function(...a){P0(...a);["#mPr","#mDrive","#mDl"].forEach(id=>{const e=$(id);if(e)e.style.display="none";});const h=$("#mHint");if(h)h.textContent="";};}
 
 </script>
 </body>
