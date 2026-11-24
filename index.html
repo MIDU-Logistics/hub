@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611250200"></script>
-<script src="local.js?v=202611250200"></script>
+<script src="m365.js?v=202611250300"></script>
+<script src="local.js?v=202611250300"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -2555,6 +2555,12 @@ if(typeof VIEW_AREA!=="undefined")VIEW_AREA.pcash="pr";
 if(typeof M365_ROLES!=="undefined"){["procurement","finance"].forEach(r=>{if(Array.isArray(M365_ROLES[r])&&!M365_ROLES[r].includes("pcash"))M365_ROLES[r].push("pcash");});}
 {const N2=NAV;NAV=()=>{const n=N2();const i=n.findIndex(x=>x[1]==="po");if(i>-1&&!n.some(x=>x[1]==="pcash"))n.splice(i+1,0,[1,"pcash","💵","#7C3AED",tr("Petty cash custody","العهد النقدية")]);return n;};}
 {const F=findDoc;findDoc=no=>{const a=(D.pca||[]).find(x=>x.no===no);return a?{no,html:pcaDoc(a)}:F(no);};}
+
+/* Update 51: link from "PO & petty cash" to "Petty cash custody" + clearer petty cash wording */
+{const V=VIEWS.po;VIEWS.po=()=>{let h=V();
+ h=h.replace(/(<div class="tabs">[\s\S]*?<\/div>)/,`$1<div class="banner" style="margin-top:10px;background:#FFF7E6;border-color:#D9961A;color:#7A4B00">💵 ${tr("<b>Petty cash</b> here = one purchase paid by a person and paid back to him (one voucher per purchase). <b>Cash given to a person in advance</b> (custody) – who gave it, the invoices and the clearance – is in","<b>النثرية</b> هنا = شراء واحد يُعاد مبلغه. <b>النقد المسلَّم مسبقاً لشخص</b> (العهدة) والفواتير والتصفية في")} <button class="b a sm" id="goPca">💵 ${tr("Petty cash custody","العهد النقدية")} ➜</button></div>`);
+ return h;};}
+{const B=BIND.po;BIND.po=()=>{B();const g=$("#goPca");if(g)g.onclick=()=>go("pcash");};}
 /* e-mails: collect for 2.5 s so several signatures in a row become one e-mail per person */
 {const S0=mailSend;let BUF=[],T=null;
  mailSend=function(to,subj,lines,scr){BUF.push({to,subj,lines,scr});clearTimeout(T);T=setTimeout(()=>{const G={};BUF.forEach(m=>(G[m.to]=G[m.to]||[]).push(m));BUF=[];
