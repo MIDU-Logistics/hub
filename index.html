@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611241100"></script>
-<script src="local.js?v=202611241100"></script>
+<script src="m365.js?v=202611241200"></script>
+<script src="local.js?v=202611241200"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -2145,6 +2145,21 @@ function poIssSign(p){apPinDlg(tr("Sign PO as issuer","التوقيع على أ�
  s.onclick=async ev=>{const n=D.pos.length;await o.call(s,ev);if(D.pos.length>n){const p=D.pos[D.pos.length-1];if(p.kind==="PO"&&typeof LOCAL!=="undefined"&&LOCAL.connected&&!LOCAL.readOnly){p.issuedBy=apMe();persist();setTimeout(()=>poIssSign(p),150);}}};
  document.querySelectorAll("[data-poiss]").forEach(b=>b.onclick=()=>{const p=D.pos.find(x=>x.no===b.dataset.poiss);if(p)poIssSign(p);});};}
 {const V0=VIEWS.po;VIEWS.po=()=>{let h=V0();D.pos.filter(p=>p.kind==="PO"&&p.ap!==undefined&&!p.cancelled&&!p.rej).forEach(p=>{const a=poIssRec(p);if((!a||a.fp!==apFp("po",p))&&(p.issuedBy||"").toLowerCase()===apMe().toLowerCase())h=h.replace(`<b>${p.no}</b>`,`<b>${p.no}</b> <button class="b g sm" data-poiss="${esc(p.no)}">✍ ${tr("Sign as issuer","وقّع كمُصدِر")}</button>`);});return h;};}
+
+/* ===== Update 36: Asset register VIEW ONLY for storekeeper and store in-charge =====
+   Anyone who cannot open "New asset" (i.e. not admin / management / assets) sees the register read-only. */
+if(typeof M365_ROLES!=="undefined"&&Array.isArray(M365_ROLES.storekeeper)&&!M365_ROLES.storekeeper.includes("assetReg"))M365_ROLES.storekeeper.push("assetReg");
+if(typeof HUB_ROLES!=="undefined"){const sk=HUB_ROLES.find(r=>r[0]==="storekeeper");if(sk)sk[1]="Storekeeper – GRN, MDS, MRS; Asset register view only";const sc=HUB_ROLES.find(r=>r[0]==="storeincharge");if(sc)sc[1]="Store In-charge – GRN, MDS, MRS, stock count; checks warehouse documents; Asset register view only";}
+const arRO=()=>!M365.can("asset");
+{const V0=VIEWS.assetReg;VIEWS.assetReg=()=>{let h=V0();if(arRO())h=h.replace(tr("Search any asset, open it to edit its details, or print its label. Holder changes are made through Issue (MDS) and Return (MRS).","ابحث عن أي أصل وافتحه لتعديل بياناته أو طباعة ملصقه. تغيير حامل العهدة يتم من خلال الصرف (MDS) والإرجاع (MRS)."),"👁 "+tr("View only – search any asset and open it to see its details. Only Logistics / Assets Management can change the register.","عرض فقط – ابحث عن أي أصل وافتحه لرؤية بياناته. التعديل لإدارة اللوجستيات / الأصول فقط."));return h;};}
+{const B0=BIND.assetReg;BIND.assetReg=()=>{B0();if(!arRO())return;
+ const tab=$("#arTab"),ed=$("#arEd");
+ const fixTab=()=>tab.querySelectorAll("button[data-e]").forEach(b=>{if(b.textContent!==tr("View","عرض"))b.textContent=tr("View","عرض");});
+ const fixEd=()=>{if(!ed.firstElementChild||ed._ro===ed.firstElementChild)return;ed._ro=ed.firstElementChild;
+  ed.querySelectorAll("input,select,textarea").forEach(x=>{x.disabled=true;x.style.background="#F2F4F8";});
+  ed.querySelectorAll("button").forEach(b=>{if(!/^(Close|إغلاق)$/.test(b.textContent.trim()))b.style.display="none";});
+  const h=ed.querySelector("h3");if(h)h.innerHTML=h.innerHTML.replace(tr("Edit asset","تعديل الأصل"),"👁 "+tr("Asset details (view only)","بيانات الأصل (عرض فقط)"));};
+ fixTab();new MutationObserver(fixTab).observe(tab,{childList:true,subtree:true});new MutationObserver(fixEd).observe(ed,{childList:true,subtree:true});};}
 
 </script>
 </body>
