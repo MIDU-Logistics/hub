@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611250100"></script>
-<script src="local.js?v=202611250100"></script>
+<script src="m365.js?v=202611250200"></script>
+<script src="local.js?v=202611250200"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -2474,6 +2474,87 @@ function buyerMailScan(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.
  D.pos.filter(p=>p.kind==="PO"&&p.buyer&&!p.cancelled&&p.ap!==undefined&&apDone("po",p)).forEach(p=>{p.mailed=p.mailed||{};if(p.mailed.buyer)return;p.mailed.buyer=new Date().toISOString();
   mailSend(p.buyer,`PO approved – please proceed: ${p.no}`,[`<b>${esc(p.no)}</b> to <b>${esc(p.sup||"")}</b> (${money(poTotal(p)*1.15)} SAR incl. VAT) is now fully approved (FM, PD, CEO).`,`PR ${esc(p.pr||"")} · CQS ${esc(p.cqs||"")}. Please send the PO to the supplier and follow up the delivery.`],"po");});}
 {const P2=persist;persist=function(...a){try{buyerMailScan();}catch(e){console.warn(e);}return P2.apply(this,a);};}
+
+/* ===================== Update 50: Basel Shamma (Project Manager, ASP) + Petty cash custody (advance → invoices → clearance) ===================== */
+const ES_BASEL="Basel Shamma";HUB_MAIL.baselshamma=HUB_MAIL.baselshamma||"b.shamma@midu.com.sa";
+/* Debit notes (back charges to sub-contractors): Prepared (Logistics) → Project Manager → Project Director */
+{const k=esK("dn");if(k)k.steps=iss=>[["PREP","Prepared by (Logistics Manager)",iss],["PM","Reviewed by (Project Manager)",ES_BASEL],["PD","Approved by (Project Director)",ES_NAJED]];}
+{const F=dnDoc;dnDoc=d=>F(d).replace(`<td>Approved By :<br>Najed Fakhreddine</td>`,`<td>Reviewed By :<br>Basel Shamma<br><span style="font-size:9px">Project Manager</span></td><td>Approved By :<br>Najed Fakhreddine</td>`);}
+
+/* ---- Petty cash custody ---- */
+if(typeof COLL_AREA!=="undefined")COLL_AREA.pca="pr";
+if(typeof LOCAL_COLLS!=="undefined"&&!LOCAL_COLLS.includes("pca"))LOCAL_COLLS.push("pca");
+if(typeof XL_NAMES!=="undefined")XL_NAMES.pca="Petty cash custody";
+KEYS.pca=r=>r.no;D.pca=D.pca||[];
+const PCA_GIVERS=()=>[ES_BASEL,ES_NAJED,ES_OSAMA,WH_LM];
+const pcaSpent=a=>(a.exp||[]).reduce((t,e)=>t+(+e.amt||0),0);
+const pcaBal=a=>Math.round(((+a.amount||0)-pcaSpent(a)-(+a.returned||0))*100)/100;
+const pcaStatus=a=>a.status==="Cleared"?"Cleared":esR(esK("pcc"),a)&&!esR(esK("pcc"),a).rej?"Submitted":"Open";
+const pcaPeople=()=>{const L=[PURCHASER,ES_BASEL,ES_NAJED,WH_LM];try{(LOCAL.users||[]).filter(u=>u.active!==false).forEach(u=>{if(!L.some(x=>whL(x)===whL(u.name)))L.push(u.name);});}catch(e){}return L;};
+ES_K.push({id:"pcc",coll:"pca",key:"es",scr:"pcash",area:"pr",label:"Petty cash clearance",title:o=>(o.holder||"")+" · "+money(+o.amount||0)+" SAR",issuerOf:o=>o.holder||"",
+ applies:o=>!o.cancelled&&!!o.es,
+ fields:o=>[o.no,o.holder,+o.amount||0,+o.returned||0,(o.exp||[]).map(e=>[e.date,e.shop,e.inv,+e.amt||0,e.cls])],
+ steps:(iss,o)=>[["PREP","Submitted by (custody holder)",iss],["GIV","Checked by (gave the cash)",(o&&o.givenBy)||WH_LM],["FM","Cleared by (Finance Manager)",ES_OSAMA]],doc:o=>pcaDoc(o)});
+{const A0=esAfter;esAfter=function(k,o,reject,sig,reason){A0(k,o,reject,sig,reason);if(k.id==="pcc"){if(!reject&&esDone(k,o)){o.status="Cleared";o.clearedOn=today();o.clearedBy=sig.by;}else if(reject)o.status="Open";}};}
+function pcaDoc(a){const B="1px solid #000",E=a.exp||[],bal=pcaBal(a),th=t=>`<th style="border:${B};background:#1F3864;color:#fff;font-size:9pt;padding:3px">${t}</th>`,td=(t,x)=>`<td style="border:${B};font-size:9pt;padding:2px 5px;${x||""}">${t}</td>`;
+ const doc=`<div class="doc xl" style="font-family:Calibri,Arial,sans-serif;padding:8px 12px"><table style="width:100%;border-collapse:collapse"><tr><td style="background:#1F3864;color:#fff;font-weight:700;font-size:14pt;text-align:center;padding:6px">MIDU COMPANY LTD &nbsp;| &nbsp;<span dir="rtl">شركة مايدو المحدودة</span></td></tr>
+ <tr><td style="text-align:center;font-weight:700;font-size:12pt;padding-top:4px">PETTY CASH CUSTODY – CLEARANCE STATEMENT &nbsp;|&nbsp; <span dir="rtl">تصفية العهدة النقدية</span></td></tr></table>
+ <table style="width:100%;border-collapse:collapse;margin-top:10px">${[["Custody No.",`<b>${esc(a.no)}</b>`,"Date given",ppD(a.date)],["Custody holder",esc(a.holder),"Given by",esc(a.givenBy||"")],["Cost center",esc(a.cc||""),"Purpose",esc(a.purpose||"")]].map(r=>`<tr>${td("<b>"+r[0]+"</b>","width:16%;background:#F2F2F2")}${td(r[1],"width:34%")}${td("<b>"+r[2]+"</b>","width:16%;background:#F2F2F2")}${td(r[3])}</tr>`).join("")}</table>
+ <table style="width:100%;border-collapse:collapse;margin-top:10px"><tr>${["#","Date","Shop / supplier","Invoice No.","Description","Class","Amount incl. VAT (SAR)"].map(th).join("")}</tr>
+ ${E.map((e,i)=>`<tr>${td(i+1,"text-align:center")}${td(ppD(e.date))}${td(esc(e.shop||""))}${td(esc(e.inv||""))}${td(esc(e.desc||""))}${td(esc(e.cls||""))}${td(ppM(+e.amt||0),"text-align:right")}</tr>`).join("")||`<tr>${td("No invoices yet",'text-align:center;color:#888" colspan="7')}</tr>`}
+ <tr>${td("<b>Cash given</b>",'text-align:right" colspan="6')}${td("<b>"+ppM(+a.amount||0)+"</b>","text-align:right")}</tr>
+ <tr>${td("Total invoices",'text-align:right" colspan="6')}${td(ppM(pcaSpent(a)),"text-align:right")}</tr>
+ <tr>${td("Cash returned",'text-align:right" colspan="6')}${td(ppM(+a.returned||0),"text-align:right")}</tr>
+ <tr>${td("<b>"+(bal>0?"Balance still with the holder":bal<0?"To be reimbursed to the holder":"Balance")+"</b>",'text-align:right" colspan="6')}${td("<b>"+ppM(Math.abs(bal))+"</b>","text-align:right;"+(bal===0?"background:#E2F0D9":"background:#FCE4D6"))}</tr></table>
+ <p style="font-size:8.5pt;margin:6px 0 0">Status: <b>${esc(pcaStatus(a))}</b>${a.clearedOn?" – cleared "+ppD(a.clearedOn)+" by "+esc(a.clearedBy||""):""}</p></div>`;
+ return esInject(doc,esK("pcc"),a);}
+VIEWS.pcash=()=>{const L=(D.pca||[]).filter(a=>!a.cancelled),open=L.filter(a=>a.status!=="Cleared"),sel=$("#pcaSel")?.value;
+ const row=a=>{const b=pcaBal(a),st=pcaStatus(a);return `<tr><td class="en"><b>${esc(a.no)}</b>${esc(esTag(esK("pcc"),a)||"")?" "+esTag(esK("pcc"),a):""}</td><td class="en">${esc(a.holder)}</td><td class="en">${esc(a.givenBy||"")}</td><td>${esc(a.date)}</td><td class="num">${money(+a.amount||0)}</td><td class="num">${money(pcaSpent(a))}</td><td class="num"><b style="color:${b===0?"#15803D":"#B45309"}">${money(b)}</b></td><td>${tag(tr(st,st==="Cleared"?"مصفّاة":st==="Submitted"?"مقدمة للتصفية":"مفتوحة"),st==="Cleared"?"g":st==="Submitted"?"b":"a")}</td><td style="white-space:nowrap"><button class="b l sm" data-pcao="${esc(a.no)}">${st==="Open"?tr("Open / add invoices","فتح / إضافة فواتير"):tr("View","عرض")}</button> <button class="b l sm" data-pcap="${esc(a.no)}">${tr("Print","طباعة")}</button></td></tr>`;};
+ const byHolder={};open.forEach(a=>{byHolder[a.holder]=(byHolder[a.holder]||0)+pcaBal(a);});
+ return head(tr("Petty cash custody","العهد النقدية"),tr("Cash given to a person (Project Manager, Project Director, purchaser …). He adds every invoice he paid; when the invoices (plus any cash returned) equal the cash he took, he submits it for clearance: the person who gave the cash checks it and Finance clears it.","نقد يُسلَّم لشخص؛ يضيف كل فاتورة دفعها، وعندما تساوي الفواتير المبلغ يقدّمها للتصفية."))+prFlow("")+msgBox+
+ (Object.keys(byHolder).length?`<div class="banner">${tr("Cash still out:","نقد لم يُصفَّ بعد:")} ${Object.entries(byHolder).map(([h,v])=>`<b class="en">${esc(h)}</b> ${money(v)} SAR`).join(" · ")}</div>`:"")+
+ `<div class="card"><h2>${tr("Give cash (new custody)","تسليم عهدة جديدة")}</h2><div class="fg">
+ <div class="f"><label>${tr("Custody No.","رقم العهدة")}</label><input class="en" readonly value="${seqNo("PCA-26-",(D.pca||[]).map(a=>a.no))}"></div>
+ <div class="f"><label>${tr("Custody holder","مستلم العهدة")} *</label><input class="en" id="pcaH" list="pcaHL"><datalist id="pcaHL">${pcaPeople().map(n=>`<option>${esc(n)}</option>`).join("")}</datalist></div>
+ <div class="f"><label>${tr("Given by","سلّمها")} *</label><select id="pcaG">${PCA_GIVERS().map(n=>`<option>${esc(n)}</option>`).join("")}</select></div>
+ <div class="f"><label>${tr("Date","التاريخ")} *</label><input type="date" id="pcaD" value="${today()}"></div>
+ <div class="f"><label>${tr("Amount (SAR)","المبلغ (ريال)")} *</label><input class="en" type="number" min="1" id="pcaA"></div>
+ <div class="f"><label>${tr("Cost center","مركز التكلفة")}</label><select id="pcaC">${CC.map(c=>`<option>${esc(c)}</option>`).join("")}</select></div>
+ <div class="f w2"><label>${tr("Purpose","الغرض")} *</label><input id="pcaP" data-ar="1"></div></div>
+ <div class="btns"><span style="flex:1"></span><button class="b a" id="pcaNew">💵 ${tr("Save – cash given","حفظ – تم تسليم النقد")}</button></div></div>
+ <div class="card" id="pcaBox" style="display:none"></div>
+ <div class="card"><h2>${tr("Custodies","العهد")}</h2>${L.length?`<table class="t"><tr><th>${tr("No.","الرقم")}</th><th>${tr("Holder","المستلم")}</th><th>${tr("Given by","سلّمها")}</th><th>${tr("Date","التاريخ")}</th><th class="num">${tr("Cash given","المبلغ")}</th><th class="num">${tr("Invoices","الفواتير")}</th><th class="num">${tr("Balance","الرصيد")}</th><th>${tr("Status","الحالة")}</th><th></th></tr>${L.slice().reverse().map(row).join("")}</table>`:`<p class="hint">${tr("No petty cash custody yet.","لا توجد عهد بعد.")}</p>`}</div>`;};
+function pcaOpen(a){const box=$("#pcaBox");if(!box)return;box.style.display="block";const st=pcaStatus(a),b=pcaBal(a),ed=st==="Open";
+ box.innerHTML=`<h2>${esc(a.no)} · ${esc(a.holder)} · ${money(+a.amount||0)} SAR ${tag(st,st==="Cleared"?"g":st==="Submitted"?"b":"a")}</h2><p class="hint">${tr("Given by","سلّمها")} ${esc(a.givenBy||"")} · ${esc(a.date)} · ${esc(a.purpose||"")}</p>
+ <table class="t"><tr><th>#</th><th>${tr("Date","التاريخ")}</th><th>${tr("Shop / supplier","المحل")}</th><th>${tr("Invoice No.","رقم الفاتورة")}</th><th>${tr("Description","الوصف")}</th><th>CAPEX/OPEX</th><th class="num">${tr("Amount incl. VAT","المبلغ مع الضريبة")}</th><th>${tr("Invoice","الفاتورة")}</th><th></th></tr>
+ ${(a.exp||[]).map((e,i)=>`<tr><td>${i+1}</td><td>${esc(e.date)}</td><td class="en">${esc(e.shop)}</td><td class="en">${esc(e.inv||"")}</td><td>${esc(e.desc||"")}</td><td>${esc(e.cls)}</td><td class="num">${money(+e.amt||0)}</td><td>${e.att?`<a href="#" data-pcaf="${i}">📎 ${tr("open","فتح")}</a>`:"—"}</td><td>${ed?`<button class="b r sm" data-pcax="${i}">✕</button>`:""}</td></tr>`).join("")}
+ ${ed?`<tr><td>+</td><td><input type="date" id="peD" value="${today()}"></td><td><input class="en" id="peS"></td><td><input class="en" id="peI" style="width:90px"></td><td><input id="peX" data-ar="1"></td><td><select id="peC"><option>OPEX</option><option>CAPEX</option></select></td><td><input class="en" type="number" id="peA" style="width:110px"></td><td><input type="file" id="peF" accept=".pdf,image/*" style="max-width:170px"></td><td><button class="b g sm" id="peAdd">${tr("Add","إضافة")}</button></td></tr>`:""}</table>
+ <table class="t" style="width:auto;margin-top:10px"><tr><td>${tr("Cash given","المبلغ المسلّم")}</td><td class="num"><b>${money(+a.amount||0)}</b></td></tr><tr><td>${tr("Total invoices","مجموع الفواتير")}</td><td class="num">${money(pcaSpent(a))}</td></tr>
+ <tr><td>${tr("Cash returned","نقد مُعاد")}</td><td class="num">${ed?`<input class="en" type="number" id="peR" value="${+a.returned||0}" style="width:110px">`:money(+a.returned||0)}</td></tr>
+ <tr><td><b>${b>0?tr("Still with the holder","لا يزال مع المستلم"):b<0?tr("To reimburse the holder","يُعاد للمستلم"):tr("Balance","الرصيد")}</b></td><td class="num"><b style="color:${b===0?"#15803D":"#B45309"}">${money(Math.abs(b))}</b></td></tr></table>
+ <div class="btns">${esTrail(esK("pcc"),a)||""}<span style="flex:1"></span>${ed?`<button class="b" style="background:#0E7490" id="pcaSub">✍ ${tr("Submit for clearance","تقديم للتصفية")}</button>`:""} <button class="b l" id="pcaClose">${tr("Close","إغلاق")}</button></div>`;
+ const f=box.querySelectorAll.bind(box);
+ box.querySelectorAll("[data-pcaf]").forEach(x=>x.onclick=ev=>{ev.preventDefault();openAtt(a.exp[+x.dataset.pcaf].att);});
+ box.querySelectorAll("[data-pcax]").forEach(x=>x.onclick=()=>{a.exp.splice(+x.dataset.pcax,1);persist();render();setTimeout(()=>pcaOpen(a),50);});
+ $("#pcaClose").onclick=()=>{box.style.display="none";};
+ const ad=$("#peAdd");if(ad)ad.onclick=async()=>{const amt=+$("#peA").value,shop=$("#peS").value.trim(),fl=$("#peF").files[0];
+  if(!shop||!(amt>0))return msg("err",tr("Enter the shop and the amount.","أدخل المحل والمبلغ."));if(!fl)return msg("err",tr("Attach the invoice / receipt.","أرفق الفاتورة / الإيصال."));
+  ad.disabled=true;let att;try{att=await saveAtt(fl,"03 Procurement/05 Petty cash/"+a.no,a.no,"Invoice "+((a.exp||[]).length+1)+" - "+qtSafe(shop));}catch(e){ad.disabled=false;return msg("err",esc(e.message));}
+  a.exp=[...(a.exp||[]),{date:$("#peD").value,shop,inv:$("#peI").value.trim(),desc:$("#peX").value.trim(),cls:$("#peC").value,amt,att,by:apMe()}];persist();render();setTimeout(()=>pcaOpen(a),50);};
+ const rr=$("#peR");if(rr)rr.onchange=()=>{a.returned=+rr.value||0;persist();render();setTimeout(()=>pcaOpen(a),50);};
+ const sb=$("#pcaSub");if(sb)sb.onclick=()=>{if(!(a.exp||[]).length)return msg("err",tr("Add the invoices first.","أضف الفواتير أولاً."));const b2=pcaBal(a);
+  if(b2>0)return msg("err",tr(`${money(b2)} SAR is still not covered by invoices. Add the missing invoices or enter the cash returned.`,`${money(b2)} ريال غير مغطى بفواتير. أضف الفواتير أو أدخل النقد المُعاد.`));
+  const k=esK("pcc");esStart(k,a,apMe());a.status="Submitted";a.submittedOn=today();persist();render();const n=esNext(k,a);if(n&&whL(esName(k,a,n))===whL(apMe()))esSign(k,a,n,false);else toast("✔ "+tr("Sent to","أُرسل إلى")+" "+esName(k,a,n));};}
+BIND.pcash=()=>{const nb=$("#pcaNew");if(nb)nb.onclick=()=>{const h=$("#pcaH").value.trim(),amt=+$("#pcaA").value,p=$("#pcaP").value.trim();if(!h||!(amt>0)||!p)return msg("err",ERR.req());
+  const a={no:seqNo("PCA-26-",(D.pca||[]).map(x=>x.no)),date:$("#pcaD").value,holder:h,givenBy:$("#pcaG").value,amount:amt,cc:$("#pcaC").value,purpose:p,exp:[],returned:0,status:"Open",by:apMe()};
+  D.pca=[...(D.pca||[]),a];persist();render();toast("✔ "+a.no+" – "+money(amt)+" SAR "+tr("given to","سُلّمت إلى")+" "+h);};
+ document.querySelectorAll("[data-pcao]").forEach(b=>b.onclick=()=>{const a=D.pca.find(x=>x.no===b.dataset.pcao);if(a)pcaOpen(a);});
+ document.querySelectorAll("[data-pcap]").forEach(b=>b.onclick=()=>{const a=D.pca.find(x=>x.no===b.dataset.pcap);if(a){[a.holder,a.givenBy,ES_OSAMA].forEach(n=>{try{sigLoad(n);}catch(e){}});openModal(a.no,pcaDoc(a),a.no);}});};
+/* menu, roles, area */
+if(typeof VIEW_AREA!=="undefined")VIEW_AREA.pcash="pr";
+if(typeof M365_ROLES!=="undefined"){["procurement","finance"].forEach(r=>{if(Array.isArray(M365_ROLES[r])&&!M365_ROLES[r].includes("pcash"))M365_ROLES[r].push("pcash");});}
+{const N2=NAV;NAV=()=>{const n=N2();const i=n.findIndex(x=>x[1]==="po");if(i>-1&&!n.some(x=>x[1]==="pcash"))n.splice(i+1,0,[1,"pcash","💵","#7C3AED",tr("Petty cash custody","العهد النقدية")]);return n;};}
+{const F=findDoc;findDoc=no=>{const a=(D.pca||[]).find(x=>x.no===no);return a?{no,html:pcaDoc(a)}:F(no);};}
 /* e-mails: collect for 2.5 s so several signatures in a row become one e-mail per person */
 {const S0=mailSend;let BUF=[],T=null;
  mailSend=function(to,subj,lines,scr){BUF.push({to,subj,lines,scr});clearTimeout(T);T=setTimeout(()=>{const G={};BUF.forEach(m=>(G[m.to]=G[m.to]||[]).push(m));BUF=[];
