@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611250400"></script>
-<script src="local.js?v=202611250400"></script>
+<script src="m365.js?v=202611250700"></script>
+<script src="local.js?v=202611250700"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -2567,6 +2567,111 @@ if(typeof M365_ROLES!=="undefined"){["procurement","finance"].forEach(r=>{if(Arr
 {const B=BIND.pcash;BIND.pcash=()=>{B();document.querySelectorAll("[data-pcadel]").forEach(b=>b.onclick=()=>{const a=D.pca.find(x=>x.no===b.dataset.pcadel);if(!a)return;
  if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent=tr("Click again to delete","اضغط مرة أخرى للحذف");return;}
  a.cancelled=today();a.cancelledBy=apMe();persist();render();toast("✔ "+a.no+" "+tr("deleted","حُذفت"));});};}
+
+/* Update 53: imported paper POs – supplier details from the record, 📎 signed PO link in the Orders list */
+{const F=poDoc;poDoc=p=>{if(p&&p.vendor&&p.sup&&!PP_SUP[p.sup])PP_SUP[p.sup]=Object.assign({name:p.sup},p.vendor);return F(p);};}
+{const V=VIEWS.po;VIEWS.po=()=>{let h=V();D.pos.forEach(p=>{if(p.att)h=h.replace(`<td class="en"><b>${p.no}</b>`,`<td class="en"><b>${p.no}</b> <a href="#" data-poatt="${esc(p.no)}" title="${esc(p.att.name)}">📎</a>${p.legacy?` <span class="hint">${tr("paper PO","أمر ورقي")}</span>`:""}`);});return h;};}
+{const B=BIND.po;BIND.po=()=>{B();document.querySelectorAll("[data-poatt]").forEach(a=>a.onclick=ev=>{ev.preventDefault();const p=D.pos.find(x=>x.no===a.dataset.poatt);if(p&&p.att)openAtt(p.att);});};}
+{const V=VIEWS.fin;VIEWS.fin=()=>{let h=V();D.pos.forEach(p=>{if(p.att)h=h.split(`<td class="en"><b>${p.no}</b></td>`).join(`<td class="en"><b>${p.no}</b> <a href="#" data-poatt="${esc(p.no)}">📎</a></td>`);});return h;};}
+{const B=BIND.fin;BIND.fin=()=>{B();document.querySelectorAll("[data-poatt]").forEach(a=>a.onclick=ev=>{ev.preventDefault();const p=D.pos.find(x=>x.no===a.dataset.poatt);if(p&&p.att)openAtt(p.att);});};}
+
+/* ===================== Update 54: Invoices & monthly costs per project =====================
+   One place for every incoming invoice: supplier invoices (with or without PO), back charges from MBL, rentals, utilities, services.
+   With a PO → saved in invs (Finance 3-way match works as before). Without a PO → saved in "cost" (03 Procurement/_data/cost.json).
+   Monthly report per project = these invoices + petty cash vouchers + petty cash custody invoices; debit notes to contractors shown as recovery. */
+if(typeof COLL_AREA!=="undefined")COLL_AREA.cost="pr";
+if(typeof LOCAL_COLLS!=="undefined"&&!LOCAL_COLLS.includes("cost"))LOCAL_COLLS.push("cost");
+if(typeof XL_NAMES!=="undefined")XL_NAMES.cost="Invoices without PO";
+KEYS.cost=r=>r.key;D.cost=D.cost||[];
+const INV_TYPES=["Supplier invoice","Back charge from MBL","Rental","Utilities bill","Services / subcontract","Other"];
+const projOf=cc=>{const s=String(cc||"").trim();if(!s)return "Other";const m=s.match(/^([A-Za-z]+)/);const p=(m?m[1]:s).toUpperCase();return p==="HQ"||p==="HO"?"HO":p;};
+const MONS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const ivEx=v=>v.excl!==undefined&&v.excl!==""?+v.excl:Math.round((+v.amt||0)/1.15*100)/100;
+/* every cost line of the company, one shape: {src, month, cc, proj, type, from, no, desc, excl, total, att, ref} */
+function costRows(){const out=[],po=no=>D.pos.find(p=>p.no===no)||{};
+ (D.invs||[]).forEach(v=>{const p=po(v.po),cc=v.cc||p.cc;out.push({src:"inv",month:(v.month||v.date||"").slice(0,7),cc,proj:projOf(cc),type:v.type||"Supplier invoice",from:v.sup||p.sup||"",no:v.no,desc:v.desc||("PO "+v.po),excl:ivEx(v),total:+v.amt||0,att:v.att,ref:v.po,paid:v.paid,rec:v});});
+ (D.cost||[]).filter(v=>!v.cancelled).forEach(v=>out.push({src:"cost",month:(v.month||v.date||"").slice(0,7),cc:v.cc,proj:projOf(v.cc),type:v.type,from:v.sup,no:v.no,desc:v.desc||"",excl:+v.excl||0,total:+v.total||0,att:v.att,ref:v.rebill?("re-billed to "+v.rebill):"",paid:v.paid,rec:v}));
+ D.pos.filter(p=>p.kind==="PC"&&!p.cancelled).forEach(p=>{const t=poTotal(p);out.push({src:"pc",month:(p.date||"").slice(0,7),cc:p.cc,proj:projOf(p.cc),type:"Petty cash voucher",from:p.sup,no:p.no,desc:(p.lines||[]).map(l=>l.desc).join(", "),excl:t,total:t*1.15,ref:p.buyer||""});});
+ (D.pca||[]).filter(a=>!a.cancelled).forEach(a=>(a.exp||[]).forEach(e=>out.push({src:"pca",month:(e.date||"").slice(0,7),cc:a.cc,proj:projOf(a.cc),type:"Petty cash custody",from:e.shop,no:e.inv||a.no,desc:e.desc||a.purpose||"",excl:Math.round((+e.amt||0)/1.15*100)/100,total:+e.amt||0,att:e.att,ref:a.no+" · "+a.holder})));
+ return out;}
+const recRows=()=>(D.dns||[]).filter(d=>!d.cancelled).map(d=>({month:String(d.period||d.date||"").slice(0,7),proj:projOf(d.cc||"ASP"),excl:+d.sub||0,no:d.no,from:d.contractor}));
+let COST_Y=today().slice(0,4),COST_SEL=null;
+VIEWS.costs=()=>{const R=costRows().filter(r=>r.month.startsWith(COST_Y)),REC=recRows().filter(r=>r.month.startsWith(COST_Y));
+ const projs=[...new Set(["ASP","MED","CEER","HO",...R.map(r=>r.proj)])];const mi=r=>+r.month.slice(5,7)-1;
+ const sum=(L,p,m)=>L.filter(r=>r.proj===p&&(m===null||mi(r)===m)).reduce((a,r)=>a+r.excl,0);
+ const cell=(p,m)=>{const v=sum(R,p,m);return v?`<a href="#" data-cs="${p}|${m}">${money(v)}</a>`:`<span class="hint">–</span>`;};
+ const years=[...new Set([COST_Y,...costRows().map(r=>r.month.slice(0,4)).filter(Boolean)])].sort();
+ const pos=D.pos.filter(p=>p.kind==="PO"&&!p.cancelled);
+ const sel=COST_SEL?R.filter(r=>r.proj===COST_SEL[0]&&(COST_SEL[1]===null||mi(r)===COST_SEL[1])):[];
+ return head(tr("Invoices & monthly costs","الفواتير والتكاليف الشهرية"),tr("Register every invoice the company receives – supplier invoices (with or without PO), back charges from MBL, rentals, utilities and services. The monthly report shows the cost of each project (excl. VAT), together with petty cash.","سجّل كل فاتورة واردة؛ التقرير الشهري يبين تكلفة كل مشروع."))+msgBox+
+ `<div class="card"><h2>${tr("Register an invoice","تسجيل فاتورة")}</h2><div class="fg">
+ <div class="f"><label>${tr("Type","النوع")} *</label><select id="ivT">${INV_TYPES.map(t=>`<option>${t}</option>`).join("")}</select></div>
+ <div class="f"><label>${tr("PO (if any)","أمر الشراء (إن وجد)")}</label><select id="ivPo"><option value="">${tr("— no PO —","— بدون أمر شراء —")}</option>${pos.map(p=>`<option value="${esc(p.no)}">${esc(p.no)} — ${esc(p.sup)}</option>`).join("")}</select></div>
+ <div class="f"><label>${tr("From (supplier / company)","من (المورد / الشركة)")} *</label><input class="en" id="ivS" list="ivSL"><datalist id="ivSL">${[...new Set(["MBL",...SUPS,...D.pos.map(p=>p.sup),...(D.cost||[]).map(c=>c.sup)].filter(Boolean))].map(n=>`<option>${esc(n)}</option>`).join("")}</datalist></div>
+ <div class="f"><label>${tr("Cost center","مركز التكلفة")} *</label><select id="ivC">${CC.map(c=>`<option>${esc(c)}</option>`).join("")}</select></div>
+ <div class="f"><label>${tr("Month of the cost","شهر التكلفة")} *</label><input type="month" id="ivM" value="${month()}"></div>
+ <div class="f"><label>${tr("Invoice No.","رقم الفاتورة")} *</label><input class="en" id="ivN"></div>
+ <div class="f"><label>${tr("Invoice date","تاريخ الفاتورة")}</label><input type="date" id="ivD" value="${today()}"></div>
+ <div class="f"><label>${tr("Amount excl. VAT","المبلغ قبل الضريبة")} *</label><input class="en" type="number" id="ivX"></div>
+ <div class="f"><label>VAT</label><input class="en" type="number" id="ivV"></div>
+ <div class="f"><label>${tr("Total incl. VAT","الإجمالي مع الضريبة")}</label><input class="en" id="ivTot" readonly></div>
+ <div class="f w2"><label>${tr("Description","الوصف")}</label><input id="ivDs" data-ar="1"></div>
+ <div class="f"><label>${tr("Re-billed to contractor?","يُعاد تحميلها على مقاول؟")}</label><select id="ivRb"><option value="">${tr("No","لا")}</option>${CONTR.map(c=>`<option>${esc(c)}</option>`).join("")}</select></div>
+ <div class="f"><label>${tr("Invoice file (PDF / photo)","ملف الفاتورة")} *</label><input type="file" id="ivF" accept=".pdf,image/*"></div></div>
+ <div class="btns"><span class="hint">${tr("With a PO it also appears in Finance (3-way match).","مع أمر شراء تظهر أيضاً في المالية (المطابقة الثلاثية).")}</span><span style="flex:1"></span><button class="b" style="background:#7C3AED" id="ivSave">💾 ${tr("Save invoice","حفظ الفاتورة")}</button></div></div>
+ <div class="card"><h2>${tr("Monthly cost per project (SAR, excl. VAT)","التكلفة الشهرية لكل مشروع (ريال، قبل الضريبة)")} <select id="cyY" style="width:auto;margin-inline-start:10px">${years.map(y=>`<option ${y===COST_Y?"selected":""}>${y}</option>`).join("")}</select> <button class="b l sm" id="cyX">⬇ Excel</button></h2>
+ <div style="overflow-x:auto"><table class="t"><tr><th>${tr("Project","المشروع")}</th>${MONS.map(m=>`<th class="num">${m}</th>`).join("")}<th class="num">${tr("Total","الإجمالي")}</th></tr>
+ ${projs.map(p=>`<tr><td><b>${p}</b></td>${MONS.map((_,m)=>`<td class="num">${cell(p,m)}</td>`).join("")}<td class="num"><b>${cell(p,null)}</b></td></tr>`).join("")}
+ <tr><td><b>${tr("All projects","كل المشاريع")}</b></td>${MONS.map((_,m)=>`<td class="num"><b>${money(R.filter(r=>mi(r)===m).reduce((a,r)=>a+r.excl,0))}</b></td>`).join("")}<td class="num"><b>${money(R.reduce((a,r)=>a+r.excl,0))}</b></td></tr>
+ <tr><td class="hint">${tr("Recovered from contractors (debit notes)","المسترد من المقاولين (إشعارات مدينة)")}</td>${MONS.map((_,m)=>{const v=REC.filter(r=>+r.month.slice(5,7)-1===m).reduce((a,r)=>a+r.excl,0);return `<td class="num hint">${v?money(v):"–"}</td>`;}).join("")}<td class="num hint">${money(REC.reduce((a,r)=>a+r.excl,0))}</td></tr></table></div>
+ <p class="hint">${tr("Click an amount to see its invoices. Includes invoices registered here, PO invoices from Finance, petty cash vouchers and petty cash custody invoices.","اضغط على مبلغ لرؤية فواتيره.")}</p></div>
+ ${COST_SEL?`<div class="card"><h2>${esc(COST_SEL[0])} · ${COST_SEL[1]===null?COST_Y:MONS[COST_SEL[1]]+" "+COST_Y} · ${money(sel.reduce((a,r)=>a+r.excl,0))} SAR</h2><table class="t"><tr><th>${tr("Type","النوع")}</th><th>${tr("From","من")}</th><th>${tr("Invoice","الفاتورة")}</th><th>${tr("Cost center","مركز التكلفة")}</th><th>${tr("Description","الوصف")}</th><th class="num">${tr("Excl. VAT","قبل الضريبة")}</th><th class="num">${tr("Incl. VAT","مع الضريبة")}</th><th>${tr("Paid","مدفوعة")}</th><th></th></tr>
+ ${sel.map((r,i)=>`<tr><td>${tag(r.type,r.src==="cost"?"b":r.src==="inv"?"p":"a")}</td><td class="en">${esc(r.from)}</td><td class="en">${esc(r.no)}${r.ref?`<div class="hint">${esc(r.ref)}</div>`:""}</td><td class="en">${esc(r.cc||"")}</td><td>${esc(r.desc)}</td><td class="num">${money(r.excl)}</td><td class="num">${money(r.total)}</td><td>${r.src==="cost"||r.src==="inv"?(r.paid?tag(tr("Paid","مدفوعة")+" "+r.paid,"g"):`<button class="b g sm" data-cpay="${i}">${tr("Mark paid","تم الدفع")}</button>`):""}</td><td style="white-space:nowrap">${r.att?`<a href="#" data-catt="${i}">📎</a>`:""} ${r.src==="cost"&&whIsAdmin()?`<button class="b r sm" data-cdel="${i}">✕</button>`:""}</td></tr>`).join("")||`<tr><td colspan="9" class="hint">${tr("No invoices.","لا فواتير.")}</td></tr>`}</table></div>`:""}`;};
+BIND.costs=()=>{const tot=()=>{const x=+$("#ivX").value||0,v=$("#ivV").value===""?Math.round(x*15)/100:+$("#ivV").value;$("#ivTot").value=money(x+v);};
+ $("#ivX").addEventListener("input",()=>{if($("#ivV").dataset.man!=="1")$("#ivV").value=(Math.round((+$("#ivX").value||0)*15)/100)||"";tot();});$("#ivV").addEventListener("input",()=>{$("#ivV").dataset.man="1";tot();});
+ $("#ivPo").onchange=()=>{const p=D.pos.find(x=>x.no===$("#ivPo").value);if(p){$("#ivS").value=p.sup;if(CC.includes(p.cc))$("#ivC").value=p.cc;else{const o=document.createElement("option");o.textContent=p.cc;$("#ivC").appendChild(o);$("#ivC").value=p.cc;}$("#ivT").value="Supplier invoice";}};
+ $("#ivSave").onclick=async()=>{const sup=$("#ivS").value.trim(),no=$("#ivN").value.trim(),x=+$("#ivX").value,f=$("#ivF").files[0],m=$("#ivM").value;
+  if(!sup||!no||!(x>0)||!m)return msg("err",ERR.req());if(!f)return msg("err",tr("Attach the invoice file.","أرفق ملف الفاتورة."));
+  const vat=$("#ivV").value===""?Math.round(x*15)/100:+$("#ivV").value,po=$("#ivPo").value;
+  if(po?(D.invs||[]).some(v=>v.po===po&&v.no===no):(D.cost||[]).some(v=>!v.cancelled&&whL(v.sup)===whL(sup)&&v.no===no))return msg("err",tr("This invoice number is already registered for this supplier.","رقم الفاتورة مسجل مسبقاً لهذا المورد."));
+  const b=$("#ivSave");b.disabled=true;let att;try{att=await saveAtt(f,"03 Procurement/04 Invoices/"+m,qtSafe(sup)+" "+qtSafe(no),"invoice");}catch(e){b.disabled=false;return msg("err",esc(e.message));}
+  const base={no,date:$("#ivD").value,month:m,cc:$("#ivC").value,type:$("#ivT").value,sup,excl:x,vat,desc:$("#ivDs").value.trim(),rebill:$("#ivRb").value,att,by:apMe(),paid:""};
+  if(po){D.invs.push(Object.assign({po,amt:Math.round((x+vat)*100)/100},base));}else{D.cost=[...(D.cost||[]),Object.assign({key:sup+"|"+no,total:Math.round((x+vat)*100)/100},base)];}
+  persist();COST_Y=m.slice(0,4);COST_SEL=[projOf(base.cc),+m.slice(5,7)-1];render();toast("✔ "+tr("Invoice saved","حُفظت الفاتورة")+" – "+sup+" "+no);};
+ $("#cyY").onchange=e=>{COST_Y=e.target.value;COST_SEL=null;render();};
+ document.querySelectorAll("[data-cs]").forEach(a=>a.onclick=ev=>{ev.preventDefault();const [p,m]=a.dataset.cs.split("|");COST_SEL=[p,m==="null"?null:+m];render();setTimeout(()=>{const c=[...document.querySelectorAll(".card")].pop();if(c)c.scrollIntoView({behavior:"smooth"});},50);});
+ const sel=()=>{const mi=r=>+r.month.slice(5,7)-1;return COST_SEL?costRows().filter(r=>r.month.startsWith(COST_Y)&&r.proj===COST_SEL[0]&&(COST_SEL[1]===null||mi(r)===COST_SEL[1])):[];};
+ document.querySelectorAll("[data-catt]").forEach(a=>a.onclick=ev=>{ev.preventDefault();const r=sel()[+a.dataset.catt];if(r&&r.att)openAtt(r.att);});
+ document.querySelectorAll("[data-cpay]").forEach(b=>b.onclick=()=>{const r=sel()[+b.dataset.cpay];if(!r)return;if(r.src==="inv"){const p=D.pos.find(x=>x.no===r.rec.po);if(p&&!poSigned(p))return toast("✖ "+tr("PO not fully signed","أمر الشراء غير موقّع"));}r.rec.paid=today();r.rec.paidBy=apMe();persist();render();});
+ document.querySelectorAll("[data-cdel]").forEach(b=>b.onclick=()=>{const r=sel()[+b.dataset.cdel];if(!r)return;if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent=tr("Again to delete","مرة أخرى للحذف");return;}r.rec.cancelled=today();r.rec.cancelledBy=apMe();persist();render();});
+ $("#cyX").onclick=()=>{try{const R=costRows().filter(r=>r.month.startsWith(COST_Y));const rows=[["Month","Project","Cost center","Type","From","Invoice No.","Description","Excl. VAT","Incl. VAT","Paid","Ref"]].concat(R.map(r=>[r.month,r.proj,r.cc||"",r.type,r.from,r.no,r.desc,r.excl,Math.round(r.total*100)/100,r.paid||"",r.ref||""]));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"Invoices "+COST_Y);XLSX.writeFile(wb,"MIDU invoices and costs "+COST_Y+".xlsx");}catch(e){toast("✖ "+e.message);}};};
+if(typeof VIEW_AREA!=="undefined")VIEW_AREA.costs="pr";
+if(typeof M365_ROLES!=="undefined"){["procurement","finance"].forEach(r=>{if(Array.isArray(M365_ROLES[r])&&!M365_ROLES[r].includes("costs"))M365_ROLES[r].push("costs");});}
+{const N3=NAV;NAV=()=>{const n=N3();const i=n.findIndex(x=>x[1]==="fin");if(i>-1&&!n.some(x=>x[1]==="costs"))n.splice(i+1,0,[1,"costs","🧾","#7C3AED",tr("Invoices & monthly costs","الفواتير والتكاليف الشهرية")]);return n;};}
+
+/* Update 55: Category + Department on every cost, report by Project / Category / Department, and per-project totals to date */
+const COST_CATS=["Rentals – equipment & generators","Fuel & diesel","Utilities (power, water, ice)","Furniture & fit-out","IT & electronics","Safety & PPE","Stationery & office supplies","Cleaning & pantry","Tools & materials","Transport & logistics","Services & subcontract","Accommodation & welfare","Back charges from MBL","Other"];
+const COST_DEPTS=["Logistics","Procurement","Finance","HSE","IT","Admin / HR","Construction","Maintenance","Management","Other"];
+const catGuess=r=>{const t=(r.type+" "+r.desc+" "+r.from).toLowerCase();return /mbl/.test(t)&&/back charge/.test(t)?"Back charges from MBL":/generator|rental|crane|equipment/.test(t)?"Rentals – equipment & generators":/diesel|fuel|petrol/.test(t)?"Fuel & diesel":/water|ice|power|electric/.test(t)?"Utilities (power, water, ice)":/furniture|desk|chair|sofa|cabinet/.test(t)?"Furniture & fit-out":/printer|laptop|monitor|keyboard|zebra|usb|computer/.test(t)?"IT & electronics":/safety|helmet|vest|ppe|glove|cone/.test(t)?"Safety & PPE":/paper|pen|stationer|clip|folder/.test(t)?"Stationery & office supplies":/clean|tissue|pantry|coffee|tea|sugar/.test(t)?"Cleaning & pantry":/tool|wrench|drill/.test(t)?"Tools & materials":"Other";};
+{const F=costRows;costRows=()=>F().map(r=>Object.assign(r,{cat:(r.rec&&r.rec.cat)||catGuess(r),dept:(r.rec&&r.rec.dept)||"Other"}));}
+let COST_BY="proj";
+{const V=VIEWS.costs;VIEWS.costs=()=>{let h=V();
+ const sel=(id,lab,L)=>`<div class="f"><label>${lab} *</label><select id="${id}">${L.map(x=>`<option>${esc(x)}</option>`).join("")}</select></div>`;
+ h=h.replace(`<div class="f w2"><label>${tr("Description","الوصف")}</label><input id="ivDs"`,sel("ivCat",tr("Category","الفئة"),COST_CATS)+sel("ivDep",tr("Department","القسم"),COST_DEPTS)+`<div class="f w2"><label>${tr("Description","الوصف")}</label><input id="ivDs"`);
+ if(COST_BY!=="proj"){const all=costRows().filter(r=>r.month.startsWith(COST_Y)),key=COST_BY==="cat"?"cat":"dept",L=[...new Set(all.map(r=>r[key]))].sort(),mi=r=>+r.month.slice(5,7)-1;
+  const tb=`<table class="t"><tr><th>${COST_BY==="cat"?tr("Category","الفئة"):tr("Department","القسم")}</th>${MONS.map(m=>`<th class="num">${m}</th>`).join("")}<th class="num">${tr("Total","الإجمالي")}</th></tr>${L.map(k=>{const R=all.filter(r=>r[key]===k);return `<tr><td><b>${esc(k)}</b></td>${MONS.map((_,m)=>{const v=R.filter(r=>mi(r)===m).reduce((a,r)=>a+r.excl,0);return `<td class="num">${v?money(v):"<span class='hint'>–</span>"}</td>`;}).join("")}<td class="num"><b>${money(R.reduce((a,r)=>a+r.excl,0))}</b></td></tr>`;}).join("")}</table>`;
+  h=h.replace(/<div style="overflow-x:auto"><table class="t">[\s\S]*?<\/table><\/div>/,`<div style="overflow-x:auto">${tb}</div>`);}
+ h=h.replace(`<button class="b l sm" id="cyX">`,`<select id="cyBy" style="width:auto;margin-inline-start:6px"><option value="proj" ${COST_BY==="proj"?"selected":""}>${tr("by project","حسب المشروع")}</option><option value="cat" ${COST_BY==="cat"?"selected":""}>${tr("by category","حسب الفئة")}</option><option value="dept" ${COST_BY==="dept"?"selected":""}>${tr("by department","حسب القسم")}</option></select> <button class="b l sm" id="cyX">`);
+ const all=costRows(),P=[...new Set(all.map(r=>r.proj))];
+ if(P.length)h=h.replace(`<div class="card"><h2>${tr("Register an invoice","تسجيل فاتورة")}</h2>`,`<div class="grid g4" style="margin-bottom:16px">${P.map(p=>{const v=all.filter(r=>r.proj===p).reduce((a,r)=>a+r.excl,0);return `<div class="kpi"><div class="v">${money(v)}</div><div class="l">${esc(p)} – ${tr("cost to date (SAR excl. VAT)","التكلفة حتى الآن")}</div></div>`;}).join("")}</div><div class="card"><h2>${tr("Register an invoice","تسجيل فاتورة")}</h2>`);
+ return h;};}
+{const B=BIND.costs;BIND.costs=()=>{B();const by=$("#cyBy");if(by)by.onchange=e=>{COST_BY=e.target.value;render();};
+ const s=$("#ivSave");if(s){const o=s.onclick;s.onclick=async ev=>{const nC=(D.cost||[]).length,nI=(D.invs||[]).length,cat=$("#ivCat").value,dep=$("#ivDep").value;await o.call(s,ev);
+  const r=(D.cost||[]).length>nC?D.cost[D.cost.length-1]:(D.invs||[]).length>nI?D.invs[D.invs.length-1]:null;if(r){r.cat=cat;r.dept=dep;persist();render();}};}
+ const T=$("#ivT"),C=$("#ivCat");if(T&&C)T.addEventListener("change",()=>{if(T.value==="Back charge from MBL")C.value="Back charges from MBL";else if(T.value==="Rental")C.value="Rentals – equipment & generators";else if(T.value==="Utilities bill")C.value="Utilities (power, water, ice)";else if(T.value==="Services / subcontract")C.value="Services & subcontract";});
+ const x=$("#cyX");if(x)x.onclick=()=>{try{const R=costRows().filter(r=>r.month.startsWith(COST_Y));const rows=[["Month","Project","Cost center","Category","Department","Type","From","Invoice No.","Description","Excl. VAT","Incl. VAT","Paid","Ref"]].concat(R.map(r=>[r.month,r.proj,r.cc||"",r.cat,r.dept,r.type,r.from,r.no,r.desc,r.excl,Math.round(r.total*100)/100,r.paid||"",r.ref||""]));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"Invoices "+COST_Y);XLSX.writeFile(wb,"MIDU invoices and costs "+COST_Y+".xlsx");}catch(e){toast("✖ "+e.message);}};};}
 /* e-mails: collect for 2.5 s so several signatures in a row become one e-mail per person */
 {const S0=mailSend;let BUF=[],T=null;
  mailSend=function(to,subj,lines,scr){BUF.push({to,subj,lines,scr});clearTimeout(T);T=setTimeout(()=>{const G={};BUF.forEach(m=>(G[m.to]=G[m.to]||[]).push(m));BUF=[];
