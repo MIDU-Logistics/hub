@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611241400"></script>
-<script src="local.js?v=202611241400"></script>
+<script src="m365.js?v=202611241500"></script>
+<script src="local.js?v=202611241500"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -2108,7 +2108,7 @@ VIEWS.whappr=()=>{const W=whWaiting(),me=whL(apMe());const ty=t=>tag(t,t==="GRN"
  const sic=whSIC();
  return head(tr("Warehouse approvals","اعتمادات المستودع"),tr("Receipts, issues and returns waiting for an electronic signature. Chain: issuer → ","الاستلام والصرف والإرجاع بانتظار التوقيع الإلكتروني. التسلسل: المُصدِر → ")+(sic?tr("Store In-charge","مسؤول المستودع")+" ("+esc(sic)+") → ":"")+tr("Logistics Manager","مدير اللوجستيات")+" ("+WH_LM+").")+msgBox+
  `<div class="card"><h2>${tr("Waiting for me","بانتظاري")} (${W.length})</h2>${W.length?`<table class="t"><tr><th></th><th>${tr("No.","الرقم")}</th><th>${tr("Date","التاريخ")}</th><th>${tr("Party","الطرف")}</th><th class="num">${tr("Lines","الأسطر")}</th><th>${tr("Signed so far","التواقيع")}</th><th></th></tr>${W.map(row).join("")}</table>`:`<p class="hint">${tr("Nothing is waiting for you.","لا يوجد ما ينتظرك.")}</p>`}</div>
- ${back.length?`<div class="card"><h2>${tr("Returned – not approved","معادة – غير معتمدة")} (${back.length})</h2><p class="hint">${tr("The issuer opens the screen, clicks ✎ Edit, corrects and saves (signs again) – or Cancel. Returns (MRS) can only be cancelled and done again.","يفتح المُصدِر الشاشة ويعدّل ويحفظ (ويوقّع مجدداً) أو يلغي.")}</p><table class="t">${back.map(d=>`<tr><td>${ty(d.type)}</td><td class="en"><b>${esc(d.no)}</b></td><td class="en">${esc(d.party||"")}</td><td>${whTrail(d)}</td><td style="white-space:nowrap"><button class="b l sm" data-whdoc="${esc(d.no)}">${tr("View","عرض")}</button> <button class="b sm" data-whgo="${d.type.toLowerCase()}">${tr("Open","فتح")} ${d.type}</button></td></tr>`).join("")}</table></div>`:""}
+ ${back.length?`<div class="card"><h2>${tr("Returned – not approved","معادة – غير معتمدة")} (${back.length})</h2><p class="hint">${tr("The issuer opens the screen, clicks ✎ Edit, corrects and saves (signs again). Only the Logistics Manager can cancel. Returns (MRS) can only be cancelled by him and done again.","يفتح المُصدِر الشاشة ويعدّل ويحفظ (ويوقّع مجدداً) أو يلغي.")}</p><table class="t">${back.map(d=>`<tr><td>${ty(d.type)}</td><td class="en"><b>${esc(d.no)}</b></td><td class="en">${esc(d.party||"")}</td><td>${whTrail(d)}</td><td style="white-space:nowrap"><button class="b l sm" data-whdoc="${esc(d.no)}">${tr("View","عرض")}</button> <button class="b sm" data-whgo="${d.type.toLowerCase()}">${tr("Open","فتح")} ${d.type}</button></td></tr>`).join("")}</table></div>`:""}
  ${mine.length?`<div class="card"><h2>${tr("Signed by me","وقّعتها")}</h2><table class="t">${mine.map(d=>`<tr><td>${ty(d.type)}</td><td class="en"><b>${esc(d.no)}</b></td><td>${whTag(d)}</td><td>${whTrail(d)}</td><td><button class="b l sm" data-whdoc="${esc(d.no)}">${tr("View","عرض")}</button></td></tr>`).join("")}</table></div>`:""}`;};
 BIND.whappr=()=>whBind();
 /* roles, area folder and menu */
@@ -2180,6 +2180,19 @@ function mdsFrom(d){const S=[...new Set((d.lines||[]).filter(l=>!l.asset).map(l=
 
 /* ===== Update 38: PIN dialogs show only the PIN box (no Print / Save PDF buttons) ===== */
 {const P0=apPinDlg;apPinDlg=function(...a){P0(...a);["#mPr","#mDrive","#mDl"].forEach(id=>{const e=$(id);if(e)e.style.display="none";});const h=$("#mHint");if(h)h.textContent="";};}
+
+/* ===== Update 39: only the admin (Azzam) can Edit or Cancel GRN / MDS / MRS =====
+   Exception: the issuer may Edit a document the approver returned as "Not approved" (to correct it). */
+const whIsAdmin=()=>{try{return typeof LOCAL!=="undefined"&&LOCAL.connected?LOCAL.isAdmin():true;}catch(e){return false;}};
+const whCanEdit=d=>whIsAdmin()||(!!d&&!!d.rej&&!d.cancelled&&whL(whIss(d))===whL(apMe()));
+const whCanCancel=()=>whIsAdmin();
+{const RD1=recentDocs;recentDocs=function(type){let h=RD1(type);D.docs.filter(d=>d.type===type).slice(-12).forEach(d=>{const no=esc(d.no);
+  if(!whCanEdit(d))h=h.replace(new RegExp(`<button class="b l sm" data-ed="${no.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}">[^<]*</button> ?`),"");
+  if(!whCanCancel())h=h.replace(new RegExp(`<button class="b r sm" data-cx="${no.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}">[^<]*</button> ?`),"");});
+ if(!whCanCancel())h=h.replace(`<h2>${tr("Recent documents – signed / stamped copies","المستندات الأخيرة – النسخ الموقعة / المختومة")}</h2>`,`<h2>${tr("Recent documents – signed / stamped copies","المستندات الأخيرة – النسخ الموقعة / المختومة")}</h2><p class="hint">🔒 ${tr("Wrong entry? Ask the Logistics Manager – only he can edit or cancel a saved document.","إدخال خاطئ؟ اطلب من مدير اللوجستيات – هو فقط يمكنه تعديل أو إلغاء مستند محفوظ.")}</p>`);
+ return h;};}
+{const E0=whEdit;whEdit=function(no,type){const d=D.docs.find(x=>x.no===no);if(!whCanEdit(d))return toast("🔒 "+tr("Only the Logistics Manager can edit saved documents.","فقط مدير اللوجستيات يمكنه التعديل."));return E0(no,type);};}
+{const C0=whCancel;whCancel=function(no){if(!whCanCancel())return toast("🔒 "+tr("Only the Logistics Manager can cancel documents.","فقط مدير اللوجستيات يمكنه الإلغاء."));return C0(no);};}
 
 </script>
 </body>
