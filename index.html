@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611241900"></script>
-<script src="local.js?v=202611241900"></script>
+<script src="m365.js?v=202611242100"></script>
+<script src="local.js?v=202611242100"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -1007,7 +1007,7 @@ function cqsDoc(c){const p=D.prs.find(x=>x.no===c.pr)||{},Q=c.quotes||[],S=cqsSc
  <tr style="height:24px">${ppL("Approved supplier (PD + FM decision)")}${ppV(esc(c.sel||""))}${ppV(o?esc(o.no):"")}<td style="font-size:8.5px;font-weight:700;color:${PP_N};padding-left:6px">Quotations<br>required</td>${ppV(est>=5000?"3":"1","width:9%;text-align:center")}</tr>
  <tr>${ppL("Approved supplier not Rank 1?")}${ppV(c.sel&&r1.sup&&c.sel!==r1.sup?"Yes":"No")}<td></td></tr><tr>${ppL("Reason given by PD / FM")}${ppV(esc(c.reason||""))}<td></td></tr><tr>${ppL("Procurement comment")}${ppV(esc(c.comment||""))}<td></td></tr></table>
  <table style="width:100%;border-collapse:collapse;margin-top:16px"><tr><th style="background:${PP_N};border:${PP_B};width:5%"></th>${ppTh("Prepared by (Procurement)","","40%")}${ppTh("Project Director","","33%")}${ppTh("Finance Manager","")}</tr>
- <tr>${ppL("Name")}${ppC("Raghad Ahmad Altowirgi")}${ppC("Najed Fakhreddine")}${ppC("Osama Al Saggaf")}</tr><tr>${ppL("Status")}${ppC("")}${ppC(c.ap!==undefined?apCell("cqs",c,"PD"):ap)}${ppC(c.ap!==undefined?apCell("cqs",c,"FM"):ap)}</tr><tr style="height:40px">${ppL("Signature")}${ppC("")}${ppC(c.ap!==undefined?apSigCell("cqs",c,"PD"):"")}${ppC(c.ap!==undefined?apSigCell("cqs",c,"FM"):"")}</tr></table>
+ <tr>${ppL("Name")}${ppC(esc(cqsPrepName(c)))}${ppC("Najed Fakhreddine")}${ppC("Osama Al Saggaf")}</tr><tr>${ppL("Status")}${ppC(cqsPrepCell(c))}${ppC(c.ap!==undefined?apCell("cqs",c,"PD"):ap)}${ppC(c.ap!==undefined?apCell("cqs",c,"FM"):ap)}</tr><tr style="height:40px">${ppL("Signature")}${ppC(cqsPrepSig(c))}${ppC(c.ap!==undefined?apSigCell("cqs",c,"PD"):"")}${ppC(c.ap!==undefined?apSigCell("cqs",c,"FM"):"")}</tr></table>
  <table style="width:auto;margin:14px 0 0 5%;border-collapse:collapse"><tr>${ppL("All approvals complete?")}${ppV(c.approved?"Yes":"No","width:90px")}</tr></table></div>`;}
 /* Purchase Order Form + Petty Cash Voucher */
 const PP_SUP={};
@@ -1873,9 +1873,9 @@ function prDoc(p){const L=p.lines||[],tot=L.reduce((a,l)=>a+l.qty*l.est,0),c=D.c
  <tr style="height:14px"><td colspan="8"></td></tr>
  <tr style="height:40px"><td style="border:${B}"></td>${sh("Prepared by (Logistics)","مقدم الطلب")}${sh("Direct Manager - Project Director","المدير المباشر - مدير المشروع",3)}${sh("Received by Procurement","استلام المشتريات",3)}</tr>
  <tr>${sl("Name","الاسم")}${td(esc(p.req||"Azzam El Masri"))}${td("Najed Fakhreddine",'" colspan="3')}${td(esc(p.rcvName||"Raghad Ahmad Altowirgi"),'" colspan="3')}</tr>
- <tr>${sl("Status","الحالة")}${td(sent?"Submitted":"Draft")}${td(rej?"<b style='color:#C00000'>Not approved</b>":p.pd?"Approved":"",'" colspan="3')}${td(p.rcvSigned?"Received":"",'" colspan="3')}</tr>
- <tr>${sl("Date","التاريخ")}${td(ppD(p.date))}${td(ppD(rej?p.rejDate:(p.pdDate||"")),'" colspan="3')}${td(p.rcvSigned?ppD(p.rcvDate||""):"",'" colspan="3')}</tr>
- <tr style="height:53px">${sl("Signature","التوقيع")}${td(p.prepSigned?sigImg(p.req):"","padding:1px")}${td(rej?(p.rejSigned?sigImg(p.rejBy):""):p.pdSigned?sigImg(p.pdBy):"",'padding:1px" colspan="3')}${td(p.rcvSigned?sigImg(p.rcvBy||"Raghad Altowirgi"):"",'padding:1px" colspan="3')}</tr>
+ <tr>${sl("Status","الحالة")}${td(sent?"Submitted":"Draft")}${td(rej?"<b style='color:#C00000'>Not approved</b>":p.pd?"Approved":"",'" colspan="3')}${td(prRcvOk(p)?"Received":(p.rcvEs&&!p.cancelled?(p.rcvEs.rej?"<b style='color:#C00000'>Returned</b>":"<span style='color:#8A94A6'>Pending e-signature</span>"):""),'" colspan="3')}</tr>
+ <tr>${sl("Date","التاريخ")}${td(ppD(p.date))}${td(ppD(rej?p.rejDate:(p.pdDate||"")),'" colspan="3')}${td(prRcvOk(p)?ppD(p.rcvDate||""):"",'" colspan="3')}</tr>
+ <tr style="height:53px">${sl("Signature","التوقيع")}${td(p.prepSigned?sigImg(p.req):"","padding:1px")}${td(rej?(p.rejSigned?sigImg(p.rejBy):""):p.pdSigned?sigImg(p.pdBy):"",'padding:1px" colspan="3')}${td(prRcvOk(p)?sigImg(p.rcvBy||"Raghad Altowirgi"):"",'padding:1px" colspan="3')}</tr>
  <tr style="height:20px"><td colspan="8"></td></tr>
  <tr><td colspan="8" style="font-size:7.5pt;text-align:center">info@midu.com.sa &nbsp; | &nbsp; www.midu.com.sa</td></tr></table></div>`;}
 
@@ -2335,7 +2335,7 @@ VIEWS.esign=()=>{const W=esWaiting(),me=whL(apMe()),adm=whIsAdmin();
  const mine=all.filter(([k,o])=>esR(k,o)&&((esR(k,o).ap||[]).some(a=>whL(a.by)===me))).slice(-20).reverse();
  const old=adm?all.filter(([k,o])=>!esR(k,o)&&!o.cancelled):[];
  const wh=typeof whWaiting==="function"?whWaiting().length:0,pr=typeof apWaiting==="function"?apWaiting().length:0;
- return head(tr("My signatures","توقيعاتي"),tr("Maintenance requests and checklists, debit notes, HR requests and asset handover sheets waiting for your electronic signature (PIN).","طلبات وقوائم الصيانة، إشعارات المدين، طلبات الموارد البشرية ونماذج تسليم الأصول بانتظار توقيعك الإلكتروني."))+msgBox+
+ return head(tr("My signatures","توقيعاتي"),tr("Every form waiting for your electronic signature (PIN): PR receipts, CQS, petty cash and payment vouchers, stock counts, maintenance, debit notes, HR requests and asset handover sheets.","طلبات وقوائم الصيانة، إشعارات المدين، طلبات الموارد البشرية ونماذج تسليم الأصول بانتظار توقيعك الإلكتروني."))+msgBox+
  ((wh||pr)?`<div class="banner" style="background:#F3E8FF;border-color:#7C3AED;color:#4C1D95">${wh?`<a href="#" data-esgo="whappr"><b>${wh}</b> ${tr("in Warehouse approvals","في اعتمادات المستودع")}</a>`:""}${wh&&pr?" · ":""}${pr?`<a href="#" data-esgo="appr"><b>${pr}</b> ${tr("in My approvals (Procurement)","في اعتماداتي (المشتريات)")}</a>`:""}</div>`:"")+
  `<div class="card"><h2>${tr("Waiting for me","بانتظاري")} (${W.length})</h2>${W.length?`<table class="t"><tr><th></th><th>${tr("No.","الرقم")}</th><th>${tr("Details","التفاصيل")}</th><th>${tr("My step","خطوتي")}</th><th>${tr("Signed so far","التواقيع")}</th><th></th></tr>${W.map(row).join("")}</table>`:`<p class="hint">${tr("Nothing is waiting for you.","لا يوجد ما ينتظرك.")}</p>`}</div>
  ${back.length?`<div class="card"><h2>${tr("Returned – not approved","معادة – غير معتمدة")}</h2><p class="hint">${tr("Correct it in its screen, then click Sign again to restart the signatures.","صحّحه في شاشته ثم اضغط توقيع لإعادة التوقيعات.")}</p><table class="t">${back.map(([k,o])=>`<tr><td>${tag(k.label,"r")}</td><td class="en"><b>${esc(esNo(k,o))}</b></td><td>${esTrail(k,o)}</td><td style="white-space:nowrap"><button class="b l sm" data-esv="${k.id}|${esc(o.no)}">${tr("View","عرض")}</button> <button class="b sm" data-esre="${k.id}|${esc(o.no)}">✍ ${tr("Sign again","توقيع مجدداً")}</button></td></tr>`).join("")}</table></div>`:""}
@@ -2358,6 +2358,61 @@ BIND.esign=()=>{whSigNames();const f=v=>{const [id,no]=v.split("|");const k=esK(
  ["mreq","mcl"].forEach(v=>{const V=VIEWS[v];VIEWS[v]=()=>tagRows(v,V());});}
 
 
+
+/* ===================== Update 43: receipt / preparer signatures for every form that has a signature box =====================
+   PR  – Received by Procurement (Raghad)          CQS – Prepared by (Procurement, whoever saves it)
+   Stock count – Counted → Checked (Store In-charge) → Approved (Logistics Manager)
+   Petty cash voucher – Purchaser → Finance Manager   Payment voucher – Finance → FM → PD → CEO   (same engine as update 42) */
+const ES_RAGHAD="Raghad Altowirgi",ES_OSAMA=APPR.FM,ES_MARWAN=APPR.CEO;
+ES_K.push(
+ {id:"prr",coll:"prs",key:"rcvEs",scr:"pr",area:"pr",label:"PR receipt",title:o=>(o.just||"")+" · "+money((o.lines||[]).reduce((a,l)=>a+l.qty*l.est,0))+" SAR",issuerOf:()=>ES_RAGHAD,
+  applies:o=>o.status==="Sent"&&o.pd&&!o.legacy&&!(o.rcvSigned&&!o.rcvEs),
+  fields:o=>[o.no,o.cc,o.just,(o.lines||[]).map(l=>[l.code,l.desc,l.qty,l.est])],steps:()=>[["RCV","Received by Procurement",ES_RAGHAD]],doc:o=>prDoc(o)},
+ {id:"cqsp",coll:"cqs",key:"prepEs",scr:"cqs",area:"pr",label:"CQS prepared",title:o=>(o.pr||"")+" · "+(o.sel||""),issuerOf:o=>o.by||o.preparedBy||ES_RAGHAD,
+  applies:o=>!o.cancelled,
+  fields:o=>[o.no,o.pr||o.prCancelled,(o.quotes||[]).map(q=>[q.sup,q.price,q.days,q.war,q.spec,q.valid])],steps:iss=>[["PREP","Prepared by (Procurement)",iss]],doc:o=>cqsDoc(o)},
+ {id:"sc",coll:"docs",key:"es",scr:"count",area:"wh",label:"Stock count",title:o=>[(WH[o.wh]||{}).name||o.wh,o.loc].filter(Boolean).join(" · "),issuerOf:o=>o.by||o.savedBy,
+  applies:o=>o.type==="SC"&&!o.cancelled,
+  fields:o=>[o.no,o.wh,o.loc,(o.lines||[]).map(l=>[l.code,l.qty])],steps:iss=>[["PREP","Counted by",iss],["SIC","Checked by (Store In-charge)",whSIC()],["LM","Approved by (Logistics Manager)",WH_LM]],doc:o=>scForm(o)},
+ {id:"pcv",coll:"pos",key:"es",scr:"po",area:"pr",label:"Petty cash voucher",title:o=>(o.sup||"")+" · "+money(poTotal(o)*1.15)+" SAR",issuerOf:o=>o.by||o.buyer||"",
+  applies:o=>o.kind==="PC"&&!o.cancelled,
+  fields:o=>[o.no,o.sup,o.cc,(o.lines||[]).map(l=>[l.desc,l.qty,l.price,l.cls])],steps:iss=>[["PREP","Purchaser / prepared by",iss],["FM","Approved by (Finance Manager)",ES_OSAMA]],doc:o=>pcDoc(o)},
+ {id:"pv",coll:"invs",key:"es",scr:"fin",area:"pr",label:"Payment voucher",title:o=>(o.po||"")+" · "+money(+o.amt||0)+" SAR",issuerOf:o=>o.by||"",
+  applies:o=>!!o&&!!o.no,
+  fields:o=>[o.no,o.po,+o.amt||0],steps:iss=>[["PREP","Prepared by (Finance)",iss],["FM","Finance Manager",ES_OSAMA],["PD","Project Director",ES_NAJED],["CEO","CEO",ES_MARWAN]],doc:o=>invDoc(o)});
+/* results written back on the record */
+{const A0=esAfter;esAfter=function(k,o,reject,sig,reason){A0(k,o,reject,sig,reason);
+ if(k.id==="prr"&&!reject){Object.assign(o,{rcvSigned:true,rcvBy:sig.by,rcvDate:today()});if(whL(sig.by)!==whL(ES_RAGHAD))o.rcvName=sig.by;}
+ if(k.id==="cqsp"&&!reject)o.preparedBy=sig.by;
+ if(k.id==="pcv"&&esDone(k,o))o.fin="Approved";
+ if(k.id==="sc"&&esDone(k,o)&&o.party==="Pending approval")o.party="Approved";};}
+const prRcvOk=p=>p.rcvEs?esOk(esK("prr"),p,"RCV"):!!p.rcvSigned;
+const cqsPrepName=c=>c.prepEs?esName(esK("cqsp"),c,"PREP"):(c.preparedBy||"Raghad Ahmad Altowirgi");
+function cqsPrepCell(c){const k=esK("cqsp");if(!c.prepEs)return "";const a=esGet(k,c,"PREP");if(!a)return `<span style="color:#8A94A6">Pending e-signature</span>`;
+ return esOk(k,c,"PREP")?`Prepared<br><span style="font-size:7.5px">${esc(apDt(a.at))} · ref ${a.fp}</span>`:`<span style="color:#C00000">Changed after signing – re-sign needed</span>`;}
+const cqsPrepSig=c=>{const k=esK("cqsp");return c.prepEs&&esOk(k,c,"PREP")?sigImg(esGet(k,c,"PREP").by):"";};
+/* printed forms without their own signature cells get the electronic signatures block */
+scForm=(F=>(d,blank)=>blank?F(d,blank):esInject(F(d),esK("sc"),d))(scForm);
+pcDoc=(F=>p=>esInject(F(p),esK("pcv"),p))(pcDoc);
+invDoc=(F=>v=>esInject(F(v),esK("pv"),v))(invDoc);
+/* Finance "Approve" on a petty cash voucher now needs Osama's PIN when the voucher is in the e-signature cycle */
+document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.closest("[data-pcok]");if(!b)return;const k=esK("pcv"),o=D.pos.find(x=>x.no===b.dataset.pcok);if(!o||!esR(k,o))return;
+ ev.preventDefault();ev.stopImmediatePropagation();const n=esNext(k,o);if(!n)return toast(tr("Already signed.","تم التوقيع."));if(whL(esName(k,o,n))!==whL(apMe()))return toast(tr("Waiting for","بانتظار")+" "+esName(k,o,n));esSign(k,o,n,false);},true);
+/* status tags in the lists */
+{const V=VIEWS.pr;VIEWS.pr=()=>{let h=V();const k=esK("prr");esList(k).forEach(o=>{const R=esR(k,o);if(!R)return;const t=esDone(k,o)?tag("✔ "+tr("Received by Procurement","استلمتها المشتريات"),"g"):esTag(k,o);h=h.replace(`<b>${o.no}</b></td>`,`<b>${o.no}</b> ${t}</td>`);});return h;};}
+{const V=VIEWS.po;if(V)VIEWS.po=()=>{let h=V();const k=esK("pcv");esList(k).forEach(o=>{const t=esTag(k,o);if(t)h=h.replace(`<b>${o.no}</b></td>`,`<b>${o.no}</b> ${t}</td>`);});return h;};}
+/* signature images for the new signers */
+{const B=BIND.esign;BIND.esign=()=>{[ES_RAGHAD,ES_OSAMA,ES_MARWAN,ES_NAJED].forEach(n=>{try{sigLoad(n);}catch(e){}});B();};}
+{const B=BIND.pr;BIND.pr=()=>{try{sigLoad(ES_RAGHAD);}catch(e){}B();};}
+
+/* Update 45: "Send to PD for approval" – the requester signs with his PIN (no more tick box); the signature goes on the PR at once, then Najed approves */
+{const D0=prDlg;prDlg=function(p,toPD){if(!toPD)return D0(p,toPD);const v=money((p.lines||[]).reduce((a,l)=>a+l.qty*l.est,0));
+ const nw=(p.lines||[]).filter(l=>l.newItem&&l.code);
+ apPinDlg(tr("Sign and send to the Project Director","التوقيع والإرسال لمدير المشروع")+" – "+p.no,`<p style="margin:0 0 6px"><b>${esc(p.no)}</b> · ${esc(p.cc)} · ${v} SAR ${tr("excl. VAT","قبل الضريبة")}</p>
+ ${nw.length?`<p style="margin:0 0 6px;font-size:13px">${tr("New item codes added to the item list:","رموز أصناف جديدة تُضاف لقائمة الأصناف:")} ${nw.map(l=>`<b>${esc(l.code)}</b>`).join(", ")}</p>`:""}
+ <p style="margin:0;color:#5B6476">${tr("Your signature (Prepared by) is added to the PR now. It then goes to","يُضاف توقيعك (مقدم الطلب) الآن ثم يذهب إلى")} <b>${esc(APPR.PD)}</b> ${tr("for approval. After sending it can no longer be edited.","للاعتماد. بعد الإرسال لا يمكن تعديله.")}</p>`,false,sig=>{
+  Object.assign(p,{status:"PD",toPdOn:today(),toPdBy:sig.by,prepSigned:true,prepBy:sig.by,prepAt:sig.at});prAddNewItems(p);persist();render();toast("✔ "+p.no+" "+tr("signed and sent to the Project Director","وُقّع وأُرسل لمدير المشروع"));});
+ const g=$("#apGo");if(g)g.textContent="✍ "+tr("Sign and send to PD","توقيع وإرسال");};}
 /* e-mails: collect for 2.5 s so several signatures in a row become one e-mail per person */
 {const S0=mailSend;let BUF=[],T=null;
  mailSend=function(to,subj,lines,scr){BUF.push({to,subj,lines,scr});clearTimeout(T);T=setTimeout(()=>{const G={};BUF.forEach(m=>(G[m.to]=G[m.to]||[]).push(m));BUF=[];
