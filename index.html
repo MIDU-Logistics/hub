@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611241800"></script>
-<script src="local.js?v=202611241800"></script>
+<script src="m365.js?v=202611241900"></script>
+<script src="local.js?v=202611241900"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -1756,11 +1756,17 @@ let PR_EDIT=null;
 const PR_PD="Najed Fakhreddine",SIG={};
 const prUser=()=>(typeof LOCAL!=="undefined"&&LOCAL.user)||"";
 const prIsPD=()=>prUser().trim().toLowerCase()===PR_PD.toLowerCase();
-async function sigLoad(name){if(!name)return null;const k=name.trim().toLowerCase();if(k in SIG)return SIG[k];SIG[k]=null;
- try{if(typeof subDir!=="function"||typeof LOCAL==="undefined"||!LOCAL.dir)return null;const d=await subDir("Signatures");let fh=null;
+const SIG_MISS={},SIG_P={};
+async function sigLoad(name){if(!name)return null;const k=name.trim().toLowerCase();if(SIG[k])return SIG[k];if(SIG_P[k])return SIG_P[k];
+ if(SIG_MISS[k]&&Date.now()-SIG_MISS[k]<60000)return null;
+ SIG_P[k]=(async()=>{try{if(typeof subDir!=="function"||typeof LOCAL==="undefined"||!LOCAL.dir)return null;const d=await subDir("Signatures");let fh=null;
   for await(const [n,h] of d.entries()){if(h.kind==="file"&&/\.png$/i.test(n)&&n.replace(/\.png$/i,"").trim().toLowerCase()===k){fh=h;break;}}
-  if(!fh)return null;const f=await fh.getFile();SIG[k]=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(f);});}catch(e){}return SIG[k];}
-const sigImg=name=>{const u=name&&SIG[name.trim().toLowerCase()];return u?`<img src="${u}" style="max-height:46px;max-width:96%;display:block;margin:0 auto">`:"";};
+  if(!fh){SIG_MISS[k]=Date.now();return null;}const f=await fh.getFile();SIG[k]=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(f);});sigFill();return SIG[k];}catch(e){return null;}finally{delete SIG_P[k];}})();
+ return SIG_P[k];}
+/* Fill signature placeholders in any open document once the image is loaded */
+function sigFill(){document.querySelectorAll("img[data-signame]").forEach(im=>{const u=SIG[im.dataset.signame];if(u){im.src=u;im.style.display="block";im.removeAttribute("data-signame");}});}
+const sigImg=name=>{if(!name)return "";const k=name.trim().toLowerCase(),u=SIG[k];if(u)return `<img src="${u}" style="max-height:46px;max-width:96%;display:block;margin:0 auto">`;
+ setTimeout(()=>sigLoad(name).then(sigFill),0);return `<img data-signame="${esc(k)}" alt="" style="max-height:46px;max-width:96%;display:none;margin:0 auto">`;};
 const prLegacyOpen=p=>!p.status&&!p.pd&&!D.cqs.some(c=>c.pr===p.no)&&!D.pos.some(o=>o.pr===p.no);
 const prActive=p=>p.status!=="Deleted";
 function prBtns(p){const pr=`<button class="b l sm" data-doc="${p.no}">${tr("Print","طباعة")}</button>`;
@@ -1866,10 +1872,10 @@ function prDoc(p){const L=p.lines||[],tot=L.reduce((a,l)=>a+l.qty*l.est,0),c=D.c
  <tr><td></td>${td("<b>Status</b>")}${td(esc(stTxt),(rej?"color:#C00000;font-weight:700;":"")+'" colspan="6')}</tr>
  <tr style="height:14px"><td colspan="8"></td></tr>
  <tr style="height:40px"><td style="border:${B}"></td>${sh("Prepared by (Logistics)","مقدم الطلب")}${sh("Direct Manager - Project Director","المدير المباشر - مدير المشروع",3)}${sh("Received by Procurement","استلام المشتريات",3)}</tr>
- <tr>${sl("Name","الاسم")}${td(esc(p.req||"Azzam El Masri"))}${td("Najed Fakhreddine",'" colspan="3')}${td("Raghad Ahmad Altowirgi",'" colspan="3')}</tr>
- <tr>${sl("Status","الحالة")}${td(sent?"Submitted":"Draft")}${td(rej?"<b style='color:#C00000'>Not approved</b>":p.pd?"Approved":"",'" colspan="3')}${td("",'" colspan="3')}</tr>
- <tr>${sl("Date","التاريخ")}${td(ppD(p.date))}${td(ppD(rej?p.rejDate:(p.pdDate||"")),'" colspan="3')}${td("",'" colspan="3')}</tr>
- <tr style="height:53px">${sl("Signature","التوقيع")}${td(p.prepSigned?sigImg(p.req):"","padding:1px")}${td(rej?(p.rejSigned?sigImg(p.rejBy):""):p.pdSigned?sigImg(p.pdBy):"",'padding:1px" colspan="3')}${td("",'" colspan="3')}</tr>
+ <tr>${sl("Name","الاسم")}${td(esc(p.req||"Azzam El Masri"))}${td("Najed Fakhreddine",'" colspan="3')}${td(esc(p.rcvName||"Raghad Ahmad Altowirgi"),'" colspan="3')}</tr>
+ <tr>${sl("Status","الحالة")}${td(sent?"Submitted":"Draft")}${td(rej?"<b style='color:#C00000'>Not approved</b>":p.pd?"Approved":"",'" colspan="3')}${td(p.rcvSigned?"Received":"",'" colspan="3')}</tr>
+ <tr>${sl("Date","التاريخ")}${td(ppD(p.date))}${td(ppD(rej?p.rejDate:(p.pdDate||"")),'" colspan="3')}${td(p.rcvSigned?ppD(p.rcvDate||""):"",'" colspan="3')}</tr>
+ <tr style="height:53px">${sl("Signature","التوقيع")}${td(p.prepSigned?sigImg(p.req):"","padding:1px")}${td(rej?(p.rejSigned?sigImg(p.rejBy):""):p.pdSigned?sigImg(p.pdBy):"",'padding:1px" colspan="3')}${td(p.rcvSigned?sigImg(p.rcvBy||"Raghad Altowirgi"):"",'padding:1px" colspan="3')}</tr>
  <tr style="height:20px"><td colspan="8"></td></tr>
  <tr><td colspan="8" style="font-size:7.5pt;text-align:center">info@midu.com.sa &nbsp; | &nbsp; www.midu.com.sa</td></tr></table></div>`;}
 
