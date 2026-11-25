@@ -801,7 +801,7 @@ async function xlUtilMonth(month) {
   targets.push({ d: hd, name: xlUtilName(month), id: "hub:" + xlUtilName(month) });
   const wt = await xlWeeklyTarget(month).catch(e => { console.warn("[hub] weekly folder", e); return null; }); if (wt) targets.push(wt);
   const changes = [];
-  for (const t of targets) { if (t.isNew) continue; changes.push(...await xlUtilImport(t, sync)); }
+  /* update 58: one-way (Hub → Excel) – Excel edits are not imported */
   const n = xlApplyReadings(changes);
   if (n) { persist(); xlRerender(); toast("✔ " + n + " " + tr("utility readings brought in from Excel", "قراءة خدمات أُدخلت من Excel")); }
   const done = [];
@@ -818,7 +818,7 @@ async function xlUtilMonth(month) {
 async function xlAreaSync(area) {
   const d = await subDir(AREAS[area] + "/" + XL_DIR, true), name = AREAS[area] + " - Hub data.xlsx", id = "area:" + area, sync = await xlSyncRead(area);
   const snap = sync.files[id], files = [name].concat(await xlCopies(d, name)); let n = 0; const rej = [];
-  if (snap && Object.keys(XL_EDIT).some(c => COLL_AREA[c] === area)) for (const fn of files) {
+  if (false && snap && Object.keys(XL_EDIT).some(c => COLL_AREA[c] === area)) for (const fn of files) {
     const x0 = await xlReadFile(d, fn); if (!x0) continue;
     if (fn === name && x0.f.lastModified === LOCAL.xlKnown[id]) continue;
     let E; try { E = xlAreaRead(x0.u8, area); } catch (e) { console.warn("[hub] cannot read", fn, e); continue; }
@@ -836,7 +836,8 @@ function xlWarn(name, e) {
   if (!LOCAL.xlWarned) { LOCAL.xlWarned = true; toast("⚠ " + tr("Excel file not updated (is it open in Excel?): ", "لم يُحدَّث ملف Excel (هل هو مفتوح؟): ") + name + tr(". Nothing is lost – it is tried again every 30 seconds.", ". لا يضيع شيء – تُعاد المحاولة كل 30 ثانية.")); }
 }
 const xlMonthsNow = () => { const now = new Date(), m = [now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0")]; if (now.getDate() <= 10) { const p = new Date(now.getFullYear(), now.getMonth() - 1, 1); m.push(p.getFullYear() + "-" + String(p.getMonth() + 1).padStart(2, "0")); } return m; };
-const xlCan = () => LOCAL.connected && !LOCAL.readOnly && LOCAL.layout === 2 && typeof XLSX !== "undefined" && typeof D !== "undefined" && D && D.ut;
+/* Update 58 (25 Nov 2026): Excel copies are READ-ONLY views of the Hub. Only the Hub administrator's PC writes them; nothing typed in Excel comes back into the Hub. */
+const xlCan = () => LOCAL.connected && !LOCAL.readOnly && LOCAL.isAdmin() && LOCAL.layout === 2 && typeof XLSX !== "undefined" && typeof D !== "undefined" && D && D.ut;
 /** Write (after first bringing in Excel changes) the workbooks of the given areas. */
 async function xlRefreshNow(areas, months) {
   if (!xlCan()) return [];
