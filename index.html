@@ -792,14 +792,14 @@ const utCats=()=>[...new Set(D.uitems.slice().sort(uSort).map(i=>i.cat))];
 /* Contractor shares per item (Utility Items: Concrete % / MCC % / EMCO %, 1 = 100 %). The rest is MIDU.
    Items without any % fall back to their single "Charge To". Items with neither are "not set". */
 const PCT={"Concrete Division":"concretePct","Concrete":"concretePct","MCC":"mccPct","EMCO":"emcoPct"};
-function sharesOf(it){const s={};let any=false;it=it||{};
+function sharesOf(it,d){const s={};let any=false;it=it||{};{const ov=d&&typeof ushareOf==="function"?ushareOf(String(d).slice(0,7),it.key):null;if(ov)it=Object.assign({},it,ov);}
  CONTR.forEach(c=>{const k=PCT[c],v=k?it[k]:null;if(v!==null&&v!==undefined&&v!==""){any=true;if(+v)s[c]=+v;}});
  if(!any&&it.chargeTo){if(it.chargeTo!=="MIDU")s[it.chargeTo]=1;any=true;}
  return any?s:null;}
-const shareOf=(u,c)=>{const s=sharesOf(uItem(u.item));return s?(s[c]||0):0;};
-const midShare=u=>{const s=sharesOf(uItem(u.item));return s?1-Object.values(s).reduce((a,v)=>a+v,0):0;};
-const isSet=u=>!!sharesOf(uItem(u.item));
-const splitTxt=it=>{const s=sharesOf(it);if(!s)return "";const t=Object.entries(s).map(([c,v])=>c+" "+Math.round(v*100)+"%");return t.length?t.join(" · "):"MIDU";};
+const shareOf=(u,c)=>{const s=sharesOf(uItem(u.item),u.date);return s?(s[c]||0):0;};
+const midShare=u=>{const s=sharesOf(uItem(u.item),u.date);return s?1-Object.values(s).reduce((a,v)=>a+v,0):0;};
+const isSet=u=>!!sharesOf(uItem(u.item),u.date);
+const splitTxt=(it,d)=>{const s=sharesOf(it,d);if(!s)return "";const t=Object.entries(s).map(([c,v])=>c+" "+Math.round(v*100)+"%");return t.length?t.join(" · "):"MIDU";};
 const amtOf=u=>u.qty*utRate(u.type).rate;
 const r2=n=>Math.round(n*100)/100;
 const addDays=(ds,n)=>{const d=new Date(ds+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
@@ -818,7 +818,7 @@ VIEWS.utDaily=()=>{const cats=utCats();
 function uGrid(){const d=$("#uDate").value,c=$("#uCat").value,rt=utRate(c),its=D.uitems.filter(i=>i.cat===c).sort(uSort);
  $("#uRate").value=rt.rate?`${rt.rate} / ${rt.unit||""}`:"—";
  $("#uGrid").innerHTML=its.length?`<table class="t"><tr><th>${tr("Item","البند")}</th><th>${tr("Location / tenant","الموقع / المستأجر")}</th><th>${tr("Charged to","يُحمّل على")}</th><th>${tr("Unit","الوحدة")}</th><th style="width:13%">${tr("Quantity","الكمية")}</th><th style="width:18%">${tr("Ticket / reference No.","رقم التذكرة / المرجع")}</th></tr>${its.map(i=>{const u=D.ut.find(x=>x.id===i.key+"|"+d);
-  return `<tr data-k="${esc(i.key)}"><td class="en"><b>${esc(i.title)}</b>${i.company?` <span class="tag" style="background:#EEF2FF;color:#3730A3">${esc(i.company)}</span>`:""} <span class="hint">${esc(i.key)}</span></td><td class="en">${esc(i.loc||"")}</td><td>${sharesOf(i)?tag(splitTxt(i),"b"):tag(tr("not set","غير محدد"),"a")}</td><td class="en">${esc(i.unit||"")}</td><td><input class="en" type="number" min="0" step="any" data-k="q" value="${u?u.qty:""}" lang="en"></td><td><input class="en" data-k="ref" data-upper="1" value="${esc(u?u.ref:"")}" lang="en" autocomplete="off"></td></tr>`;}).join("")}</table>`:`<div class="empty">${tr("No items in this category.","لا توجد بنود في هذه الفئة.")}</div>`;
+  return `<tr data-k="${esc(i.key)}"><td class="en"><b>${esc(i.title)}</b>${i.company?` <span class="tag" style="background:#EEF2FF;color:#3730A3">${esc(i.company)}</span>`:""} <span class="hint">${esc(i.key)}</span></td><td class="en">${esc(i.loc||"")}</td><td>${sharesOf(i,d)?tag(splitTxt(i,d),"b"):tag(tr("not set","غير محدد"),"a")}</td><td class="en">${esc(i.unit||"")}</td><td><input class="en" type="number" min="0" step="any" data-k="q" value="${u?u.qty:""}" lang="en"></td><td><input class="en" data-k="ref" data-upper="1" value="${esc(u?u.ref:"")}" lang="en" autocomplete="off"></td></tr>`;}).join("")}</table>`:`<div class="empty">${tr("No items in this category.","لا توجد بنود في هذه الفئة.")}</div>`;
  const tot=()=>{let q=0;$("#uGrid").querySelectorAll("[data-k=q]").forEach(e=>q+=+e.value||0);$("#uTot").textContent=`${tr("Total","المجموع")}: ${int(q)} ${rt.unit||""} · ${money(q*rt.rate)} SAR`;};
  $("#uGrid").querySelectorAll("[data-k=q]").forEach(e=>e.addEventListener("input",tot));tot();}
 BIND.utDaily=()=>{$("#uDate").onchange=uGrid;$("#uCat").onchange=uGrid;uGrid();
@@ -2710,48 +2710,133 @@ if(typeof VIEW_AREA!=="undefined")VIEW_AREA.stock="wh";
 if(typeof M365_ROLES!=="undefined"){["assets","storekeeper","storeincharge","logistics","procurement","finance"].forEach(r=>{if(Array.isArray(M365_ROLES[r])&&!M365_ROLES[r].includes("stock"))M365_ROLES[r].push("stock");});}
 {const N4=NAV;NAV=()=>{const n=N4();const i=n.findIndex(x=>x[1]==="count");if(i>-1&&!n.some(x=>x[1]==="stock"))n.splice(i,0,[1,"stock","▤","#1E9E6A",tr("Stock on hand","المخزون الحالي")]);return n;};}
 
-/* ===================== Update 59: Utilities real cost (internal) =====================
-   What MIDU pays the suppliers, from "Monthly Utilities Consumption" › Setup (Azzam, 26 Nov 2026).
-   A category can have one rate per company (Garbage skip: Rewam 600 / Emaar 650 from MBL); the company
-   is the Utility Item's "company". Contractor quantities use the same shares as the back charge, MIDU = the rest.
-   Internal only: the back-charge sheets and debit notes to sub-contractors are not changed. */
-const RC_VAT=0.15;
+/* ===================== Update 59: Utilities real cost, back charge & profit, monthly contractor % =====================
+   (Azzam, 26 Nov 2026) Replaces the "Monthly Utilities Consumption" Excel (Real Cost, Back Charge, Generators Rental, Setup).
+   - Real cost rates per category, and per company where the supplier rate differs (Garbage skip: Rewam 600 / Emaar 650 from MBL).
+   - Contractor % can be set per month (manpower changes): collection "ushare", one record per month
+     {m, items:{U001:{concretePct,mccPct,emcoPct}}}. A month without a record uses the % on the Utility item.
+     sharesOf(item, date) reads it, so daily readings, back-charge sheets and debit notes all follow the month's %.
+   - Generator rental (Byrne): collection "grent", one record per month {m, cost (excl. VAT), markup, basis}.
+     Shared by contractor diesel ÷ total diesel of the month, like the Excel. Back charge = cost + mark-up.
+   Internal screens only: the back-charge sheets and debit notes to sub-contractors are not changed. */
+const RC_VAT=0.15,RC_V=1+RC_VAT;
 const RC_RATES={"Generators diesel":["MBL",1.557],"Tower lights diesel":["MBL",1.557],"Equipment diesel":["MBL",1.557],
  "Concrete waste skip":["MBL",1430],"Concrete vacuum":["MBL",400],"Concrete trucks":["MBL",1540],
  "Garbage skip":["MBL",650,{Rewam:600,Emaar:650}],"Sewage":["TEKLAY",250],"Potable water":["TEKLAY",12],
  "Drinking water (labour)":["YAZAN",0.06],"Ice cubes":["MARAH",4.34782],"Drinking water cartons":["MBL",10]};
 const rcRate=(type,co)=>{const r=RC_RATES[type];if(!r)return {sup:"",rate:0};return {sup:r[0],rate:(co&&r[2]&&r[2][co]!==undefined)?r[2][co]:r[1]};};
+KEYS.ushare=r=>r.m;D.ushare=D.ushare||[];
+KEYS.grent=r=>r.m;D.grent=D.grent||[];
+if(typeof LOCAL_COLLS!=="undefined")["ushare","grent"].forEach(c=>{if(!LOCAL_COLLS.includes(c))LOCAL_COLLS.push(c);});
+if(typeof COLL_AREA!=="undefined"){COLL_AREA.ushare="ut";COLL_AREA.grent="ut";}
+function ushareOf(m,k){const r=(D.ushare||[]).find(x=>x.m===m);return (r&&r.items&&r.items[k])||null;}
+const rcAdmin=()=>M365.can("utShare");
+const rcMonths=()=>[...new Set(utMonths().concat((D.grent||[]).map(g=>g.m),Object.keys(GR_DEF)))].sort().reverse();
+const rcR=n=>(+n||0).toLocaleString("en-US",{maximumFractionDigits:5});
+const rcQ=n=>Math.abs(n)<1e-9?"–":(Math.round(n*100)/100).toLocaleString("en-US",{maximumFractionDigits:2});
+const rcMo=n=>Math.abs(n)<0.005?"–":money(n);
+const rcTag=co=>co?` <span class="tag" style="background:#EEF2FF;color:#3730A3">${esc(co)}</span>`:"";
+const rcLab=o=>o.type+(o.co?" – "+o.co:"");
 let RC_M="";
+const rcPickM=()=>{const ms=rcMonths();if(!RC_M||!ms.includes(RC_M))RC_M=ms[0];return ms;};
+const rcSel=ms=>`<div class="f"><label>${tr("Month","الشهر")}</label><select id="rcM">${ms.map(m=>`<option value="${m}"${m===RC_M?" selected":""}>${esc(monthName(m))}</option>`).join("")}</select></div>`;
+const rcKpis=a=>`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">${a.map(([l,v])=>`<div style="flex:1;min-width:190px;border:1px solid #E3E7EF;border-radius:10px;padding:10px 12px"><div class="hint">${l}</div><div style="font-size:20px;font-weight:800" class="en">${money(v)} SAR</div></div>`).join("")}</div>`;
+/* readings of the month grouped by category + company */
 function rcRows(m){const map=new Map();
  D.ut.filter(u=>String(u.date).startsWith(m)&&+u.qty).forEach(u=>{const it=uItem(u.item)||{},co=it.company||u.company||"",k=u.type+"|"+co;
   let o=map.get(k);if(!o){const rr=rcRate(u.type,co);o={type:u.type,co,unit:it.unit||u.unit||utRate(u.type).unit||"",sup:rr.sup,rate:rr.rate,bc:utRate(u.type).rate,qty:0,cq:{},set:true};CONTR.forEach(c=>o.cq[c]=0);map.set(k,o);}
   o.qty+=+u.qty;if(!isSet(u))o.set=false;CONTR.forEach(c=>o.cq[c]+=u.qty*shareOf(u,c));});
- const cats=utCats();return [...map.values()].map(o=>{const cs=CONTR.reduce((a,c)=>a+o.cq[c],0);o.mq=o.qty-cs;o.cs=cs;o.amt=o.qty*o.rate;o.vat=o.amt*(1+RC_VAT);
-  o.bcAmt=cs*o.bc;o.profit=o.bcAmt-cs*o.rate;return o;}).sort((a,b)=>cats.indexOf(a.type)-cats.indexOf(b.type)||a.co.localeCompare(b.co));}
-const rcLab=o=>o.type+(o.co?" – "+o.co:"");
-const rcR=n=>(+n||0).toLocaleString("en-US",{maximumFractionDigits:5});
-const rcQ=n=>Math.abs(n)<1e-9?"–":(Math.round(n*100)/100).toLocaleString("en-US",{maximumFractionDigits:2});
-VIEWS.utCost=()=>{const ms=utMonths();if(!RC_M||!ms.includes(RC_M))RC_M=ms[0];const R=rcRows(RC_M),V=1+RC_VAT;
- const tot={amt:0,vat:0,c:{},m:0,bc:0,bcv:0,pr:0};CONTR.forEach(c=>tot.c[c]=0);
- R.forEach(o=>{tot.amt+=o.amt;tot.vat+=o.vat;CONTR.forEach(c=>tot.c[c]+=o.cq[c]*o.rate*V);tot.m+=o.mq*o.rate*V;tot.bc+=o.bcAmt;tot.bcv+=o.bcAmt*V;tot.pr+=o.profit;});
- const miss=R.filter(o=>!o.rate).map(rcLab),nos=R.filter(o=>!o.set).map(rcLab);
- return head(tr("Utilities — real cost","الخدمات — التكلفة الفعلية"),tr("What MIDU pays the suppliers at real cost rates, and how it is shared. For internal use only – the back-charge sheets and debit notes to sub-contractors do not show this.","ما تدفعه MIDU للموردين بسعر التكلفة الفعلية وكيف يتوزع. للاستخدام الداخلي فقط – كشوف إعادة الفوترة وإشعارات المدين للمقاولين لا تُظهر ذلك."))+
- `<div class="card"><div class="fg"><div class="f"><label>${tr("Month","الشهر")}</label><select id="rcM">${ms.map(m=>`<option value="${m}"${m===RC_M?" selected":""}>${esc(monthName(m))}</option>`).join("")}</select></div></div>
- <div class="kpis" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">${[[tr("Real cost (incl. VAT)","التكلفة الفعلية (شامل الضريبة)"),tot.vat],[tr("Back-charge to contractors (incl. VAT)","إعادة الفوترة للمقاولين (شامل الضريبة)"),tot.bcv],[tr("MIDU net cost","صافي تكلفة MIDU"),tot.vat-tot.bcv],[tr("Profit on back-charge (before VAT)","الربح من إعادة الفوترة (قبل الضريبة)"),tot.pr]].map(([l,v])=>`<div style="flex:1;min-width:190px;border:1px solid var(--line,#E3E7EF);border-radius:10px;padding:10px 12px"><div class="hint">${l}</div><div style="font-size:20px;font-weight:800" class="en">${money(v)} SAR</div></div>`).join("")}</div></div>
- <div class="card" style="overflow-x:auto"><table class="t"><tr><th>${tr("Category","الفئة")}</th><th>${tr("Unit","الوحدة")}</th><th>${tr("Supplier","المورد")}</th><th class="num">${tr("Qty","الكمية")}</th><th class="num">${tr("Real rate","سعر التكلفة")}</th><th class="num">${tr("Amount","المبلغ")}</th><th class="num">${tr("Incl. VAT","شامل الضريبة")}</th>${CONTR.map(c=>`<th class="num">${esc(c)} ${tr("qty","كمية")}</th><th class="num">${esc(c)} SAR</th>`).join("")}<th class="num">MIDU ${tr("qty","كمية")}</th><th class="num">MIDU SAR</th><th class="num">${tr("Back-charge rate","سعر إعادة الفوترة")}</th><th class="num">${tr("Profit (before VAT)","الربح (قبل الضريبة)")}</th></tr>
- ${R.map(o=>`<tr><td class="en"><b>${esc(o.type)}</b>${o.co?` <span class="tag" style="background:#EEF2FF;color:#3730A3">${esc(o.co)}</span>`:""}${o.set?"":` ${tag(tr("split not set","التوزيع غير محدد"),"a")}`}</td><td class="en">${esc(o.unit)}</td><td class="en">${esc(o.sup)}</td><td class="num">${rcQ(o.qty)}</td><td class="num">${o.rate?rcR(o.rate):tag("?","a")}</td><td class="num">${money(o.amt)}</td><td class="num"><b>${money(o.vat)}</b></td>${CONTR.map(c=>`<td class="num">${rcQ(o.cq[c])}</td><td class="num">${o.cq[c]?money(o.cq[c]*o.rate*V):"–"}</td>`).join("")}<td class="num">${rcQ(o.mq)}</td><td class="num">${o.mq?money(o.mq*o.rate*V):"–"}</td><td class="num">${rcR(o.bc)}</td><td class="num">${money(o.profit)}</td></tr>`).join("")||`<tr><td colspan="${11+CONTR.length*2}"><div class="empty">${tr("No readings in this month.","لا توجد قراءات في هذا الشهر.")}</div></td></tr>`}
- ${R.length?`<tr style="font-weight:800"><td colspan="5">${tr("TOTAL","الإجمالي")}</td><td class="num">${money(tot.amt)}</td><td class="num">${money(tot.vat)}</td>${CONTR.map(c=>`<td></td><td class="num">${money(tot.c[c])}</td>`).join("")}<td></td><td class="num">${money(tot.m)}</td><td></td><td class="num">${money(tot.pr)}</td></tr>`:""}</table>
- <p class="hint" style="margin-top:8px">${tr("VAT 15 %. Contractor shares are the same as on the back charge; MIDU = total less the contractors (negative when contractors are charged more than 100 %). Generator rental is not included.","ضريبة 15٪. حصص المقاولين نفسها المستخدمة في إعادة الفوترة؛ MIDU = الإجمالي ناقص المقاولين (سالب عندما يُحمَّل المقاولون أكثر من 100٪). إيجار المولدات غير مشمول.")}</p>
- ${miss.length?`<p class="hint" style="color:#B45309">⚠ ${tr("No real cost rate for: ","لا يوجد سعر تكلفة لـ: ")}${esc(miss.join(", "))}</p>`:""}${nos.length?`<p class="hint" style="color:#B45309">⚠ ${tr("Contractor split not set for: ","توزيع المقاولين غير محدد لـ: ")}${esc(nos.join(", "))}</p>`:""}
- <div class="btns"><button class="b g sm" id="rcXls">${tr("Download Excel","تنزيل Excel")}</button></div></div>`;};
-BIND.utCost=()=>{$("#rcM").onchange=e=>{RC_M=e.target.value;render();};
- $("#rcXls").onclick=()=>{try{const R=rcRows(RC_M),V=1+RC_VAT;const hd=["Category","Company","Unit","Supplier","Qty","Real rate","Amount","Incl. VAT",...CONTR.flatMap(c=>[c+" qty",c+" SAR"]),"MIDU qty","MIDU SAR","Back-charge rate","Profit (before VAT)"];
-  const rows=R.map(o=>[o.type,o.co,o.unit,o.sup,r2(o.qty),o.rate,r2(o.amt),r2(o.vat),...CONTR.flatMap(c=>[r2(o.cq[c]),r2(o.cq[c]*o.rate*V)]),r2(o.mq),r2(o.mq*o.rate*V),o.bc,r2(o.profit)]);
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Real cost – "+monthName(RC_M)+" (internal)"],[],hd,...rows]),"Real cost");XLSX.writeFile(wb,"MIDU utilities real cost "+RC_M+".xlsx");}catch(e){toast("✖ "+e.message);}};};
-if(typeof VIEW_AREA!=="undefined")VIEW_AREA.utCost="ut";
-if(typeof M365_ROLES!=="undefined"){["utilities","logistics","finance"].forEach(r=>{if(Array.isArray(M365_ROLES[r])&&!M365_ROLES[r].includes("utCost"))M365_ROLES[r].push("utCost");});}
-{const N5=NAV;NAV=()=>{const n=N5();const i=n.findIndex(x=>x[1]==="utBC");if(i>-1&&!n.some(x=>x[1]==="utCost"))n.splice(i+1,0,[1,"utCost","Σ","#0E7490",tr("Real cost (internal)","التكلفة الفعلية (داخلي)")]);return n;};}
+ const cats=utCats();return [...map.values()].map(o=>{o.cs=CONTR.reduce((a,c)=>a+o.cq[c],0);o.mq=o.qty-o.cs;o.amt=o.qty*o.rate;o.bcAmt=o.cs*o.bc;o.profit=o.bcAmt-o.cs*o.rate;return o;})
+  .sort((a,b)=>cats.indexOf(a.type)-cats.indexOf(b.type)||a.co.localeCompare(b.co));}
+/* generator rental */
+const GR_DEF={"2026-08":{cost:60582.24,markup:0.1,basis:"Timesheet (revised Byrne pro forma 18-Nov-2026)"},"2026-09":{cost:97051.34,markup:0.1,basis:"Timesheet"},
+ "2026-10":{cost:103405,markup:0.1,basis:"Full month – 14 generators"},"2026-11":{cost:103405,markup:0.1,basis:"Full month – 14 generators"}};
+const grentOf=m=>(D.grent||[]).find(x=>x.m===m)||(GR_DEF[m]?Object.assign({m,def:true},GR_DEF[m]):null);
+const DZ_T=["Generators diesel","Tower lights diesel","Equipment diesel"];
+function dzShares(m){const r=D.ut.filter(u=>String(u.date).startsWith(m)&&DZ_T.includes(u.type)&&+u.qty),t=r.reduce((a,u)=>a+ +u.qty,0),o={};
+ CONTR.forEach(c=>o[c]=t?r.reduce((a,u)=>a+u.qty*shareOf(u,c),0)/t:0);o.MIDU=1-CONTR.reduce((a,c)=>a+o[c],0);return o;}
+function grRow(m){const g=grentOf(m);if(!g||!+g.cost)return null;const sh=dzShares(m),cost=+g.cost,mk=+g.markup||0,o={g,sh,cost,mk,c:{},bc:{}};
+ CONTR.forEach(c=>{o.c[c]=cost*sh[c];o.bc[c]=cost*(1+mk)*sh[c];});o.mid=cost*sh.MIDU;o.cs=CONTR.reduce((a,c)=>a+o.c[c],0);o.bcTot=CONTR.reduce((a,c)=>a+o.bc[c],0);o.profit=o.bcTot-o.cs;return o;}
+const rcWarn=R=>{const miss=R.filter(o=>!o.rate).map(rcLab),nos=R.filter(o=>!o.set).map(rcLab);
+ return (miss.length?`<p class="hint" style="color:#B45309">⚠ ${tr("No real cost rate for: ","لا يوجد سعر تكلفة لـ: ")}${esc(miss.join(", "))}</p>`:"")+(nos.length?`<p class="hint" style="color:#B45309">⚠ ${tr("Contractor % not set for: ","نسب المقاولين غير محددة لـ: ")}${esc(nos.join(", "))}</p>`:"");};
+const rcXls=(name,sheet,rows)=>{try{const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),sheet);XLSX.writeFile(wb,name+".xlsx");}catch(e){toast("✖ "+e.message);}};
 
+/* ---------- screen 1: real cost (all utilities + generator rental) ---------- */
+VIEWS.utCost=()=>{const ms=rcPickM(),m=RC_M,R=rcRows(m),G=grRow(m),g=grentOf(m);
+ const t={amt:0,c:{},mid:0};CONTR.forEach(c=>t.c[c]=0);R.forEach(o=>{t.amt+=o.amt;CONTR.forEach(c=>t.c[c]+=o.cq[c]*o.rate);t.mid+=o.mq*o.rate;});
+ const gt={amt:t.amt+(G?G.cost:0),c:{},mid:t.mid+(G?G.mid:0)};CONTR.forEach(c=>gt.c[c]=t.c[c]+(G?G.c[c]:0));
+ return head(tr("Utilities — real cost","الخدمات — التكلفة الفعلية"),tr("Everything MIDU pays the suppliers for utilities in the month, including generator rental, and how it is shared between the contractors and MIDU. Internal – not sent to sub-contractors.","كل ما تدفعه MIDU للموردين عن الخدمات في الشهر، بما فيها إيجار المولدات، وتوزيعه بين المقاولين وMIDU. داخلي – لا يُرسل للمقاولين."))+
+ `<div class="card"><div class="fg">${rcSel(ms)}</div>${rcKpis([[tr("Utilities consumption (incl. VAT)","استهلاك الخدمات (شامل الضريبة)"),t.amt*RC_V],[tr("Generator rental (incl. VAT)","إيجار المولدات (شامل الضريبة)"),(G?G.cost:0)*RC_V],[tr("Total real cost (incl. VAT)","إجمالي التكلفة الفعلية (شامل الضريبة)"),gt.amt*RC_V],[tr("MIDU's own share (incl. VAT)","حصة MIDU (شامل الضريبة)"),gt.mid*RC_V]])}</div>
+ <div class="card" style="overflow-x:auto"><table class="t"><tr><th>${tr("Category","الفئة")}</th><th>${tr("Unit","الوحدة")}</th><th>${tr("Supplier","المورد")}</th><th class="num">${tr("Qty","الكمية")}</th><th class="num">${tr("Real rate","سعر التكلفة")}</th><th class="num">${tr("Amount","المبلغ")}</th><th class="num">${tr("Incl. VAT","شامل الضريبة")}</th>${CONTR.map(c=>`<th class="num">${esc(c)}<br>${tr("qty","كمية")}</th><th class="num">${esc(c)}<br>SAR</th>`).join("")}<th class="num">MIDU<br>${tr("qty","كمية")}</th><th class="num">MIDU<br>SAR</th></tr>
+ ${R.map(o=>`<tr><td class="en"><b>${esc(o.type)}</b>${rcTag(o.co)}${o.set?"":" "+tag(tr("% not set","النسب غير محددة"),"a")}</td><td class="en">${esc(o.unit)}</td><td class="en">${esc(o.sup)}</td><td class="num">${rcQ(o.qty)}</td><td class="num">${o.rate?rcR(o.rate):tag("?","a")}</td><td class="num">${money(o.amt)}</td><td class="num"><b>${money(o.amt*RC_V)}</b></td>${CONTR.map(c=>`<td class="num">${rcQ(o.cq[c])}</td><td class="num">${rcMo(o.cq[c]*o.rate*RC_V)}</td>`).join("")}<td class="num">${rcQ(o.mq)}</td><td class="num">${rcMo(o.mq*o.rate*RC_V)}</td></tr>`).join("")}
+ ${G?`<tr style="background:#FFFBEB"><td class="en"><b>${tr("Generator rental","إيجار المولدات")}</b> <span class="hint">${esc(G.g.basis||"")}</span></td><td>${tr("month","شهر")}</td><td class="en">Byrne</td><td class="num">–</td><td class="num">–</td><td class="num">${money(G.cost)}</td><td class="num"><b>${money(G.cost*RC_V)}</b></td>${CONTR.map(c=>`<td class="num">${Math.round(G.sh[c]*1000)/10}%</td><td class="num">${rcMo(G.c[c]*RC_V)}</td>`).join("")}<td class="num">${Math.round(G.sh.MIDU*1000)/10}%</td><td class="num">${rcMo(G.mid*RC_V)}</td></tr>`:""}
+ ${R.length||G?`<tr style="font-weight:800"><td colspan="5">${tr("TOTAL","الإجمالي")}</td><td class="num">${money(gt.amt)}</td><td class="num">${money(gt.amt*RC_V)}</td>${CONTR.map(c=>`<td></td><td class="num">${money(gt.c[c]*RC_V)}</td>`).join("")}<td></td><td class="num">${money(gt.mid*RC_V)}</td></tr>`:`<tr><td colspan="${9+CONTR.length*2}"><div class="empty">${tr("Nothing in this month.","لا شيء في هذا الشهر.")}</div></td></tr>`}</table>
+ <p class="hint" style="margin-top:8px">${tr("VAT 15 %. Contractor shares = the month's contractor % (screen “Contractor % per month”); MIDU = the rest (negative when contractors are charged more than 100 %). Generator rental is shared by each contractor's diesel ÷ total diesel of the month.","ضريبة 15٪. حصص المقاولين = نسب الشهر (شاشة «نسب المقاولين الشهرية»)؛ MIDU = الباقي. إيجار المولدات يُوزع حسب ديزل كل مقاول ÷ إجمالي الديزل في الشهر.")}</p>${rcWarn(R)}
+ <div class="btns"><button class="b g sm" id="rcXls">${tr("Download Excel","تنزيل Excel")}</button></div></div>
+ ${rcAdmin()?`<div class="card"><h2>${tr("Generator rental of","إيجار المولدات لشهر")} ${esc(monthName(m))}</h2><div class="fg">${fld("grCost",tr("Real cost – Byrne (SAR, excl. VAT)","التكلفة الفعلية – Byrne (ريال، بدون ضريبة)"),{type:"number",val:g?g.cost:""})}${fld("grMk",tr("Mark-up % on back charge","نسبة الإضافة على إعادة الفوترة"),{type:"number",val:g?Math.round((+g.markup||0)*1000)/10:10})}${fld("grBasis",tr("Basis (timesheet / full month …)","الأساس (سجل الدوام / شهر كامل …)"),{val:g?g.basis||"":"",w:"w2"})}</div>
+ <div class="btns"><span class="hint">${g&&g.def?tr("Value taken from the Monthly Utilities Consumption file – save to keep it in the Hub.","القيمة مأخوذة من ملف الاستهلاك الشهري – احفظ لتثبيتها في المنصة."):""}</span><span style="flex:1"></span><button class="b" style="background:#0E7490" id="grSave">${tr("Save generator rental","حفظ إيجار المولدات")}</button></div></div>`:""}`;};
+BIND.utCost=()=>{$("#rcM").onchange=e=>{RC_M=e.target.value;render();};
+ $("#rcXls").onclick=()=>{const m=RC_M,R=rcRows(m),G=grRow(m);rcXls("MIDU utilities real cost "+m,"Real cost",[["Real cost – "+monthName(m)+" (internal)"],[],["Category","Company","Unit","Supplier","Qty","Real rate","Amount","Incl. VAT",...CONTR.flatMap(c=>[c+" qty",c+" SAR incl. VAT"]),"MIDU qty","MIDU SAR incl. VAT"],
+  ...R.map(o=>[o.type,o.co,o.unit,o.sup,r2(o.qty),o.rate,r2(o.amt),r2(o.amt*RC_V),...CONTR.flatMap(c=>[r2(o.cq[c]),r2(o.cq[c]*o.rate*RC_V)]),r2(o.mq),r2(o.mq*o.rate*RC_V)]),
+  ...(G?[["Generator rental","","month","Byrne","","",r2(G.cost),r2(G.cost*RC_V),...CONTR.flatMap(c=>[r2(G.sh[c]*100)+"%",r2(G.c[c]*RC_V)]),r2(G.sh.MIDU*100)+"%",r2(G.mid*RC_V)]]:[])]);};
+ const gs=$("#grSave");if(gs)gs.onclick=()=>{const cost=+$("#grCost").value,mk=+$("#grMk").value;if(!(cost>=0)||!(mk>=0))return msg("err",ERR.qty());
+  const m=RC_M;let r=(D.grent||[]).find(x=>x.m===m);if(!r){r={m};D.grent.push(r);}Object.assign(r,{cost,markup:mk/100,basis:$("#grBasis").value.trim(),by:whoAmI(),at:new Date().toISOString()});persist();render();toast("✔ "+tr("Generator rental saved","تم حفظ إيجار المولدات"));};};
+
+/* ---------- screen 2: back charge & profit ---------- */
+VIEWS.utProfit=()=>{const ms=rcPickM(),m=RC_M,R=rcRows(m).filter(o=>o.cs>1e-9),G=grRow(m);
+ const t={bc:0,cost:0,pr:0,c:{}};CONTR.forEach(c=>t.c[c]=0);R.forEach(o=>{t.bc+=o.bcAmt;t.cost+=o.cs*o.rate;t.pr+=o.profit;CONTR.forEach(c=>t.c[c]+=o.cq[c]*o.bc);});
+ if(G){t.bc+=G.bcTot;t.cost+=G.cs;t.pr+=G.profit;CONTR.forEach(c=>t.c[c]+=G.bc[c]);}
+ return head(tr("Utilities — back charge & profit","الخدمات — إعادة الفوترة والربح"),tr("What is charged to each sub-contractor in the month at back-charge rates, what the same quantities cost MIDU, and the profit. Internal – the debit notes show only the back-charge amounts.","ما يُحمّل على كل مقاول في الشهر بأسعار إعادة الفوترة، وتكلفة الكميات نفسها على MIDU، والربح. داخلي – إشعارات المدين تُظهر مبالغ إعادة الفوترة فقط."))+
+ `<div class="card"><div class="fg">${rcSel(ms)}</div>${rcKpis([[tr("Back charge (excl. VAT)","إعادة الفوترة (بدون ضريبة)"),t.bc],[tr("Back charge (incl. VAT)","إعادة الفوترة (شامل الضريبة)"),t.bc*RC_V],[tr("Real cost of the charged quantities","التكلفة الفعلية للكميات المحمّلة"),t.cost],[tr("Profit (before VAT)","الربح (قبل الضريبة)"),t.pr]])}</div>
+ <div class="card" style="overflow-x:auto"><table class="t"><tr><th>${tr("Category","الفئة")}</th><th>${tr("Unit","الوحدة")}</th><th class="num">${tr("Back-charge rate","سعر إعادة الفوترة")}</th><th class="num">${tr("Real rate","سعر التكلفة")}</th>${CONTR.map(c=>`<th class="num">${esc(c)}<br>${tr("qty","كمية")}</th><th class="num">${esc(c)}<br>SAR</th>`).join("")}<th class="num">${tr("Total","الإجمالي")}<br>SAR</th><th class="num">${tr("Incl. VAT","شامل الضريبة")}</th><th class="num">${tr("Profit","الربح")}</th></tr>
+ ${R.map(o=>`<tr><td class="en"><b>${esc(o.type)}</b>${rcTag(o.co)}</td><td class="en">${esc(o.unit)}</td><td class="num">${rcR(o.bc)}</td><td class="num">${o.rate?rcR(o.rate):tag("?","a")}</td>${CONTR.map(c=>`<td class="num">${rcQ(o.cq[c])}</td><td class="num">${rcMo(o.cq[c]*o.bc)}</td>`).join("")}<td class="num">${money(o.bcAmt)}</td><td class="num"><b>${money(o.bcAmt*RC_V)}</b></td><td class="num" style="color:${o.profit<0?"#B91C1C":"#047857"}">${money(o.profit)}</td></tr>`).join("")}
+ ${G?`<tr style="background:#FFFBEB"><td class="en"><b>${tr("Generator rental","إيجار المولدات")}</b></td><td>${tr("month","شهر")}</td><td class="num">+${Math.round(G.mk*1000)/10}%</td><td class="num">${money(G.cost)}</td>${CONTR.map(c=>`<td class="num">${Math.round(G.sh[c]*1000)/10}%</td><td class="num">${rcMo(G.bc[c])}</td>`).join("")}<td class="num">${money(G.bcTot)}</td><td class="num"><b>${money(G.bcTot*RC_V)}</b></td><td class="num" style="color:#047857">${money(G.profit)}</td></tr>`:""}
+ ${R.length||G?`<tr style="font-weight:800"><td colspan="4">${tr("TOTAL","الإجمالي")}</td>${CONTR.map(c=>`<td></td><td class="num">${money(t.c[c])}</td>`).join("")}<td class="num">${money(t.bc)}</td><td class="num">${money(t.bc*RC_V)}</td><td class="num">${money(t.pr)}</td></tr>
+ <tr><td colspan="4" class="hint">${tr("Incl. VAT per contractor","شامل الضريبة لكل مقاول")}</td>${CONTR.map(c=>`<td></td><td class="num">${money(t.c[c]*RC_V)}</td>`).join("")}<td colspan="3"></td></tr>`:`<tr><td colspan="${7+CONTR.length*2}"><div class="empty">${tr("Nothing charged in this month.","لا شيء محمّل في هذا الشهر.")}</div></td></tr>`}</table>
+ <p class="hint" style="margin-top:8px">${tr("Profit = back charge − real cost of the same quantities, before VAT. Quantities use the month's contractor %. Generator rental: back charge = real cost + mark-up, shared by contractor diesel.","الربح = إعادة الفوترة − التكلفة الفعلية للكميات نفسها، قبل الضريبة.")}</p>${rcWarn(R)}
+ <div class="btns"><button class="b g sm" id="rcXls">${tr("Download Excel","تنزيل Excel")}</button></div></div>`;};
+BIND.utProfit=()=>{$("#rcM").onchange=e=>{RC_M=e.target.value;render();};
+ $("#rcXls").onclick=()=>{const m=RC_M,R=rcRows(m).filter(o=>o.cs>1e-9),G=grRow(m);rcXls("MIDU utilities back charge & profit "+m,"Back charge & profit",[["Back charge & profit – "+monthName(m)+" (internal)"],[],["Category","Company","Unit","Back-charge rate","Real rate",...CONTR.flatMap(c=>[c+" qty",c+" SAR"]),"Total SAR","Incl. VAT","Profit (before VAT)"],
+  ...R.map(o=>[o.type,o.co,o.unit,o.bc,o.rate,...CONTR.flatMap(c=>[r2(o.cq[c]),r2(o.cq[c]*o.bc)]),r2(o.bcAmt),r2(o.bcAmt*RC_V),r2(o.profit)]),
+  ...(G?[["Generator rental","","month","+"+r2(G.mk*100)+"%",r2(G.cost),...CONTR.flatMap(c=>[r2(G.sh[c]*100)+"%",r2(G.bc[c])]),r2(G.bcTot),r2(G.bcTot*RC_V),r2(G.profit)]]:[])]);};};
+
+/* ---------- screen 3: contractor % per month ---------- */
+let US_M="";
+const usPct=v=>v===null||v===undefined||v===""?"":Math.round(+v*10000)/100;
+const usStd=i=>{const sh=sharesOf(i);if(!sh)return null;const o={concretePct:0,mccPct:0,emcoPct:0};CONTR.forEach(c=>{const f=PCT[c];if(f)o[f]=sh[c]||0;});return o;};
+const usNext=()=>{const d=new Date();d.setMonth(d.getMonth()+1);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
+VIEWS.utShare=()=>{const ms=[...new Set(utMonths().concat([month(),usNext()],(D.ushare||[]).map(r=>r.m)))].sort().reverse();if(!US_M||!ms.includes(US_M))US_M=month();
+ const m=US_M,rec=(D.ushare||[]).find(r=>r.m===m),its=D.uitems.filter(i=>i.active!==false).slice().sort(uSort),cats=[...new Set(its.map(i=>i.cat))],F=[["concretePct","Concrete"],["mccPct","MCC"],["emcoPct","EMCO"]];
+ const val=(i,f)=>{const o=(rec&&rec.items&&rec.items[i.key])||usStd(i);return o?usPct(o[f]):"";};
+ const inp=(k,f,v)=>`<input class="en" type="number" min="0" step="any" style="width:80px" data-k="${esc(k)}" data-f="${f}" value="${v}" lang="en">`;
+ return head(tr("Contractor % per month","نسب المقاولين الشهرية"),tr("Set each sub-contractor's share of every utility item for the month (according to their manpower). The back charge, debit notes and the real cost screens of that month use these %. MIDU pays the rest. A month that is not saved uses the standard % of the item.","حدد حصة كل مقاول من كل بند للشهر (حسب العمالة). إعادة الفوترة وإشعارات المدين وشاشات التكلفة لذلك الشهر تستخدم هذه النسب، وMIDU تتحمل الباقي. الشهر غير المحفوظ يستخدم النسب القياسية للبند."))+msgBox+
+ `<div class="card"><div class="fg"><div class="f"><label>${tr("Month","الشهر")}</label><select id="usM">${ms.map(x=>`<option value="${x}"${x===m?" selected":""}>${esc(monthName(x))}</option>`).join("")}</select></div></div>
+ <p class="hint">${rec?`✔ ${tr("Saved for this month","محفوظة لهذا الشهر")}${rec.by?" · "+esc(rec.by):""}${rec.at?" · "+esc(fdt(rec.at)):""}`:tr("Not saved for this month yet – showing the standard % of each item.","غير محفوظة لهذا الشهر – تظهر النسب القياسية لكل بند.")}</p>
+ <div class="btns" style="margin:0"><button class="b l sm" id="usPrev">${tr("Copy from previous month","نسخ من الشهر السابق")}</button><button class="b l sm" id="usStd">${tr("Reset to standard %","إرجاع النسب القياسية")}</button></div></div>
+ <div class="card" style="overflow-x:auto"><table class="t" id="usT"><tr><th>${tr("Item","البند")}</th><th>${tr("Location","الموقع")}</th>${F.map(([,l])=>`<th>${l} %</th>`).join("")}<th class="num">${tr("Total charged","إجمالي المحمّل")}</th><th class="num">MIDU %</th></tr>
+ ${cats.map(c=>`<tr style="background:#F1F5F9"><td colspan="2"><b>${esc(c)}</b> <span class="hint">${tr("same % for the whole category →","نسبة واحدة للفئة كلها ←")}</span></td>${F.map(([f])=>`<td>${inp("cat:"+c,f,"")}</td>`).join("")}<td colspan="2"><button class="b l sm" data-apply="${esc(c)}">${tr("Apply to all","تطبيق على الكل")}</button></td></tr>`+
+  its.filter(i=>i.cat===c).map(i=>`<tr data-item="${esc(i.key)}"><td class="en"><b>${esc(i.title)}</b>${rcTag(i.company)} <span class="hint">${esc(i.key)}</span></td><td class="en">${esc(i.loc||"")}</td>${F.map(([f])=>`<td>${inp(i.key,f,val(i,f))}</td>`).join("")}<td class="num" data-tot></td><td class="num" data-mid></td></tr>`).join("")).join("")}</table>
+ <div class="btns"><span class="hint">${tr("An empty box counts as 0 %. A row left completely empty keeps the item's standard %. Orange = contractors charged more than 100 %.","الخانة الفارغة = 0٪. الصف الفارغ بالكامل يبقى على النسب القياسية. البرتقالي = تحميل المقاولين أكثر من 100٪.")}</span><span style="flex:1"></span><button class="b" style="background:#0E7490" id="usSave">${tr("Save % for","حفظ النسب لشهر")} ${esc(monthName(m))}</button></div></div>`;};
+BIND.utShare=()=>{const T=$("#usT"),F=["concretePct","mccPct","emcoPct"];
+ const tot=()=>T.querySelectorAll("tr[data-item]").forEach(r=>{const s=F.reduce((a,f)=>a+(+r.querySelector(`[data-f=${f}]`).value||0),0),t=r.querySelector("[data-tot]"),md=r.querySelector("[data-mid]");
+  t.textContent=Math.round(s*100)/100+"%";t.style.color=s>100?"#B45309":"";t.style.fontWeight=s>100?"800":"";md.textContent=Math.round((100-s)*100)/100+"%";});
+ T.addEventListener("input",tot);tot();
+ const fill=src=>{T.querySelectorAll("tr[data-item]").forEach(r=>{const i=uItem(r.dataset.item),o=src(i);F.forEach(f=>r.querySelector(`[data-f=${f}]`).value=o?usPct(o[f]):"");});tot();};
+ T.querySelectorAll("[data-apply]").forEach(b=>b.onclick=()=>{const c=b.dataset.apply,v={};F.forEach(f=>v[f]=T.querySelector(`[data-k="cat:${CSS.escape(c)}"][data-f=${f}]`).value);
+  T.querySelectorAll("tr[data-item]").forEach(r=>{if((uItem(r.dataset.item)||{}).cat!==c)return;F.forEach(f=>r.querySelector(`[data-f=${f}]`).value=v[f]);});tot();});
+ $("#usM").onchange=e=>{US_M=e.target.value;render();};
+ $("#usStd").onclick=()=>fill(usStd);
+ $("#usPrev").onclick=()=>{const d=new Date(US_M+"-15");d.setMonth(d.getMonth()-1);const pm=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");fill(i=>ushareOf(pm,i.key)||usStd(i));toast(tr("Copied from ","نُسخت من ")+monthName(pm)+tr(" – press Save."," – اضغط حفظ."));};
+ $("#usSave").onclick=()=>{const items={};let bad=false;
+  T.querySelectorAll("tr[data-item]").forEach(r=>{const o={},vs=F.map(f=>r.querySelector(`[data-f=${f}]`).value.trim());if(vs.every(v=>v===""))return;F.forEach((f,j)=>{const n=vs[j]===""?0:+vs[j];if(!(n>=0))bad=true;o[f]=Math.round(n*100)/10000;});items[r.dataset.item]=o;});
+  if(bad)return msg("err",ERR.qty());
+  let rec=(D.ushare||[]).find(r=>r.m===US_M);if(!rec){rec={m:US_M};D.ushare.push(rec);}rec.items=items;rec.by=whoAmI();rec.at=new Date().toISOString();
+  persist();render();msg("ok","✔ "+tr("Contractor % saved for ","تم حفظ النسب لشهر ")+monthName(US_M));};};
+
+if(typeof VIEW_AREA!=="undefined"){VIEW_AREA.utCost="ut";VIEW_AREA.utProfit="ut";VIEW_AREA.utShare="ut";}
+if(typeof M365_ROLES!=="undefined"){["utilities","logistics","finance"].forEach(r=>{if(Array.isArray(M365_ROLES[r]))["utCost","utProfit"].forEach(v=>{if(!M365_ROLES[r].includes(v))M365_ROLES[r].push(v);});});}
+{const N5=NAV;NAV=()=>{const n=N5();const i=n.findIndex(x=>x[1]==="utBC");if(i>-1&&!n.some(x=>x[1]==="utCost"))n.splice(i+1,0,
+ [1,"utCost","Σ","#0E7490",tr("Real cost (internal)","التكلفة الفعلية (داخلي)")],[1,"utProfit","％","#0E7490",tr("Back charge & profit (internal)","إعادة الفوترة والربح (داخلي)")],[1,"utShare","⚖","#0E7490",tr("Contractor % per month","نسب المقاولين الشهرية")]);return n;};}
 </script>
 </body>
 </html>
