@@ -1,7 +1,7 @@
 {
-  "name": "MIDU Logistics Hub",
-  "short_name": "MIDU Hub",
-  "description": "Warehouse, assets, utilities back charge, procurement, HR attendance and maintenance for MIDU Logistics.",
+  "name": "MIDU-Team Hub",
+  "short_name": "MIDU-Team Hub",
+  "description": "Warehouse, assets, utilities back charge, procurement, HR attendance and maintenance for MIDU-Team.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
