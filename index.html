@@ -3317,6 +3317,122 @@ BIND.itemHist=()=>{const q=$("#ihQ");q.onchange=()=>{const v=q.value.split("|")[
 {const N6=NAV;NAV=()=>{const n=N6();if(!n.some(x=>x[1]==="itemHist")){const i=n.findIndex(x=>x[1]==="stock");if(i>-1)n.splice(i+1,0,[1,"itemHist","☰","#1E9E6A",tr("Item history","سجل الصنف")]);}return n;};}
 if(typeof VIEW_AREA!=="undefined")VIEW_AREA.itemHist="wh";
 if(typeof M365_ROLES!=="undefined")["storekeeper","storeincharge","assets","logistics"].forEach(r=>{if(Array.isArray(M365_ROLES[r])&&!M365_ROLES[r].includes("itemHist"))M365_ROLES[r].push("itemHist");});
+
+/* ===================== Update 70: inventory – monthly cycle count, yearly stock-take, inventory report (quantities) =====================
+   (Azzam, 26 Nov 2026)
+   1. "Monthly inventory": every location with its last count, and what is still to count this month (also on the dashboard).
+   2. "Yearly stock-take": open a stock-take, print all count sheets, count every location (Stock count), follow the progress;
+      counts made while it is open are applied together when the Logistics Manager closes it; printable stock-take report.
+   3. "Inventory report": for a month or a year, per item (or per item and location): opening, received, issued, transfers,
+      returns, repairs, count corrections, closing – Excel and print. Quantities only (values later). */
+KEYS.stk=r=>r.no;D.stk=D.stk||[];
+if(typeof LOCAL_COLLS!=="undefined"&&!LOCAL_COLLS.includes("stk"))LOCAL_COLLS.push("stk");
+if(typeof COLL_AREA!=="undefined")COLL_AREA.stk="wh";
+const invLm=()=>M365.can("utShare")||whL(apMe())===whL(WH_LM);
+const stOpen=()=>(D.stk||[]).find(s=>s.status==="Open");
+const scDocs=()=>(D.docs||[]).filter(d=>d.type==="SC"&&!d.cancelled);
+const scState=o=>{const k=esK("sc");if(o.adjusted)return "ok";if(o.adjDeferred)return "deferred";if(esR(k,o)&&esR(k,o).rej)return "rej";return "wait";};
+const scStateTag=o=>({ok:tag(tr("Approved – stock corrected","معتمد – صُحّح المخزون"),"g"),deferred:tag(tr("Approved – applied when the stock-take closes","معتمد – يُطبّق عند إغلاق الجرد السنوي"),"g"),rej:tag(tr("Not approved","غير معتمد"),"r"),wait:tag(tr("Waiting approval","بانتظار الاعتماد"),"a")})[scState(o)];
+const locRows=()=>allLocs().map(loc=>{const wh=destWh(loc),lines=D.stock.filter(s=>s.loc===loc&&+s.qty),sc=scDocs().filter(d=>d.loc===loc).sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(b.no).localeCompare(String(a.no)));return {loc,wh,lines:lines.length,qty:lines.reduce((a,s)=>a+(+s.qty||0),0),last:sc[0]||null,all:sc};});
+/* defer count corrections while a stock-take is open */
+{const A0=esAfter;esAfter=function(k,o,reject,sig,reason){let def=false;
+ if(k.id==="sc"&&!reject&&o.st&&!o.adjusted){const st=(D.stk||[]).find(s=>s.no===o.st);if(st&&st.status==="Open"){o.adjusted={deferred:true};def=true;}}
+ A0(k,o,reject,sig,reason);if(def){delete o.adjusted;if(esDone(k,o))o.adjDeferred=true;}};}
+/* tag counts submitted while a stock-take is open */
+{const B0=BIND.count;BIND.count=()=>{B0();const st=stOpen();if(st){const c=$("#main .card");if(c&&!$("#stBan"))c.insertAdjacentHTML("beforebegin",`<div class="banner" id="stBan" style="background:#EEF6FF;border-color:#93C5FD;color:#1E3A5F">📋 ${tr("Yearly stock-take","الجرد السنوي")} <b class="en">${esc(st.no)}</b> ${tr("is open – this count belongs to it. Corrections are applied when the Logistics Manager closes the stock-take.","مفتوح – هذا الجرد جزء منه. تُطبّق التصحيحات عند إغلاق مدير اللوجستيات للجرد السنوي.")}</div>`);}
+ const s=$("#cSub");if(!s||s._st)return;const o=s.onclick;s._st=1;s.onclick=function(ev){const n0=scDocs().length;const r=o.call(this,ev);const L=scDocs();if(L.length>n0){const d=L[L.length-1],st=stOpen();if(st){d.st=st.no;persist();}}return r;};
+ if(window.INV_LOC){const l=window.INV_LOC;window.INV_LOC=null;const w=destWh(l);const W=$("#cWh");if(W){W.value=w==="ASP"?"MAIN":w;W.dispatchEvent(new Event("change"));setTimeout(()=>{const L2=$("#cLoc");if(L2){L2.value=l;}},0);}}};}
+/* ---------- 1. Monthly inventory ---------- */
+let INV_M=month();
+const invDue=m=>locRows().filter(r=>r.lines&&!r.all.some(d=>String(d.date).startsWith(m)));
+VIEWS.inv=()=>{const R=locRows(),m=INV_M,withStock=R.filter(r=>r.lines),done=withStock.filter(r=>r.all.some(d=>String(d.date).startsWith(m))),pct=withStock.length?Math.round(done.length/withStock.length*100):0;
+ const months=[...new Set([month(),...scDocs().map(d=>String(d.date).slice(0,7))])].sort().reverse();
+ return head(tr("Monthly inventory","الجرد الشهري"),tr("Count every location that holds stock at least once a month. Pick a location and press Count.","اجرد كل موقع فيه مخزون مرة في الشهر على الأقل. اختر الموقع واضغط جرد."))+
+ `<div class="card"><div class="btns" style="align-items:center"><label>${tr("Month","الشهر")} <select id="invM">${months.map(x=>`<option${x===m?" selected":""}>${x}</option>`).join("")}</select></label><span style="flex:1"></span><b>${done.length} / ${withStock.length}</b>&nbsp;${tr("locations with stock counted","موقع فيه مخزون تم جرده")} (${pct}%)</div>
+ <div style="height:10px;background:#E5E9F0;border-radius:6px;overflow:hidden;margin-top:8px"><div style="height:10px;width:${pct}%;background:#1E9E6A"></div></div></div>
+ <div class="card"><table class="t"><tr><th>${tr("Warehouse › Location","المستودع › الموقع")}</th><th class="num">${tr("Stock lines","البنود")}</th><th class="num">${tr("Total qty","إجمالي الكمية")}</th><th>${tr("Last count","آخر جرد")}</th><th>${tr("Status","الحالة")}</th><th>${tr("This month","هذا الشهر")}</th><th></th></tr>
+ ${R.map(r=>{const thisM=r.all.find(d=>String(d.date).startsWith(m)),old=r.last&&(new Date(today())-new Date(r.last.date))/864e5>30;
+  return `<tr${r.lines&&!thisM?' style="background:#FFF7ED"':""}><td class="en"><b>${esc(((WH[r.wh]||{}).name||r.wh)+" › "+r.loc)}</b></td><td class="num">${int(r.lines)}</td><td class="num">${int(r.qty)}</td><td>${r.last?`<a href="#" data-scv="${esc(r.last.no)}" class="en">${esc(r.last.date)}</a>${old?" "+tag(tr("over 30 days","أكثر من 30 يوماً"),"r"):""}`:(r.lines?tag(tr("never counted","لم يُجرد"),"r"):"—")}</td><td>${r.last?scStateTag(r.last):""}</td><td>${thisM?tag("✔ "+tr("Counted","تم الجرد"),"g"):r.lines?tag(tr("To count","للجرد"),"a"):`<span class="hint">${tr("empty","فارغ")}</span>`}</td><td>${r.lines&&M365.can("count")?`<button class="b sm" data-cnt="${esc(r.loc)}">${tr("Count","جرد")}</button>`:""}</td></tr>`;}).join("")}</table></div>`;};
+BIND.inv=()=>{$("#invM").onchange=e=>{INV_M=e.target.value;render();};document.querySelectorAll("[data-cnt]").forEach(b=>b.onclick=()=>{window.INV_LOC=b.dataset.cnt;go("count");});
+ document.querySelectorAll("[data-scv]").forEach(a=>a.onclick=e=>{e.preventDefault();const d=scDocs().find(x=>x.no===a.dataset.scv);if(d)openModal(d.no,scForm(d),d.no);});};
+{const B0=BIND.dashWH;BIND.dashWH=()=>{B0&&B0();if($("#invDue"))return;const due=invDue(month());if(!due.length)return;const c=$("#main .udc")||$("#main .card");if(!c)return;
+ c.insertAdjacentHTML("beforebegin",`<div class="card" id="invDue" style="border-color:#2F6FDE"><h2>📋 ${tr("Monthly inventory","الجرد الشهري")}: ${due.length} ${tr("location(s) still to count this month","موقع لم يُجرد هذا الشهر")}</h2><p class="hint en">${esc(due.slice(0,12).map(r=>r.loc).join(" · "))}${due.length>12?" …":""}</p><div class="btns"><button class="b" id="invGo">${tr("Open monthly inventory","فتح الجرد الشهري")}</button></div></div>`);$("#invGo").onclick=()=>go("inv");};}
+/* ---------- 2. Yearly stock-take ---------- */
+const stSc=no=>scDocs().filter(d=>d.st===no);
+function stReport(st){const R=locRows().filter(r=>r.lines||stSc(st.no).some(d=>d.loc===r.loc));const rows=[];let short=0,exc=0,match=0;
+ stSc(st.no).forEach(d=>(d.lines||[]).forEach(l=>{const df=(+l.qty||0)-(+l.sys||0);if(!df){match++;return;}if(df<0)short++;else exc++;rows.push([d.loc,l.code,(item(l.code)||lineFor(l.code)||{}).desc||"",l.sys,l.qty,(df>0?"+":"")+df]);}));
+ const counted=R.filter(r=>stSc(st.no).some(d=>d.loc===r.loc)).length;
+ return gdoc({title:"YEARLY STOCK-TAKE REPORT",no:st.no,date:st.closedAt?String(st.closedAt).slice(0,10):today(),meta:[["Opened",st.date+" by "+(st.by||"")],["Status",st.status+(st.closedBy?" – closed by "+st.closedBy:"")],["Locations counted",counted+" of "+R.length],["Lines matching",String(match)],["Shortages / excess",short+" / "+exc]],
+  cols:["Location","Item code","Description","System","Counted","Difference"],rows:rows.length?rows:[["All counted lines match the system","","","","",""]],sig:["Storekeeper","Logistics Manager","Finance"],right:[3,4,5],foot:"Quantities only"});}
+VIEWS.stk=()=>{const st=stOpen(),past=(D.stk||[]).filter(s=>s.status!=="Open").sort((a,b)=>String(b.no).localeCompare(String(a.no)));
+ let body="";
+ if(!st)body=`<div class="card"><h2>${tr("No stock-take open","لا يوجد جرد سنوي مفتوح")}</h2><p class="hint">${tr("Open the yearly stock-take on the day you start counting. Then count every location in Stock count; this screen follows the progress.","افتح الجرد السنوي يوم بدء العدّ. ثم اجرد كل موقع من شاشة الجرد؛ هذه الشاشة تتابع التقدم.")}</p>${invLm()?`<div class="btns"><button class="b g" id="stOpenB">${tr("Open yearly stock-take","فتح الجرد السنوي")} ${new Date().getFullYear()}</button></div>`:`<p class="hint">${tr("Only the Logistics Manager opens and closes the stock-take.","فقط مدير اللوجستيات يفتح ويغلق الجرد السنوي.")}</p>`}</div>`;
+ else{const R=locRows().filter(r=>r.lines||stSc(st.no).some(d=>d.loc===r.loc)),S=stSc(st.no);const cnt=R.filter(r=>S.some(d=>d.loc===r.loc)).length,appr=R.filter(r=>S.some(d=>d.loc===r.loc&&(d.adjDeferred||d.adjusted))).length;
+  body=`<div class="card"><h2>📋 ${tr("Stock-take","الجرد السنوي")} <span class="en">${esc(st.no)}</span> – ${tr("open since","مفتوح منذ")} ${esc(st.date)}</h2><p><b>${cnt} / ${R.length}</b> ${tr("locations counted","موقع تم جرده")} · <b>${appr}</b> ${tr("approved","معتمد")}</p>
+  <div class="btns"><button class="b l" id="stSheets">🖨 ${tr("Print all count sheets","طباعة كل أوراق الجرد")}</button><button class="b l" id="stRep">${tr("Stock-take report (so far)","تقرير الجرد (حتى الآن)")}</button><span style="flex:1"></span>${invLm()?`<button class="b r" id="stClose">${tr("Close stock-take and apply corrections","إغلاق الجرد وتطبيق التصحيحات")}</button>`:""}</div>
+  <p class="hint">${tr("During the stock-take avoid receiving or issuing in a location until it is counted. Count each location in Stock count – it is linked here automatically.","أثناء الجرد تجنّب الاستلام أو الصرف من الموقع حتى يُجرد. اجرد كل موقع من شاشة الجرد – يُربط هنا تلقائياً.")}</p></div>
+  <div class="card"><table class="t"><tr><th>${tr("Warehouse › Location","المستودع › الموقع")}</th><th class="num">${tr("Stock lines","البنود")}</th><th>${tr("Count","الجرد")}</th><th>${tr("Status","الحالة")}</th><th class="num">${tr("Differences","الفروقات")}</th><th></th></tr>
+  ${R.map(r=>{const d=S.filter(x=>x.loc===r.loc).pop();const df=d?(d.lines||[]).filter(l=>(+l.qty||0)!==(+l.sys||0)).length:0;
+   return `<tr${!d?' style="background:#FFF7ED"':""}><td class="en"><b>${esc(((WH[r.wh]||{}).name||r.wh)+" › "+r.loc)}</b></td><td class="num">${int(r.lines)}</td><td>${d?`<a href="#" data-scv="${esc(d.no)}" class="en">${esc(d.no)}</a>`:tag(tr("not counted","لم يُجرد"),"a")}</td><td>${d?scStateTag(d):""}</td><td class="num">${d?int(df):""}</td><td>${!d&&M365.can("count")?`<button class="b sm" data-cnt="${esc(r.loc)}">${tr("Count","جرد")}</button>`:""}</td></tr>`;}).join("")}</table></div>`;}
+ return head(tr("Yearly stock-take","الجرد السنوي"),tr("Count every location once, in one exercise, and close it with one approved report.","جرد كل المواقع مرة واحدة في عملية واحدة وإغلاقها بتقرير معتمد واحد."))+msgBox+body+
+ (past.length?`<div class="card"><h2>${tr("Closed stock-takes","الجرد السنوي المغلق")}</h2><table class="t">${past.map(s=>`<tr><td class="en"><b>${esc(s.no)}</b></td><td>${esc(s.date)} → ${esc(String(s.closedAt||"").slice(0,10))}</td><td class="en">${esc(s.closedBy||"")}</td><td><button class="b l sm" data-strep="${esc(s.no)}">${tr("Report","التقرير")}</button></td></tr>`).join("")}</table></div>`:"");};
+BIND.stk=()=>{const st=stOpen();
+ document.querySelectorAll("[data-cnt]").forEach(b=>b.onclick=()=>{window.INV_LOC=b.dataset.cnt;go("count");});
+ document.querySelectorAll("[data-scv]").forEach(a=>a.onclick=e=>{e.preventDefault();const d=scDocs().find(x=>x.no===a.dataset.scv);if(d)openModal(d.no,scForm(d),d.no);});
+ document.querySelectorAll("[data-strep]").forEach(b=>b.onclick=()=>{const s=(D.stk||[]).find(x=>x.no===b.dataset.strep);if(s)openModal(s.no,stReport(s),"Stock-take "+s.no);});
+ const ob=$("#stOpenB");if(ob)ob.onclick=()=>{const y=String(new Date().getFullYear());D.stk=D.stk||[];const no=seqNo("ST-"+y+"-",D.stk.map(s=>s.no),2);if(!confirm(tr("Open yearly stock-take ","فتح الجرد السنوي ")+no+"?"))return;D.stk.push({no,year:y,date:today(),by:apMe()||"",status:"Open"});persist();render();};
+ if(!st)return;
+ $("#stSheets").onclick=()=>{const R=locRows().filter(r=>r.lines);openModal(st.no,R.map(r=>scForm({no:st.no+" · "+r.loc,wh:r.wh,loc:r.loc,date:today(),lines:D.stock.filter(s=>s.loc===r.loc&&+s.qty).map(s=>({code:s.code,qty:""}))},true)).join('<div style="page-break-after:always"></div>'),"Count sheets "+st.no);};
+ $("#stRep").onclick=()=>openModal(st.no,stReport(st),"Stock-take "+st.no);
+ const cb=$("#stClose");if(cb)cb.onclick=()=>{const k=esK("sc"),S=stSc(st.no),R=locRows().filter(r=>r.lines);
+  const wait=S.filter(d=>!(d.adjDeferred||d.adjusted)&&!esDone(k,d)),miss=R.filter(r=>!S.some(d=>d.loc===r.loc));
+  if(wait.length)return msg("err",tr("These counts are not approved yet: ","هذه الجرود غير معتمدة بعد: ")+esc(wait.map(d=>d.no+" ("+d.loc+")").join(", ")));
+  if(miss.length&&!confirm(tr("Not counted: ","لم تُجرد: ")+miss.map(r=>r.loc).join(", ")+"\n"+tr("Close anyway?","الإغلاق على أي حال؟")))return;
+  if(!confirm(tr("Close ","إغلاق ")+st.no+tr(" and apply all count differences to the stock?"," وتطبيق كل فروقات الجرد على المخزون؟")))return;
+  let n=0;S.forEach(d=>{if(d.adjusted)return;if(!(d.adjDeferred||esDone(k,d)))return;(d.lines||[]).forEach(l=>{const df=(+l.qty||0)-(+l.sys||0);if(df){addStock(l.code,d.wh,d.loc,df);n++;}});d.adjusted={at:new Date().toISOString(),by:apMe()||"",st:st.no};delete d.adjDeferred;});
+  Object.assign(st,{status:"Closed",closedAt:new Date().toISOString(),closedBy:apMe()||""});persist();render();toast("✔ "+st.no+" "+tr("closed –","أُغلق –")+" "+n+" "+tr("stock line(s) corrected","سطر مخزون صُحّح"));openModal(st.no,stReport(st),"Stock-take "+st.no);};};
+/* ---------- 3. Inventory report ---------- */
+function stockMoves(){const M=[],push=(code,dt,wh,loc,k,q)=>M.push({code,dt:String(dt||"").slice(0,10),wh,loc,k,q:+q||0});
+ D.docs.filter(d=>!d.cancelled).forEach(d=>(d.lines||[]).forEach(l=>{const q=+l.qty||0;if(!l.code)return;
+  if(d.type==="GRN"){if(!l.assets)push(l.code,d.date,d.wh,d.loc,"rec",q);}
+  else if(d.type==="MDS"&&!l.asset){push(l.code,d.date,l.wh||d.wh,l.loc||d.loc,d.dtype==="Transfer"?"xout":"iss",-q);if(d.xfer)push(l.code,d.date,d.xfer.wh,d.xfer.loc,"xin",q);}
+  else if(d.type==="MRS"&&!l.asset){if(l.cond==="Damaged"){push(l.code,d.date,d.wh,d.loc,"dmg",0);M[M.length-1].info=q;if(l.dmg&&l.dmg.act==="repaired")push(l.code,l.dmg.at,d.wh,d.loc,"rep",q);if(l.dmg&&l.dmg.act==="writeoff"){push(l.code,l.dmg.at,d.wh,d.loc,"wo",0);M[M.length-1].info=q;}}else push(l.code,d.date,d.wh,d.loc,"ret",q);}
+  else if(d.type==="SC"&&d.adjusted&&!d.adjusted.deferred){const df=q-(+l.sys||0);if(df)push(l.code,d.adjusted.at,d.wh,d.loc,"adj",df);}}));return M;}
+let IR={per:"m",m:month(),y:today().slice(0,4),byLoc:false,loc:"",q:""};
+function irRows(){const from=IR.per==="m"?IR.m+"-01":IR.y+"-01-01",to=IR.per==="m"?addDays(addDays(IR.m+"-01",32).slice(0,7)+"-01",-1):IR.y+"-12-31";
+ const key=(c,loc)=>IR.byLoc?c+"|"+loc:c,cur=new Map(),rows=new Map();
+ D.stock.forEach(s=>{if(IR.loc&&s.loc!==IR.loc)return;const k=key(s.code,s.loc);cur.set(k,(cur.get(k)||0)+(+s.qty||0));});
+ const get=(c,loc)=>{const k=key(c,loc);let r=rows.get(k);if(!r){r={code:c,loc:IR.byLoc?loc:"",rec:0,iss:0,xin:0,xout:0,ret:0,rep:0,adj:0,dmg:0,wo:0,after:0};rows.set(k,r);}return r;};
+ stockMoves().forEach(m=>{if(IR.loc&&m.loc!==IR.loc)return;if(m.dt>to){get(m.code,m.loc).after+=m.q;return;}if(m.dt<from)return;const r=get(m.code,m.loc);if(m.k==="dmg"||m.k==="wo")r[m.k]+=m.info||0;else r[m.k]+=m.q;});
+ cur.forEach((q,k)=>{const [c,loc]=IR.byLoc?k.split("|"):[k,""];get(c,loc);});
+ const s=IR.q.toLowerCase();
+ return [...rows.values()].map(r=>{const it=item(r.code)||lineFor(r.code)||{};const now=cur.get(key(r.code,r.loc))||0,closing=now-r.after,net=r.rec+r.iss+r.xin+r.xout+r.ret+r.rep+r.adj;return Object.assign(r,{desc:it.desc||"",unit:it.unit||"",closing,opening:closing-net});})
+  .filter(r=>(r.opening||r.closing||r.rec||r.iss||r.xin||r.xout||r.ret||r.rep||r.adj||r.dmg||r.wo)&&(!s||[r.code,r.desc,r.loc].some(v=>String(v).toLowerCase().includes(s))))
+  .sort((a,b)=>a.desc.localeCompare(b.desc)||a.loc.localeCompare(b.loc));}
+const IR_COLS=()=>[["opening",tr("Opening","افتتاحي")],["rec",tr("Received","وارد")],["iss",tr("Issued","منصرف")],["xin",tr("Transfer in","تحويل وارد")],["xout",tr("Transfer out","تحويل صادر")],["ret",tr("Returned","مرتجع")],["rep",tr("Repaired","مُصلح")],["adj",tr("Count +/−","تصحيح جرد")],["closing",tr("Closing","ختامي")],["dmg",tr("Damaged (info)","تالف (للعلم)")]];
+function irTable(R){const C=IR_COLS();const tot={};C.forEach(([k])=>tot[k]=R.reduce((a,r)=>a+(r[k]||0),0));const f=(k,v)=>v?(k==="adj"&&v>0?"+":"")+int(v):"–";
+ return `<table class="t"><tr><th>${tr("Item code","كود الصنف")}</th><th>${tr("Description","الوصف")}</th>${IR.byLoc?`<th>${tr("Location","الموقع")}</th>`:""}<th>${tr("Unit","الوحدة")}</th>${C.map(([k,l])=>`<th class="num">${l}</th>`).join("")}</tr>
+ ${R.map(r=>`<tr><td class="en"><b>${esc(r.code)}</b></td><td class="en">${esc(r.desc)}</td>${IR.byLoc?`<td class="en">${esc(r.loc)}</td>`:""}<td class="en">${esc(r.unit)}</td>${C.map(([k])=>`<td class="num">${k==="opening"||k==="closing"?`<b>${int(r[k])}</b>`:f(k,r[k])}</td>`).join("")}</tr>`).join("")||`<tr><td colspan="14" class="empty">${tr("No stock or movements for this period.","لا مخزون ولا حركات لهذه الفترة.")}</td></tr>`}
+ ${R.length?`<tr class="tot"><td colspan="${IR.byLoc?4:3}">${tr("Total","المجموع")} (${R.length})</td>${C.map(([k])=>`<td class="num">${int(tot[k])}</td>`).join("")}</tr>`:""}</table>`;}
+const irTitle=()=>(IR.per==="m"?IR.m:IR.y)+(IR.loc?" · "+IR.loc:"");
+VIEWS.invRep=()=>{const yrs=[...new Set([today().slice(0,4),...D.docs.map(d=>String(d.date).slice(0,4))])].filter(Boolean).sort().reverse(),R=irRows();
+ return head(tr("Inventory report","تقرير المخزون"),tr("Opening, movements and closing quantities per item for a month or a year. Opening = closing − movements of the period.","الكميات الافتتاحية والحركات والختامية لكل صنف لشهر أو سنة."))+
+ `<div class="card"><div class="fg"><div class="f"><label>${tr("Period","الفترة")}</label><select id="irP"><option value="m"${IR.per==="m"?" selected":""}>${tr("Month","شهر")}</option><option value="y"${IR.per==="y"?" selected":""}>${tr("Year","سنة")}</option></select></div>
+ <div class="f"><label>${IR.per==="m"?tr("Month","الشهر"):tr("Year","السنة")}</label>${IR.per==="m"?`<input id="irM" type="month" value="${esc(IR.m)}">`:`<select id="irY">${yrs.map(y=>`<option${y===IR.y?" selected":""}>${y}</option>`).join("")}</select>`}</div>
+ <div class="f"><label>${tr("Location","الموقع")}</label><select id="irL"><option value="">${tr("All locations","كل المواقع")}</option>${allLocs().map(l=>`<option${l===IR.loc?" selected":""}>${esc(l)}</option>`).join("")}</select></div>
+ <div class="f"><label>${tr("Search","بحث")}</label><input id="irQ" class="en" value="${esc(IR.q)}" placeholder="code · description"></div></div>
+ <div class="btns" style="align-items:center"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="irB"${IR.byLoc?" checked":""}> ${tr("Per item and location","لكل صنف وموقع")}</label><span style="flex:1"></span><button class="b l" id="irX">⬇ Excel</button><button class="b l" id="irPr">🖨 ${tr("Print","طباعة")}</button></div></div>
+ <div class="card" style="overflow:auto"><p class="hint">${tr("Quantities only. Damaged returns are shown for information: they are not usable stock until repaired.","كميات فقط. المرتجعات التالفة للعلم: ليست مخزوناً قابلاً للاستخدام حتى تُصلح.")}</p><div id="irBody">${irTable(R)}</div></div>`;};
+BIND.invRep=()=>{const re=()=>render();$("#irP").onchange=e=>{IR.per=e.target.value;re();};const m=$("#irM");if(m)m.onchange=e=>{IR.m=e.target.value||month();re();};const y=$("#irY");if(y)y.onchange=e=>{IR.y=e.target.value;re();};
+ $("#irL").onchange=e=>{IR.loc=e.target.value;re();};$("#irB").onchange=e=>{IR.byLoc=e.target.checked;re();};let t;$("#irQ").oninput=e=>{clearTimeout(t);IR.q=e.target.value;t=setTimeout(()=>{$("#irBody").innerHTML=irTable(irRows());},250);};
+ $("#irPr").onclick=()=>dsPrint(tr("MIDU inventory report","تقرير المخزون")+" – "+irTitle(),tr("Quantities only","كميات فقط")+" · "+today(),irTable(irRows()),"Inventory report "+irTitle());
+ $("#irX").onclick=()=>{try{const R=irRows(),C=IR_COLS(),wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Item code","Description",...(IR.byLoc?["Location"]:[]),"Unit",...C.map(c=>c[1])]].concat(R.map(r=>[r.code,r.desc,...(IR.byLoc?[r.loc]:[]),r.unit,...C.map(([k])=>r[k]||0)]))),"Inventory "+irTitle().replace(/[^\w -]/g,"").slice(0,24));
+  XLSX.writeFile(wb,"MIDU Inventory report "+irTitle().replace(/[^\w -]/g,"")+".xlsx");}catch(e){toast("✖ "+e.message);}};};
+/* menu + roles */
+{const N7=NAV;NAV=()=>{const n=N7();const i=n.findIndex(x=>x[1]==="count");if(i>-1&&!n.some(x=>x[1]==="inv"))n.splice(i+1,0,[1,"inv","📋","#2F6FDE",tr("Monthly inventory","الجرد الشهري")],[1,"stk","🗓","#2F6FDE",tr("Yearly stock-take","الجرد السنوي")+(stOpen()?` <b style="background:#2F6FDE;color:#fff;border-radius:9px;padding:0 6px;font-size:11px">${tr("open","مفتوح")}</b>`:"")],[1,"invRep","▦","#2F6FDE",tr("Inventory report","تقرير المخزون")]);return n;};}
+["inv","stk","invRep"].forEach(v=>{if(typeof VIEW_AREA!=="undefined")VIEW_AREA[v]="wh";});
+if(typeof M365_ROLES!=="undefined")["storekeeper","storeincharge","assets","logistics"].forEach(r=>{if(Array.isArray(M365_ROLES[r]))["inv","stk","invRep"].forEach(v=>{if(!M365_ROLES[r].includes(v))M365_ROLES[r].push(v);});});
 </script>
 </body>
 </html>
