@@ -3063,6 +3063,26 @@ function wuWeekHtml(m,st){const days=Array.from({length:7},(_,i)=>addDays(st,i))
  return p1+p2;}
 function wuReportHtml(m,wk){const first=m+"-01",last=upD(m,upDays(m)),W=[];for(let st=wkStart(first);st<=last;st=addDays(st,7))W.push(st);
  const sel=wk&&wk!=="all"?[wk]:W;return `<div class="doc xl" style="font-family:'Plus Jakarta Sans',Inter,Arial,Helvetica,sans-serif;color:#1d2321;padding:8px 12px"><style>@page{size:A4 landscape;margin:8mm}</style>${sel.map((st,i)=>`<div style="${i<sel.length-1?"page-break-after:always":""}">${wuWeekHtml(m,st)}</div>`).join("")}</div>`;}
+/* ===================== Update 64: cost centers of back charges in CAPEX & OPEX (Azzam, 26 Nov 2026) =====================
+   - Back charges to Concrete Division (internal, cost center ASP-CON) move that cost from ASP-CONST to ASP-CON in the month of the
+     debit note period: each Concrete debit note (utilities, barriers, equipment rental …) = + on ASP-CON and – on ASP-CONST.
+     A month with utilities readings but no Concrete utilities debit note yet uses the back charge calculated in the Hub
+     (Back charge & profit: utilities + generator rental), marked "not issued yet".
+   - Items bought for MIDU Steel (cost center ASP-STL) besides the furniture PO are CAPEX of ASP-STL in their invoice month. */
+const CON_CC=()=>CC.includes("ASP-CON")?"ASP-CON":(CC.find(c=>/^ASP-CON$/i.test(c))||"ASP-CON");
+const MS_CAPEX=[["2026-09","TV 70\", fridge, kettle & microwave for MIDU Steel (invoice 27-09-2026)",2026.09],["2026-09","3 split A/C units for the MIDU Steel porta cabin (Al-Marhabi 7-156, 05-09-2026)",4501.7],["2026-09","TV stand for MIDU Steel (Rukn Al-Hindawiya 001383, 28-09-2026)",270]];
+function conBcCalc(m){const c=CONTR.find(x=>/concrete/i.test(x))||"Concrete Division";let a=rcBcRows(m).reduce((s,o)=>s+o.cq[c]*o.bc,0);grRows(m).forEach(g=>a+=g.bc[c]||0);return r2(a);}
+{const C2=cxLines;cxLines=function(){const out=C2(),own=UTX_CC(),con=CON_CC(),isCon=d=>/concrete/i.test(d.contractor||"");
+ const dns=(D.dns||[]).filter(d=>!d.cancelled&&isCon(d));
+ dns.forEach(d=>{const m=String(d.period||d.date||"").slice(0,7),amt=+d.sub||0,t=(typeof dnType==="function"?dnType(d):d.type)||"";if(!amt)return;
+  out.push({order:d.no,cc:con,desc:"Back charge to Concrete Division – "+t+" ("+(((d.lines||[])[0]||{}).type||"")+")",cls:"OPEX",amt,m,src:"bc"});
+  out.push({order:d.no,cc:own,desc:"Recovered from Concrete Division (ASP-CON) – "+t,cls:"OPEX",amt:-amt,m,src:"bc"});});
+ /* months with readings and no Concrete utilities debit note yet */
+ utMonths().filter(m=>(D.ut||[]).some(u=>String(u.date).startsWith(m))&&!dns.some(d=>String(d.period||"").startsWith(m)&&/utilit/i.test((typeof dnType==="function"?dnType(d):d.type)||""))).forEach(m=>{const amt=conBcCalc(m);if(!amt)return;
+  out.push({order:tr("not issued yet","لم يصدر بعد"),cc:con,desc:"Back charge to Concrete Division – utilities "+monthName(m)+" (calculated in the Hub, debit note not issued yet)",cls:"OPEX",amt,m,src:"bc",est:true});
+  out.push({order:tr("not issued yet","لم يصدر بعد"),cc:own,desc:"Recovered from Concrete Division (ASP-CON) – utilities "+monthName(m)+" (debit note not issued yet)",cls:"OPEX",amt:-amt,m,src:"bc",est:true});});
+ MS_CAPEX.forEach(([m,desc,amt])=>out.push({order:tr("Invoice","فاتورة"),cc:STEEL_CC(),desc,cls:"CAPEX",amt,m,src:"po",inv:[{n:"Invoices to Osama (3 Oct)",u:MS_LINK}]}));
+ return out;};}
 </script>
 </body>
 </html>
