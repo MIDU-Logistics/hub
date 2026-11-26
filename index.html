@@ -2710,6 +2710,48 @@ if(typeof VIEW_AREA!=="undefined")VIEW_AREA.stock="wh";
 if(typeof M365_ROLES!=="undefined"){["assets","storekeeper","storeincharge","logistics","procurement","finance"].forEach(r=>{if(Array.isArray(M365_ROLES[r])&&!M365_ROLES[r].includes("stock"))M365_ROLES[r].push("stock");});}
 {const N4=NAV;NAV=()=>{const n=N4();const i=n.findIndex(x=>x[1]==="count");if(i>-1&&!n.some(x=>x[1]==="stock"))n.splice(i,0,[1,"stock","▤","#1E9E6A",tr("Stock on hand","المخزون الحالي")]);return n;};}
 
+/* ===================== Update 59: Utilities real cost (internal) =====================
+   What MIDU pays the suppliers, from "Monthly Utilities Consumption" › Setup (Azzam, 26 Nov 2026).
+   A category can have one rate per company (Garbage skip: Rewam 600 / Emaar 650 from MBL); the company
+   is the Utility Item's "company". Contractor quantities use the same shares as the back charge, MIDU = the rest.
+   Internal only: the back-charge sheets and debit notes to sub-contractors are not changed. */
+const RC_VAT=0.15;
+const RC_RATES={"Generators diesel":["MBL",1.557],"Tower lights diesel":["MBL",1.557],"Equipment diesel":["MBL",1.557],
+ "Concrete waste skip":["MBL",1430],"Concrete vacuum":["MBL",400],"Concrete trucks":["MBL",1540],
+ "Garbage skip":["MBL",650,{Rewam:600,Emaar:650}],"Sewage":["TEKLAY",250],"Potable water":["TEKLAY",12],
+ "Drinking water (labour)":["YAZAN",0.06],"Ice cubes":["MARAH",4.34782],"Drinking water cartons":["MBL",10]};
+const rcRate=(type,co)=>{const r=RC_RATES[type];if(!r)return {sup:"",rate:0};return {sup:r[0],rate:(co&&r[2]&&r[2][co]!==undefined)?r[2][co]:r[1]};};
+let RC_M="";
+function rcRows(m){const map=new Map();
+ D.ut.filter(u=>String(u.date).startsWith(m)&&+u.qty).forEach(u=>{const it=uItem(u.item)||{},co=it.company||u.company||"",k=u.type+"|"+co;
+  let o=map.get(k);if(!o){const rr=rcRate(u.type,co);o={type:u.type,co,unit:it.unit||u.unit||utRate(u.type).unit||"",sup:rr.sup,rate:rr.rate,bc:utRate(u.type).rate,qty:0,cq:{},set:true};CONTR.forEach(c=>o.cq[c]=0);map.set(k,o);}
+  o.qty+=+u.qty;if(!isSet(u))o.set=false;CONTR.forEach(c=>o.cq[c]+=u.qty*shareOf(u,c));});
+ const cats=utCats();return [...map.values()].map(o=>{const cs=CONTR.reduce((a,c)=>a+o.cq[c],0);o.mq=o.qty-cs;o.cs=cs;o.amt=o.qty*o.rate;o.vat=o.amt*(1+RC_VAT);
+  o.bcAmt=cs*o.bc;o.profit=o.bcAmt-cs*o.rate;return o;}).sort((a,b)=>cats.indexOf(a.type)-cats.indexOf(b.type)||a.co.localeCompare(b.co));}
+const rcLab=o=>o.type+(o.co?" – "+o.co:"");
+const rcR=n=>(+n||0).toLocaleString("en-US",{maximumFractionDigits:5});
+const rcQ=n=>Math.abs(n)<1e-9?"–":(Math.round(n*100)/100).toLocaleString("en-US",{maximumFractionDigits:2});
+VIEWS.utCost=()=>{const ms=utMonths();if(!RC_M||!ms.includes(RC_M))RC_M=ms[0];const R=rcRows(RC_M),V=1+RC_VAT;
+ const tot={amt:0,vat:0,c:{},m:0,bc:0,bcv:0,pr:0};CONTR.forEach(c=>tot.c[c]=0);
+ R.forEach(o=>{tot.amt+=o.amt;tot.vat+=o.vat;CONTR.forEach(c=>tot.c[c]+=o.cq[c]*o.rate*V);tot.m+=o.mq*o.rate*V;tot.bc+=o.bcAmt;tot.bcv+=o.bcAmt*V;tot.pr+=o.profit;});
+ const miss=R.filter(o=>!o.rate).map(rcLab),nos=R.filter(o=>!o.set).map(rcLab);
+ return head(tr("Utilities — real cost","الخدمات — التكلفة الفعلية"),tr("What MIDU pays the suppliers at real cost rates, and how it is shared. For internal use only – the back-charge sheets and debit notes to sub-contractors do not show this.","ما تدفعه MIDU للموردين بسعر التكلفة الفعلية وكيف يتوزع. للاستخدام الداخلي فقط – كشوف إعادة الفوترة وإشعارات المدين للمقاولين لا تُظهر ذلك."))+
+ `<div class="card"><div class="fg"><div class="f"><label>${tr("Month","الشهر")}</label><select id="rcM">${ms.map(m=>`<option value="${m}"${m===RC_M?" selected":""}>${esc(monthName(m))}</option>`).join("")}</select></div></div>
+ <div class="kpis" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">${[[tr("Real cost (incl. VAT)","التكلفة الفعلية (شامل الضريبة)"),tot.vat],[tr("Back-charge to contractors (incl. VAT)","إعادة الفوترة للمقاولين (شامل الضريبة)"),tot.bcv],[tr("MIDU net cost","صافي تكلفة MIDU"),tot.vat-tot.bcv],[tr("Profit on back-charge (before VAT)","الربح من إعادة الفوترة (قبل الضريبة)"),tot.pr]].map(([l,v])=>`<div style="flex:1;min-width:190px;border:1px solid var(--line,#E3E7EF);border-radius:10px;padding:10px 12px"><div class="hint">${l}</div><div style="font-size:20px;font-weight:800" class="en">${money(v)} SAR</div></div>`).join("")}</div></div>
+ <div class="card" style="overflow-x:auto"><table class="t"><tr><th>${tr("Category","الفئة")}</th><th>${tr("Unit","الوحدة")}</th><th>${tr("Supplier","المورد")}</th><th class="num">${tr("Qty","الكمية")}</th><th class="num">${tr("Real rate","سعر التكلفة")}</th><th class="num">${tr("Amount","المبلغ")}</th><th class="num">${tr("Incl. VAT","شامل الضريبة")}</th>${CONTR.map(c=>`<th class="num">${esc(c)} ${tr("qty","كمية")}</th><th class="num">${esc(c)} SAR</th>`).join("")}<th class="num">MIDU ${tr("qty","كمية")}</th><th class="num">MIDU SAR</th><th class="num">${tr("Back-charge rate","سعر إعادة الفوترة")}</th><th class="num">${tr("Profit (before VAT)","الربح (قبل الضريبة)")}</th></tr>
+ ${R.map(o=>`<tr><td class="en"><b>${esc(o.type)}</b>${o.co?` <span class="tag" style="background:#EEF2FF;color:#3730A3">${esc(o.co)}</span>`:""}${o.set?"":` ${tag(tr("split not set","التوزيع غير محدد"),"a")}`}</td><td class="en">${esc(o.unit)}</td><td class="en">${esc(o.sup)}</td><td class="num">${rcQ(o.qty)}</td><td class="num">${o.rate?rcR(o.rate):tag("?","a")}</td><td class="num">${money(o.amt)}</td><td class="num"><b>${money(o.vat)}</b></td>${CONTR.map(c=>`<td class="num">${rcQ(o.cq[c])}</td><td class="num">${o.cq[c]?money(o.cq[c]*o.rate*V):"–"}</td>`).join("")}<td class="num">${rcQ(o.mq)}</td><td class="num">${o.mq?money(o.mq*o.rate*V):"–"}</td><td class="num">${rcR(o.bc)}</td><td class="num">${money(o.profit)}</td></tr>`).join("")||`<tr><td colspan="${11+CONTR.length*2}"><div class="empty">${tr("No readings in this month.","لا توجد قراءات في هذا الشهر.")}</div></td></tr>`}
+ ${R.length?`<tr style="font-weight:800"><td colspan="5">${tr("TOTAL","الإجمالي")}</td><td class="num">${money(tot.amt)}</td><td class="num">${money(tot.vat)}</td>${CONTR.map(c=>`<td></td><td class="num">${money(tot.c[c])}</td>`).join("")}<td></td><td class="num">${money(tot.m)}</td><td></td><td class="num">${money(tot.pr)}</td></tr>`:""}</table>
+ <p class="hint" style="margin-top:8px">${tr("VAT 15 %. Contractor shares are the same as on the back charge; MIDU = total less the contractors (negative when contractors are charged more than 100 %). Generator rental is not included.","ضريبة 15٪. حصص المقاولين نفسها المستخدمة في إعادة الفوترة؛ MIDU = الإجمالي ناقص المقاولين (سالب عندما يُحمَّل المقاولون أكثر من 100٪). إيجار المولدات غير مشمول.")}</p>
+ ${miss.length?`<p class="hint" style="color:#B45309">⚠ ${tr("No real cost rate for: ","لا يوجد سعر تكلفة لـ: ")}${esc(miss.join(", "))}</p>`:""}${nos.length?`<p class="hint" style="color:#B45309">⚠ ${tr("Contractor split not set for: ","توزيع المقاولين غير محدد لـ: ")}${esc(nos.join(", "))}</p>`:""}
+ <div class="btns"><button class="b g sm" id="rcXls">${tr("Download Excel","تنزيل Excel")}</button></div></div>`;};
+BIND.utCost=()=>{$("#rcM").onchange=e=>{RC_M=e.target.value;render();};
+ $("#rcXls").onclick=()=>{try{const R=rcRows(RC_M),V=1+RC_VAT;const hd=["Category","Company","Unit","Supplier","Qty","Real rate","Amount","Incl. VAT",...CONTR.flatMap(c=>[c+" qty",c+" SAR"]),"MIDU qty","MIDU SAR","Back-charge rate","Profit (before VAT)"];
+  const rows=R.map(o=>[o.type,o.co,o.unit,o.sup,r2(o.qty),o.rate,r2(o.amt),r2(o.vat),...CONTR.flatMap(c=>[r2(o.cq[c]),r2(o.cq[c]*o.rate*V)]),r2(o.mq),r2(o.mq*o.rate*V),o.bc,r2(o.profit)]);
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Real cost – "+monthName(RC_M)+" (internal)"],[],hd,...rows]),"Real cost");XLSX.writeFile(wb,"MIDU utilities real cost "+RC_M+".xlsx");}catch(e){toast("✖ "+e.message);}};};
+if(typeof VIEW_AREA!=="undefined")VIEW_AREA.utCost="ut";
+if(typeof M365_ROLES!=="undefined"){["utilities","logistics","finance"].forEach(r=>{if(Array.isArray(M365_ROLES[r])&&!M365_ROLES[r].includes("utCost"))M365_ROLES[r].push("utCost");});}
+{const N5=NAV;NAV=()=>{const n=N5();const i=n.findIndex(x=>x[1]==="utBC");if(i>-1&&!n.some(x=>x[1]==="utCost"))n.splice(i+1,0,[1,"utCost","Σ","#0E7490",tr("Real cost (internal)","التكلفة الفعلية (داخلي)")]);return n;};}
+
 </script>
 </body>
 </html>
