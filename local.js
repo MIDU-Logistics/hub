@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MIDU Logistics Hub — shared-folder mode (local.js)  ·  Plan B until IT registers the app
+   MIDU-Team Hub — shared-folder mode (local.js)  ·  Plan B until IT registers the app
    --------------------------------------------------------------------------
    The hub saves its data as JSON files in the OneDrive folder "MIDU Hub Data"
    (shared by Azzam and Turki). Edge / Chrome write to that folder directly
@@ -166,7 +166,7 @@ LOCAL.signIn = async function (force) {
   }
   return new Promise(res => {
     const last = LOCAL.userName();
-    const o = lockBox(`<h3 style="margin:0 0 4px">MIDU Logistics Hub</h3><p style="color:#555;margin:0 0 12px">${T("Choose your name and enter your PIN.", "اختر اسمك وأدخل الرمز.")}</p>
+    const o = lockBox(`<h3 style="margin:0 0 4px">MIDU-Team Hub</h3><p style="color:#555;margin:0 0 12px">${T("Choose your name and enter your PIN.", "اختر اسمك وأدخل الرمز.")}</p>
       <label>${T("Name", "الاسم")}</label><select id="luN" style="${lockInput}">${active.map(u => `<option ${u.name === last ? "selected" : ""}>${u.name.replace(/</g, "&lt;")}</option>`).join("")}</select>
       <div id="luSet"></div><label>PIN</label><input id="luP" type="password" inputmode="numeric" maxlength="8" style="${lockInput}" autofocus>
       <div id="luE" style="color:#B42318;min-height:18px"></div><button id="luOk" style="${lockBtn}">${T("Open the Hub", "فتح المنصة")}</button>`);
@@ -626,7 +626,7 @@ function xlFillUtilities(u8, month, readings) {
 /* ---------------- B. area workbooks ---------------- */
 function xlAreaBook(area, data) {
   const wb = XLSX.utils.book_new();
-  const info = [["MIDU Logistics Hub – " + AREAS[area]], [],
+  const info = [["MIDU-Team Hub – " + AREAS[area]], [],
     ["This file is linked with the Hub. Columns marked ✎ can be changed here: the change goes into the Hub within about 30 seconds while the Hub is open (or when it is next opened)."],
     ["Other columns are written by the Hub after every save – change them in the Hub (stock and custody only through GRN / MDS / MRS, approvals in the Hub)."],
     ["New rows can be added only in Employees and Budget. Rows deleted here are not deleted in the Hub."]];
@@ -722,11 +722,15 @@ async function xlTemplateBytes() {
 }
 /* Turki's weekly folder (outside MIDU Hub Data): linked once per PC, kept in this browser */
 LOCAL.weeklyInit = async function () {
+  /* Personal OneDrive folders are no longer linked: drop any link saved on this PC (Excel stays in MIDU Hub Data only). */
+  try { await idb("readwrite", s => s.delete("utWeekly")); } catch (e) {}
+  LOCAL.weekly = null; return;
   let h = null; try { h = await idb("readonly", s => s.get("utWeekly")); } catch (e) {}
   if (!h) { LOCAL.weekly = null; return; }
   try { const p = await h.queryPermission({ mode: "readwrite" }); LOCAL.weekly = { h, ok: p === "granted" }; } catch (e) { LOCAL.weekly = { h, ok: false }; }
 };
 LOCAL.weeklyLink = async function () {
+  throw new Error("Linking a personal OneDrive folder is turned off. The weekly workbook is in MIDU Hub Data › 02 Utilities › Excel (linked with Hub).");
   let h = LOCAL.weekly && LOCAL.weekly.h;
   if (h && !LOCAL.weekly.ok) { if ((await h.requestPermission({ mode: "readwrite" })) === "granted") { LOCAL.weekly.ok = true; return h.name; } }
   h = await window.showDirectoryPicker({ id: "midu-ut-weekly", mode: "readwrite" });

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MIDU Logistics Hub</title>
+<title>MIDU-Team Hub</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1B273D">
 <link rel="icon" type="image/png" href="favicon-32.png">
@@ -18,8 +18,8 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611251100"></script>
-<script src="local.js?v=202611251100"></script>
+<script src="m365.js?v=202611261200"></script>
+<script src="local.js?v=202611261200"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -360,7 +360,7 @@ function drawNav(){$("#nav").innerHTML=navAllowed().map(n=>n.length===1?`<div cl
  $("#nav").querySelectorAll("button").forEach(b=>b.onclick=()=>go(b.dataset.v));}
 function drawSite(){const cur=$("#site").value||"ALL";$("#site").innerHTML=`<option value="ALL">${tr("All sites","كل المواقع")}</option>`+Object.entries(WH).map(([k,w])=>`<option value="${k}">${w.name}</option>`).join("");$("#site").value=cur;}
 function applyLang(){document.documentElement.lang=L;document.documentElement.dir=L==="ar"?"rtl":"ltr";
- $("#appT").textContent=tr("MIDU Logistics Hub","منصة MIDU اللوجستية");$("#appS").textContent=tr("Warehouse · Assets · Utilities · Procurement · HR · Maintenance","المستودع · الأصول · الخدمات · المشتريات · الموارد البشرية · الصيانة");
+ $("#appT").textContent=tr("MIDU-Team Hub","منصة MIDU-Team");$("#appS").textContent=tr("Warehouse · Assets · Utilities · Procurement · HR · Maintenance","المستودع · الأصول · الخدمات · المشتريات · الموارد البشرية · الصيانة");
  $("#protoNote").textContent=LOCAL.connected?tr("Working from the shared OneDrive folder “MIDU Hub Data”. Every save goes to that folder and OneDrive syncs it.","العمل من مجلد OneDrive المشترك «MIDU Hub Data». كل حفظ يذهب إلى هذا المجلد ويزامنه OneDrive."):GAS?tr("Connected to Microsoft 365 (SharePoint lists and OneDrive). Every save goes to the lists.","متصل بـ Microsoft 365 ‏(قوائم SharePoint وOneDrive). كل حفظ يذهب إلى القوائم."):tr("Offline demo with sample data — data stays in this browser. Sign in with your MIDU Microsoft account and the same screens save to SharePoint.","نسخة تجريبية بدون اتصال ببيانات افتراضية — البيانات تبقى في هذا المتصفح. سجّل الدخول بحساب MIDU في Microsoft لتحفظ الشاشات نفسها في SharePoint.");
  $("#rst").textContent=GAS?tr("Reload data","إعادة تحميل البيانات"):tr("Reset sample data","إعادة البيانات التجريبية");$("#mClose").textContent=tr("Close","إغلاق");$("#mDl").textContent=tr("Download for printing","تنزيل للطباعة");
  $("#lgEN").classList.toggle("on",L==="en");$("#lgAR").classList.toggle("on",L==="ar");drawSite();drawNav();drawAcct();render(true);}
@@ -374,7 +374,7 @@ function drawAcct(){const a=$("#acct");if(!a)return;const btn=(id,txt,bg)=>`<but
  else a.innerHTML=`<span style="color:#9FB4DA" title="${esc(tr("Microsoft sign-in starts once IT has registered the app.","يبدأ تسجيل الدخول بعد تسجيل التطبيق من قسم تقنية المعلومات."))}">${tr("Demo","تجريبي")}</span>`;
  const i=$("#sIn");if(i)i.onclick=()=>M365.signIn();
  const li=$("#lIn");if(li)li.onclick=async()=>{const where=location.protocol+"//"+location.host+" · "+(window.top===window?"own tab":"inside another page")+" · secure:"+isSecureContext;
-  if(window.top!==window||!/^(file|https):$/.test(location.protocol))return hubErr(tr("The Hub is open inside a preview, where it cannot use folders. Open the MIDU Hub Data folder in File Explorer on your PC and double-click “MIDU Logistics Hub.html” so it opens in Edge.","المنصة مفتوحة داخل معاينة لا تسمح باستخدام المجلدات. افتح مجلد MIDU Hub Data من مستكشف الملفات في جهازك وانقر مرتين على «MIDU Logistics Hub.html» لتفتح في Edge."),where);
+  if(window.top!==window||!/^(file|https):$/.test(location.protocol))return hubErr(tr("The Hub is open inside a preview, where it cannot use folders. Open the MIDU Hub Data folder in File Explorer on your PC and double-click “MIDU-Team Hub.html” so it opens in Edge.","المنصة مفتوحة داخل معاينة لا تسمح باستخدام المجلدات. افتح مجلد MIDU Hub Data من مستكشف الملفات في جهازك وانقر مرتين على «MIDU-Team Hub.html» لتفتح في Edge."),where);
   LOCAL.picked=false;const wd=setTimeout(()=>{if(!LOCAL.connected)hubErr(tr("Still waiting after selecting the folder. Chrome may be waiting for OneDrive to download the files, or a small Chrome box may be hidden behind this window.","ما زال الانتظار بعد اختيار المجلد."),where+" · step: "+(LOCAL.step||"-"));},60000);try{await LOCAL.connect();clearTimeout(wd);const eb=document.getElementById("hubErr");if(eb)eb.remove();startData(LOCAL.run);}catch(e){clearTimeout(wd);hubErr((e.name==="AbortError"&&!LOCAL.picked?"Chrome closed the folder window without giving access. If you did select MIDU Hub Data, Chrome is blocking folder access for a page opened from a file. ":"")+(e.name||"Error")+": "+e.message,where+" · step: "+(LOCAL.step||"-"));}};
  const lu=$("#lUser");if(lu)lu.onclick=()=>LOCAL.changeUser();const lo=$("#lOut");if(lo)lo.onclick=()=>LOCAL.disconnect();const o=$("#sOut");if(o)o.onclick=()=>M365.signOut();}
 if(BUILD==="en")$("#langBox").style.display="none";
@@ -677,7 +677,7 @@ function lbLabelHtml(L){const m=lbQr(L.id),n=m.length;let qr="";for(let r=0;r<n;
  <div style="position:absolute;left:0;right:0;top:36.6mm;text-align:center;font-size:5pt;color:#777">PROPERTY OF MIDU COMPANY LTD – DO NOT REMOVE</div></div>`;}
 function lbFit(doc,t,w){if(doc.getTextWidth(t)<=w)return t;while(t.length>1&&doc.getTextWidth(t+"...")>w)t=t.slice(0,-1);return t+"...";}
 function lbPdf(){const{jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:[60,40],orientation:"landscape",compress:true});
- doc.setProperties({title:"MIDU Asset Labels 60x40",author:"MIDU Logistics Department",creator:"MIDU Logistics Hub"});
+ doc.setProperties({title:"MIDU Asset Labels 60x40",author:"MIDU Logistics Department",creator:"MIDU-Team Hub"});
  lbList().forEach((L,i)=>{if(i)doc.addPage([60,40],"landscape");
   doc.addImage(MIDU_LABEL_LOGO,"PNG",3,3,18,4.97,"midulogo","FAST");
   doc.setFont("helvetica","bold");doc.setFontSize(6.5);doc.setTextColor(29,40,62);doc.text("LOGISTICS DEPT",57,6.3,{align:"right"});
@@ -1074,7 +1074,7 @@ const afTd=(v,x)=>`<td style="border:${AF_B};font-size:10px;padding:4px 5px;${x|
 const afTh=(v,w)=>`<th style="border:${AF_B};background:${AF_L};font-size:10px;padding:4px;text-align:center;${w?"width:"+w:""}">${v}</th>`;
 const afSig=(cols,stamp)=>`<table style="width:100%;border-collapse:collapse;margin-top:8px"><tr>${cols.map(c=>`<th style="background:${AF_N};color:#fff;font-size:10px;padding:5px;border:${AF_B};text-align:center;width:${stamp!==undefined?24:33}%">${c[0]}</th>`).join("")}${stamp!==undefined?`<th style="background:${AF_N};color:#fff;font-size:10px;border:${AF_B};text-align:center">STAMP</th>`:""}</tr>
  ${["Name:","ID No.:","Signature:","Date:"].map((k,i)=>`<tr>${cols.map(c=>`<td style="border:${AF_B};font-size:10px;padding:5px;height:${i===2?24:13}px">${k} ${i===0&&c[1]?`<b>${esc(c[1])}</b>`:i===1&&c[2]?`<b>${esc(c[2])}</b>`:i===3&&c[3]?esc(c[3]):""}</td>`).join("")}${stamp!==undefined&&i===0?`<td rowspan="4" style="border:${AF_B};text-align:center;vertical-align:middle">${stamp?`<img src="${stamp}" style="max-width:130px;max-height:84px">`:""}</td>`:""}</tr>`).join("")}</table>`;
-const afFoot=(f,copy)=>`<div style="display:flex;justify-content:space-between;font-size:9px;color:#138A8A;margin-top:8px"><span>Form ${f} &nbsp;| &nbsp;Recorded in MIDU Logistics Hub</span><span>${copy}</span></div>`;
+const afFoot=(f,copy)=>`<div style="display:flex;justify-content:space-between;font-size:9px;color:#138A8A;margin-top:8px"><span>Form ${f} &nbsp;| &nbsp;Recorded in MIDU-Team Hub</span><span>${copy}</span></div>`;
 const afNote=t=>`<div style="border-left:4px solid ${AF_N};background:#F3F5F9;font-size:9.5px;padding:5px 8px;margin-top:8px">${t}</div>`;
 const AF_COND=["New","Good","Used","Damaged"];
 /* Asset Handover Sheet – from an AHS document (new asset with custodian) or the asset lines of an MDS */
@@ -1323,7 +1323,7 @@ function gdoc({title,no,date,meta=[],cols,rows,totals=[],sig=["Prepared by","Che
  <table><tr>${cols.map((c,i)=>`<th class="${right.includes(i)?"r":""}">${c}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map((c,i)=>`<td class="${right.includes(i)?"r":""}">${esc(c)}</td>`).join("")}</tr>`).join("")}</table>
  ${totals.length?`<table class="tot">${totals.map(([k,v])=>`<tr><td>${k}</td><td class="r">${v}</td></tr>`).join("")}</table>`:""}
  <div class="sig">${sig.map(s=>`<div>${s}<br>Name / Signature / Date</div>`).join("")}</div>${stamp?`<div class="stamp">${stamp}</div>`:""}
- <div class="foot">Generated by MIDU Logistics Hub · ${esc(no)}${foot?" · "+foot:""}</div></div>`;}
+ <div class="foot">Generated by MIDU-Team Hub · ${esc(no)}${foot?" · "+foot:""}</div></div>`;}
 function whDoc(d){const T={GRN:"MATERIAL RECEIVING NOTE (GRN)",MDS:"MATERIAL DISPATCH SHEET (MDS)",MRS:"MATERIAL RETURN SHEET (MRS)",SC:"STOCK COUNT SHEET",AHS:"ASSET HANDOVER SHEET"}[d.type];
  if(d.type==="GRN"||d.type==="MDS"||d.type==="MRS")return logForm(d);
  if(d.type==="AHS")return ahsForm(d);if(d.type==="SC")return scForm(d);
@@ -1909,7 +1909,7 @@ function histLinks(){if(typeof LOCAL==="undefined"||!LOCAL.connected)return;cons
   const coll=cs.find(c=>(D[c]||[]).some(r=>KEYS[c](r)===k));if(!coll)return;const td=tr_.lastElementChild;
   td.insertAdjacentHTML("beforeend",` <button class="b l sm" data-hist="${esc(coll)}|${esc(k)}" title="${esc(tr("Change history","سجل التغييرات"))}">🕘</button>`);});}
 const UT_VIEWS=["utDaily","utRep","utBC","utReg"];
-function weeklyBanner(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.layout!==2||LOCAL.readOnly||!LOCAL.areaOK.ut||UT_VIEWS.indexOf(view)<0||LOCAL.weekly===undefined)return;const w=LOCAL.weekly;if(w&&w.ok)return;if(document.getElementById("wkBan"))return;
+function weeklyBanner(){return;/* turned off: Excel files stay in MIDU Hub Data only (no personal OneDrive folders) */if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.layout!==2||LOCAL.readOnly||!LOCAL.areaOK.ut||UT_VIEWS.indexOf(view)<0||LOCAL.weekly===undefined)return;const w=LOCAL.weekly;if(w&&w.ok)return;if(document.getElementById("wkBan"))return;
  const m=$("#main");if(!m)return;const d=document.createElement("div");d.id="wkBan";d.style.cssText="background:#FFF7E0;border:1px solid #F2C94C;border-radius:10px;padding:10px 14px;margin:0 0 12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:13.5px";
  d.innerHTML=`<span>📗 ${w?tr("Edge needs your OK again to use the weekly Excel folder (it asks after the app is closed). Click the button – if Edge offers “Allow on every visit”, choose it so it stops asking.","يحتاج Edge موافقتك مجدداً لاستخدام مجلد Excel الأسبوعي. اضغط الزر – وإذا عرض Edge «السماح في كل زيارة» فاختره."):tr("Turki's weekly Excel files (Utilities › Weekly Reports For Sub-contractors) are not linked on this PC yet. Link them once and they stay in step with the Hub both ways.","ملفات Excel الأسبوعية لتركي غير مربوطة على هذا الجهاز بعد. اربطها مرة واحدة لتبقى متطابقة مع المنصة في الاتجاهين.")}</span><button class="b n sm" id="wkGo">🔗 ${w?tr("Allow again","السماح مجدداً"):tr("Link the weekly Excel folder","ربط مجلد Excel الأسبوعي")}</button>`;
  m.insertBefore(d,m.firstChild);
@@ -2019,8 +2019,7 @@ VIEWS.users=()=>USERS_V0()+(typeof LOCAL!=="undefined"&&LOCAL.connected?`<div cl
  <p class="sub" style="margin-top:8px">${tr("A copy of all Hub data is saved in MIDU Hub Data › Backups automatically when you open the Hub and the last copy is 7 days old (the last 12 weekly copies are kept). Keep the Backups folder shared with nobody. Excel files linked with the Hub are kept in each area folder › “Excel (linked with Hub)” – they open without internet.","تُحفظ نسخة من كل بيانات المنصة في MIDU Hub Data › Backups تلقائياً عند فتح المنصة إذا مرّ 7 أيام على آخر نسخة (تُحفظ آخر 12 نسخة). لا تشارك مجلد Backups مع أحد.")}</p></div>
  <div class="card"><h2>${tr("Excel linked with the Hub","ملفات Excel المربوطة بالمنصة")}</h2>
  <p class="sub">${tr("Each area folder › “Excel (linked with Hub)” has “<area> - Hub data.xlsx” (columns marked ✎ can be changed in Excel) and Utilities has the weekly workbook of each month. Changes made in Excel come into the Hub within about 30 seconds while the Hub is open; changes made in the Hub go to Excel a few seconds after saving.","في كل مجلد قسم › «Excel (linked with Hub)» ملف بيانات القسم (الأعمدة المعلّمة ✎ تُعدَّل في Excel) وفي الخدمات ملف التقرير الأسبوعي لكل شهر. ما يُعدَّل في Excel يدخل المنصة خلال 30 ثانية تقريباً، وما يُحفظ في المنصة يصل إلى Excel بعد ثوانٍ.")}</p>
- <p class="sub">${tr("Turki's weekly folder on this PC","مجلد تركي الأسبوعي على هذا الجهاز")}: <b id="wkSt">${LOCAL.weekly?(LOCAL.weekly.ok?"✔ "+esc(LOCAL.weekly.h.name):"⚠ "+tr("needs to be allowed again","يحتاج سماحاً مجدداً")):"✖ "+tr("not linked","غير مربوط")}</b></p>
- <button class="b n" id="wkLink">🔗 ${tr("Link / allow the weekly Excel folder","ربط مجلد Excel الأسبوعي")}</button> ${LOCAL.weekly?`<button class="b l" id="wkOff">${tr("Unlink on this PC","إلغاء الربط على هذا الجهاز")}</button>`:""}</div>
+ <p class="sub">${tr("All Excel files are kept only here in MIDU Hub Data. Personal OneDrive folders are not linked.","كل ملفات Excel محفوظة هنا فقط في MIDU Hub Data. لا تُربط مجلدات OneDrive الشخصية.")}</p></div>
  <div class="card"><h2>${tr("Area folders and sharing","مجلدات الأقسام والمشاركة")}</h2>
  ${LOCAL.layout===2?`<p class="sub">${tr("Each area has its own folder in MIDU Hub Data. Share in OneDrive only the folders a person needs; screens of folders they cannot open are hidden for them.","لكل قسم مجلد في MIDU Hub Data. شارك في OneDrive المجلدات التي يحتاجها الشخص فقط؛ تُخفى عنه شاشات المجلدات التي لا يستطيع فتحها.")}</p>
  <table class="t"><tr><th>${tr("Folder","المجلد")}</th><th>${tr("Share with","المشاركة مع")}</th><th>${tr("Access","الصلاحية")}</th><th>${tr("On this PC","على هذا الجهاز")}</th></tr>${AREA_PLAN.map(([f,w,a])=>{const k=Object.keys(AREAS).find(x=>AREAS[x]===f);return `<tr><td class="en"><b>${esc(f)}</b></td><td>${esc(w)}</td><td>${a}</td><td>${k?(LOCAL.areaOK[k]?"✔":"✖"):""}</td></tr>`;}).join("")}</table>`
@@ -2028,7 +2027,7 @@ VIEWS.users=()=>USERS_V0()+(typeof LOCAL!=="undefined"&&LOCAL.connected?`<div cl
 BIND.users=()=>{USERS_B0();if(typeof LOCAL==="undefined"||!LOCAL.connected)return;
  const info=async()=>{const l=await LOCAL.lastBackup().catch(()=>null);const el=$("#bkInfo");if(el)el.innerHTML=l?`${tr("Last backup","آخر نسخة")}: <b>${esc(fdt(l.at))}</b> · ${esc(l.by||"")} · ${l.files} ${tr("files","ملف")} · <span class="en">${esc(l.folder)}</span>`:tr("No backup yet.","لا توجد نسخة بعد.");};info();
  $("#bkNow").onclick=async()=>{const b=$("#bkNow");b.disabled=true;try{const r=await LOCAL.backup("manual");toast("✔ "+tr("Backup saved: ","تم الحفظ: ")+r.folder);info();}catch(e){msg("err",esc(e.message));}b.disabled=false;};
- $("#wkLink").onclick=async()=>{try{const n=await LOCAL.weeklyLink();msg("ok","✔ "+tr("Linked: ","تم الربط: ")+esc(n));await LOCAL.xlRefresh(["ut"]);render();}catch(e){if(e.name!=="AbortError")msg("err",esc(e.message));}};
+{const wl=$("#wkLink");if(wl)wl.onclick=async()=>{try{const n=await LOCAL.weeklyLink();msg("ok","✔ "+tr("Linked: ","تم الربط: ")+esc(n));await LOCAL.xlRefresh(["ut"]);render();}catch(e){if(e.name!=="AbortError")msg("err",esc(e.message));}};}
  const wo=$("#wkOff");if(wo)wo.onclick=async()=>{await LOCAL.weeklyUnlink();render();};
  $("#xlNow").onclick=async()=>{const x=$("#xlNow");x.disabled=true;try{const r=await LOCAL.xlRefresh();msg("ok","✔ "+tr("Excel copies updated: ","تم تحديث نسخ Excel: ")+r.map(esc).join(" · "));}catch(e){msg("err",esc(e.message));}x.disabled=false;};
  const mg=$("#mgGo");if(mg)mg.onclick=async()=>{try{sessionStorage.removeItem("midu-hub-nomigrate");}catch(e){}await LOCAL.offerMigration();if(LOCAL.layout===2)loadServer(()=>render());};};
@@ -2238,7 +2237,7 @@ const HUB_MAIL={"azzamelmasri":"m.elmasri@midu.com.sa","mazharashraf":"m.ashraf@
 const mailOf=n=>{const k=String(n||"").toLowerCase().replace(/[^a-z]/g,"");const u=(typeof LOCAL!=="undefined"&&LOCAL.users||[]).find(x=>String(x.name||"").toLowerCase().replace(/[^a-z]/g,"")===k);return (u&&u.email)||HUB_MAIL[k]||"";};
 const MAIL_DIR="00 System/_mail outbox";
 function mailSend(toName,subject,lines,screen){const to=mailOf(toName);if(!to||typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.readOnly||!LOCAL.uploadDoc)return;
- const body=`<div style="font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#1E2433"><p>Dear ${esc(toName)},</p>${lines.map(l=>`<p>${l}</p>`).join("")}<p><a href="${HUB_URL}#${screen}" style="background:#1B273D;color:#fff;padding:8px 14px;border-radius:6px;text-decoration:none">Open MIDU Logistics Hub</a></p><p style="color:#5B6476;font-size:12px">Open the Hub, click ⟳ if needed, and sign with your PIN.<br>This is an automatic message from MIDU Logistics Hub – sent by ${esc(apMe())}.</p></div>`;
+ const body=`<div style="font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#1E2433"><p>Dear ${esc(toName)},</p>${lines.map(l=>`<p>${l}</p>`).join("")}<p><a href="${HUB_URL}#${screen}" style="background:#1B273D;color:#fff;padding:8px 14px;border-radius:6px;text-decoration:none">Open MIDU-Team Hub</a></p><p style="color:#5B6476;font-size:12px">Open the Hub, click ⟳ if needed, and sign with your PIN.<br>This is an automatic message from MIDU-Team Hub – sent by ${esc(apMe())}.</p></div>`;
  const id=new Date().toISOString().replace(/[-:.TZ]/g,"").slice(0,17)+"-"+Math.random().toString(36).slice(2,7);
  const blob=new Blob([JSON.stringify({to,toName,subject,body,from:apMe(),at:new Date().toISOString()})],{type:"application/json"});
  LOCAL.uploadDoc(MAIL_DIR,id+".json",blob).catch(e=>console.warn("mail outbox",e));}
@@ -2255,7 +2254,7 @@ function mailScan(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.readO
  const pend=[];D.prs.forEach(p=>{if(p.status==="PD"&&!p.pd&&!p.cancelled)pend.push(["pr",p,"PD"]);});
  D.cqs.filter(c=>c.ap!==undefined).forEach(c=>{const r=apNext("cqs",c);if(r)pend.push(["cqs",c,r]);});D.pos.filter(p=>p.kind==="PO"&&p.ap!==undefined).forEach(p=>{const r=apNext("po",p);if(r)pend.push(["po",p,r]);});
  pend.forEach(([k,d,r])=>{const who=APPR[r];if(!who||whL(who)===me)return;once(d,"p"+r+"|"+(d.ap||[]).length,()=>mailQueue(who,`Approval required: ${d.no}`,[`Your approval as <b>${AP_ROLE[r]}</b> is required on <b>${esc(d.no)}</b> – ${TYPE_NAME[k]}.`,k==="po"?`Supplier: ${esc(d.sup||"")} · ${money(poTotal(d))} SAR excl. VAT`:k==="cqs"?`Selected supplier: ${esc(d.sel||"")}`:`Cost center: ${esc(d.cc||"")} · Requested by ${esc(d.req||"")}`,`Open <b>My approvals</b>.`],"appr"));}); Object.entries(Q).forEach(([to,L])=>{if(L.length===1)return mailSend(to,L[0].subj,L[0].lines,L[0].scr);
-  mailSend(to,`${L.length} documents need your signature / approval`,[`The following documents are waiting for you in MIDU Logistics Hub:`,"<ul>"+L.map(x=>`<li><b>${esc(x.subj)}</b></li>`).join("")+"</ul>"],L[0].scr);});}
+  mailSend(to,`${L.length} documents need your signature / approval`,[`The following documents are waiting for you in MIDU-Team Hub:`,"<ul>"+L.map(x=>`<li><b>${esc(x.subj)}</b></li>`).join("")+"</ul>"],L[0].scr);});}
 {const P0=persist;persist=function(...a){try{mailScan();}catch(e){console.warn(e);}return P0.apply(this,a);};}
 
 /* ===================== Update 42: e-signatures for Maintenance, Utilities debit notes, HR requests and Asset handover =====================
@@ -2306,7 +2305,7 @@ function esSign(k,o,r,reject){const who=esName(k,o,r);if(whL(who)!==whL(apMe()))
 function esPanel(k,o){const R=esR(k,o);if(!R)return "";const B="1px solid #8EA9DB",ch=esChain(k,o),w=Math.floor(100/ch.length);
  const cell=r=>{const a=esGet(k,o,r);if(R.rej&&R.rej.role===r)return `<b style="color:#C00000">Not approved</b><div style="font-size:8px">${esc(R.rej.reason)}</div>`;if(!a)return `<span style="color:#8A94A6">Pending e-signature</span>`;
   if(a.fp!==esFp(k,o))return `<span style="color:#C00000">Changed after signing – re-sign needed</span>`;return `${sigImg(a.by)}<span style="display:block;text-align:center;font-size:7.5px;color:#444">e-signed ${esc(apDt(a.at))} · ref ${a.fp}</span>`;};
- return `<table style="width:100%;border-collapse:collapse;margin-top:10px"><tr><th colspan="${ch.length}" style="background:#1B273D;color:#fff;font-size:9.5px;padding:4px;border:${B}">ELECTRONIC SIGNATURES (MIDU Logistics Hub)</th></tr><tr>${ch.map(s=>`<th style="background:#EEF1F6;font-size:9px;padding:4px;border:${B};width:${w}%">${esc(s[1].toUpperCase())}</th>`).join("")}</tr>
+ return `<table style="width:100%;border-collapse:collapse;margin-top:10px"><tr><th colspan="${ch.length}" style="background:#1B273D;color:#fff;font-size:9.5px;padding:4px;border:${B}">ELECTRONIC SIGNATURES (MIDU-Team Hub)</th></tr><tr>${ch.map(s=>`<th style="background:#EEF1F6;font-size:9px;padding:4px;border:${B};width:${w}%">${esc(s[1].toUpperCase())}</th>`).join("")}</tr>
  <tr>${ch.map(s=>`<td style="border:${B};font-size:9.5px;padding:4px 5px">Name: <b>${esc(s[2])}</b></td>`).join("")}</tr><tr>${ch.map(s=>`<td style="border:${B};padding:4px;height:44px;text-align:center;vertical-align:middle">${cell(s[0])}</td>`).join("")}</tr></table>`;}
 const esInject=(html,k,o)=>{const p=esPanel(k,o);if(!p)return html;const i=html.lastIndexOf("</div>");return i<0?html+p:html.slice(0,i)+p+html.slice(i);};
 mrDoc=(F=>q=>esInject(F(q),esK("mreq"),q))(mrDoc);mclDoc=(F=>x=>esInject(F(x),esK("mcl"),x))(mclDoc);
@@ -2325,7 +2324,7 @@ function esMailScan(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.rea
   const n=esNext(k,o);if(n){const who=esName(k,o,n);if(who&&whL(who)!==me)once(k.id+n+"|"+cnt,()=>q(who,`${esChain(k,o)[0][0]===n?"Signature":"Approval"} required: ${no}`,[`Your electronic signature is required on <b>${esc(no)}</b> – ${esc(k.label)}.`,esc(k.title(o)),`Step: <b>${esc(esStep(k,o,n)[1])}</b>. Open <b>My signatures</b>.`],"esign"));}
   else if(R.rej){const iss=esIssuer(k,o);if(iss&&whL(iss)!==me)once(k.id+"rej|"+R.rej.at,()=>q(iss,`Not approved: ${no}`,[`<b>${esc(no)}</b> – ${esc(k.label)} was <b>not approved</b> by ${esc(R.rej.by)}.`,`Reason: <i>${esc(R.rej.reason)}</i>`],"esign"));}
   else if(esDone(k,o)){const iss=esIssuer(k,o);if(iss&&whL(iss)!==me)once(k.id+"done|"+cnt,()=>q(iss,`Approved: ${no}`,[`<b>${esc(no)}</b> – ${esc(k.label)} is now <b>fully signed</b>.`],"esign"));}}));
- Object.entries(Q).forEach(([to,L])=>{if(L.length===1)return mailSend(to,L[0].subj,L[0].lines,L[0].scr);mailSend(to,`${L.length} documents need your signature / approval`,[`The following documents are waiting for you in MIDU Logistics Hub:`,"<ul>"+L.map(x=>`<li><b>${esc(x.subj)}</b></li>`).join("")+"</ul>"],"esign");});}
+ Object.entries(Q).forEach(([to,L])=>{if(L.length===1)return mailSend(to,L[0].subj,L[0].lines,L[0].scr);mailSend(to,`${L.length} documents need your signature / approval`,[`The following documents are waiting for you in MIDU-Team Hub:`,"<ul>"+L.map(x=>`<li><b>${esc(x.subj)}</b></li>`).join("")+"</ul>"],"esign");});}
 /* HR request screen: Approve / Reject now go through the PIN signature when the request is in the e-signature cycle */
 document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.closest("#qList [data-ok],#qList [data-no]");if(!b)return;const k=esK("areq"),no=b.dataset.ok||b.dataset.no,o=(D.areq||[]).find(x=>x.no===no);if(!o||!esR(k,o))return;
  ev.preventDefault();ev.stopImmediatePropagation();const n=esNext(k,o);if(!n)return toast(tr("Already decided.","تم البت فيه."));esSign(k,o,n,!!b.dataset.no);},true);
@@ -2677,7 +2676,7 @@ let COST_BY="proj";
  mailSend=function(to,subj,lines,scr){BUF.push({to,subj,lines,scr});clearTimeout(T);T=setTimeout(()=>{const G={};BUF.forEach(m=>(G[m.to]=G[m.to]||[]).push(m));BUF=[];
   Object.entries(G).forEach(([to,L])=>{if(L.length===1)return S0(to,L[0].subj,L[0].lines,L[0].scr);
    const items=L.flatMap(m=>/documents need your signature/.test(m.subj)?(String(m.lines[1]||"").match(/<li>.*?<\/li>/g)||[]):[`<li><b>${esc(m.subj)}</b></li>`]);
-   S0(to,`${items.length} documents need your attention`,[`The following documents are waiting for you in MIDU Logistics Hub:`,"<ul>"+items.join("")+"</ul>"],L[0].scr);});},2500);};}
+   S0(to,`${items.length} documents need your attention`,[`The following documents are waiting for you in MIDU-Team Hub:`,"<ul>"+items.join("")+"</ul>"],L[0].scr);});},2500);};}
 
 
 /* Update 57: Stock on hand – per location and per item totals, filters, Excel export, print (Azzam, 25 Nov 2026) */
