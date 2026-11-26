@@ -2882,6 +2882,21 @@ if(typeof VIEW_AREA!=="undefined"){VIEW_AREA.utCost="ut";VIEW_AREA.utProfit="ut"
 if(typeof M365_ROLES!=="undefined"){["utilities","logistics","finance"].forEach(r=>{if(Array.isArray(M365_ROLES[r]))["utCost","utProfit"].forEach(v=>{if(!M365_ROLES[r].includes(v))M365_ROLES[r].push(v);});});}
 {const N5=NAV;NAV=()=>{const n=N5();const i=n.findIndex(x=>x[1]==="utBC");if(i>-1&&!n.some(x=>x[1]==="utCost"))n.splice(i+1,0,
  [1,"utCost","Σ","#0E7490",tr("Real cost (internal)","التكلفة الفعلية (داخلي)")],[1,"utProfit","％","#0E7490",tr("Back charge & profit (internal)","إعادة الفوترة والربح (داخلي)")],[1,"utShare","⚖","#0E7490",tr("Contractor % per month","نسب المقاولين الشهرية")]);return n;};}
+/* ===================== Update 60: utilities real cost in CAPEX & OPEX =====================
+   (Azzam, 26 Nov 2026) The utility suppliers (MBL, TEKLAY, YAZAN, MARAH) are not on POs, so CAPEX & OPEX did not show them.
+   Their real cost per month (same calculation as "Real cost (internal)": readings × supplier rates, excl. VAT) is now an
+   OPEX actual of the project cost center, one spend line per supplier per month. Byrne generator rental is not added here:
+   it is already counted through its PO (MIDU-PO-260452). Back charges to contractors are shown as "recovered". */
+const UTX_CC=()=>{const p=(D.pos||[]).find(x=>x.no==="MIDU-PO-260452");return (p&&p.cc)||CC.find(c=>/^ASP/i.test(c))||CC[0]||"ASP";};
+function utxLines(){const out=[];utMonths().slice().sort().forEach(m=>{const by={};rcRows(m).forEach(o=>{if(!o.sup||!o.amt)return;const b=by[o.sup]=by[o.sup]||{amt:0,cats:[],rec:0};b.amt+=o.amt;b.rec+=o.bcAmt;const n=rcLab(o);if(!b.cats.includes(n))b.cats.push(n);});
+ Object.entries(by).forEach(([sup,b])=>out.push({m,sup,cc:UTX_CC(),amt:r2(b.amt),rec:r2(b.rec),desc:sup+" – utilities consumption "+monthName(m)+" ("+b.cats.join(", ")+")"}));});return out;}
+function actual(cc,cls){const po=D.pos.filter(p=>p.cc===cc).reduce((a,p)=>a+p.lines.filter(l=>l.cls===cls).reduce((s,l)=>s+l.qty*l.price,0),0);
+ return po+(cls==="OPEX"?utxLines().filter(x=>x.cc===cc).reduce((a,x)=>a+x.amt,0):0);}
+{const V0=VIEWS.capex;VIEWS.capex=()=>{const h=V0(),L=utxLines();if(!L.length)return h;
+ const rows=L.map(x=>`<tr style="background:#F0F9FF"><td class="en">${tr("Utilities","الخدمات")} · ${esc(monthName(x.m))}</td><td class="en">${esc(x.cc)}</td><td class="en">${esc(x.desc)}</td><td>${tag("OPEX","b")}</td><td class="num">${money(x.amt)}</td></tr>`).join("");
+ const tot=L.reduce((a,x)=>a+x.amt,0),rec=L.reduce((a,x)=>a+x.rec,0);
+ const note=`<p class="hint" style="margin-top:8px">${tr("Blue lines = utilities supplier cost (MBL, TEKLAY, YAZAN, MARAH) from the daily readings at real cost rates, excl. VAT – no PO needed. Total","الأسطر الزرقاء = تكلفة موردي الخدمات من القراءات اليومية بسعر التكلفة، بدون ضريبة. الإجمالي")} <b>${money(tot)}</b> SAR · ${tr("recovered from sub-contractors by back charge","مسترد من المقاولين بإعادة الفوترة")} <b>${money(rec)}</b> SAR. ${tr("Generator rental (Byrne) is counted through its PO MIDU-PO-260452.","إيجار المولدات (Byrne) محسوب عبر أمر الشراء MIDU-PO-260452.")}</p>`;
+ const i=h.lastIndexOf("</table></div>");return i<0?h:h.slice(0,i)+rows+"</table>"+note+"</div>"+h.slice(i+"</table></div>".length);};}
 </script>
 </body>
 </html>
