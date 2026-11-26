@@ -2890,13 +2890,34 @@ if(typeof M365_ROLES!=="undefined"){["utilities","logistics","finance"].forEach(
 const UTX_CC=()=>{const p=(D.pos||[]).find(x=>x.no==="MIDU-PO-260452");return (p&&p.cc)||CC.find(c=>/^ASP/i.test(c))||CC[0]||"ASP";};
 function utxLines(){const out=[];utMonths().slice().sort().forEach(m=>{const by={};rcRows(m).forEach(o=>{if(!o.sup||!o.amt)return;const b=by[o.sup]=by[o.sup]||{amt:0,cats:[],rec:0};b.amt+=o.amt;b.rec+=o.bcAmt;const n=rcLab(o);if(!b.cats.includes(n))b.cats.push(n);});
  Object.entries(by).forEach(([sup,b])=>out.push({m,sup,cc:UTX_CC(),amt:r2(b.amt),rec:r2(b.rec),desc:sup+" – utilities consumption "+monthName(m)+" ("+b.cats.join(", ")+")"}));});return out;}
-function actual(cc,cls){const po=D.pos.filter(p=>p.cc===cc).reduce((a,p)=>a+p.lines.filter(l=>l.cls===cls).reduce((s,l)=>s+l.qty*l.price,0),0);
- return po+(cls==="OPEX"?utxLines().filter(x=>x.cc===cc).reduce((a,x)=>a+x.amt,0):0);}
-{const V0=VIEWS.capex;VIEWS.capex=()=>{const h=V0(),L=utxLines();if(!L.length)return h;
- const rows=L.map(x=>`<tr style="background:#F0F9FF"><td class="en">${tr("Utilities","الخدمات")} · ${esc(monthName(x.m))}</td><td class="en">${esc(x.cc)}</td><td class="en">${esc(x.desc)}</td><td>${tag("OPEX","b")}</td><td class="num">${money(x.amt)}</td></tr>`).join("");
- const tot=L.reduce((a,x)=>a+x.amt,0),rec=L.reduce((a,x)=>a+x.rec,0);
- const note=`<p class="hint" style="margin-top:8px">${tr("Blue lines = utilities supplier cost (MBL, TEKLAY, YAZAN, MARAH) from the daily readings at real cost rates, excl. VAT – no PO needed. Total","الأسطر الزرقاء = تكلفة موردي الخدمات من القراءات اليومية بسعر التكلفة، بدون ضريبة. الإجمالي")} <b>${money(tot)}</b> SAR · ${tr("recovered from sub-contractors by back charge","مسترد من المقاولين بإعادة الفوترة")} <b>${money(rec)}</b> SAR. ${tr("Generator rental (Byrne) is counted through its PO MIDU-PO-260452.","إيجار المولدات (Byrne) محسوب عبر أمر الشراء MIDU-PO-260452.")}</p>`;
- const i=h.lastIndexOf("</table></div>");return i<0?h:h.slice(0,i)+rows+"</table>"+note+"</div>"+h.slice(i+"</table></div>".length);};}
+/* Update 60b: every cost is counted in its own month. The generator PO (MIDU-PO-260452, 24 months) is counted month by
+   month from the generator rental records (rental + transport), not with its full PO value. Other POs count in the PO month. */
+const GR_PO="MIDU-PO-260452";let CX_M="";
+function cxLines(){const out=[],gp=(D.pos||[]).find(p=>p.no===GR_PO);
+ (D.pos||[]).filter(p=>!p.cancelled&&p.no!==GR_PO).forEach(p=>(p.lines||[]).forEach(l=>out.push({order:p.no,cc:p.cc,desc:l.desc,cls:l.cls||"OPEX",amt:(+l.qty||0)*(+l.price||0),m:String(p.date||"").slice(0,7),src:"po"})));
+ const gcc=(gp&&gp.cc)||UTX_CC();
+ grAll().forEach(g=>{g.ls.forEach(l=>out.push({order:GR_PO,cc:gcc,desc:grName(g,l)+` (${rcQ(l.qty)} gen-months × ${money(l.rate)})`,cls:"OPEX",amt:l.amt,m:g.m,src:"gr"}));
+  if(+g.trips&&+g.tripRate)out.push({order:GR_PO,cc:gcc,desc:tr("Generator transport / delivery","نقل وتوصيل المولدات")+" – "+monthName(g.m)+` (${g.trips} × ${money(+g.tripRate)})`,cls:"OPEX",amt:r2(g.trips*g.tripRate),m:g.m,src:"gr"});});
+ utxLines().forEach(x=>out.push({order:tr("Utilities","الخدمات"),cc:x.cc,desc:x.desc,cls:"OPEX",amt:x.amt,m:x.m,src:"ut",rec:x.rec}));
+ return out;}
+const cxSel=()=>cxLines().filter(x=>!CX_M||x.m===CX_M);
+function actual(cc,cls){return cxSel().filter(x=>x.cc===cc&&x.cls===cls).reduce((a,x)=>a+x.amt,0);}
+VIEWS.capex=()=>{const bar=(a,b,c)=>{const p=b?Math.min(a/b*100,100):0;return `<div class="bar"><i style="width:${p}%;background:${a>b?"var(--red)":c}"></i></div>`;};
+ const all=cxLines(),ms=[...new Set(all.map(x=>x.m).filter(Boolean))].sort().reverse();if(CX_M&&!ms.includes(CX_M))CX_M="";
+ const L=cxSel().sort((a,b)=>(a.m||"").localeCompare(b.m||"")||a.order.localeCompare(b.order)),per=CX_M?" – "+monthName(CX_M):"";
+ const gp=(D.pos||[]).find(p=>p.no===GR_PO),gpv=gp?(gp.lines||[]).reduce((a,l)=>a+(+l.qty||0)*(+l.price||0),0):0,gdone=all.filter(x=>x.src==="gr").reduce((a,x)=>a+x.amt,0);
+ const rec=L.filter(x=>x.src==="ut").reduce((a,x)=>a+(x.rec||0),0),bg=x=>x.src==="ut"?' style="background:#F0F9FF"':x.src==="gr"?' style="background:#FFFBEB"':"";
+ return head(tr("CAPEX & OPEX","CAPEX و OPEX"),tr("Budget vs actual per cost center. Each cost counts in its own month: purchases in the PO month, generator rental month by month from the rental records, utilities from the daily readings.","الميزانية مقابل الفعلي لكل مركز تكلفة. كل تكلفة تُحسب في شهرها: المشتريات في شهر أمر الشراء، وإيجار المولدات شهراً بشهر، والخدمات من القراءات اليومية."))+
+ `<div class="card"><div class="fg"><div class="f"><label>${tr("Month","الشهر")}</label><select id="cxM"><option value="">${tr("All months","كل الأشهر")}</option>${ms.map(m=>`<option value="${m}"${m===CX_M?" selected":""}>${esc(monthName(m))}</option>`).join("")}</select></div></div></div>
+ <div class="grid g4" style="margin-bottom:16px"><div class="kpi"><div class="v">${money(sumClass("CAPEX"))}</div><div class="l">CAPEX ${tr("actual (SAR)","الفعلي (ريال)")}${per}</div></div><div class="kpi"><div class="v">${money(Object.values(D.budget).reduce((a,b)=>a+b.CAPEX,0))}</div><div class="l">CAPEX ${tr("budget","الميزانية")}</div></div><div class="kpi"><div class="v">${money(sumClass("OPEX"))}</div><div class="l">OPEX ${tr("actual (SAR)","الفعلي (ريال)")}${per}</div></div><div class="kpi"><div class="v">${money(Object.values(D.budget).reduce((a,b)=>a+b.OPEX,0))}</div><div class="l">OPEX ${tr("budget","الميزانية")}</div></div></div>
+ <div class="card"><table class="t"><tr><th>${tr("Cost center","مركز التكلفة")}</th><th class="num">CAPEX ${tr("budget","ميزانية")}</th><th class="num">CAPEX ${tr("actual","فعلي")}</th><th></th><th class="num">OPEX ${tr("budget","ميزانية")}</th><th class="num">OPEX ${tr("actual","فعلي")}</th><th></th></tr>
+ ${CC.map(c=>{const b=D.budget[c]||{CAPEX:0,OPEX:0};const ca=actual(c,"CAPEX"),oa=actual(c,"OPEX");return `<tr><td class="en"><b>${esc(c)}</b></td><td><input class="en num" type="number" data-b="${esc(c)}|CAPEX" value="${b.CAPEX}" style="width:110px"></td><td class="num">${money(ca)}</td><td>${bar(ca,b.CAPEX,"#B45309")}</td><td><input class="en num" type="number" data-b="${esc(c)}|OPEX" value="${b.OPEX}" style="width:110px"></td><td class="num">${money(oa)}</td><td>${bar(oa,b.OPEX,"#2F6FDE")}</td></tr>`;}).join("")}</table>
+ <p class="hint">${tr("Budgets are entered by Finance (yellow cells) for the whole year.","تُدخل المالية الميزانيات (الخلايا الصفراء) للسنة كاملة.")}${gp?` ${tr("Generator PO","أمر شراء المولدات")} ${GR_PO}: ${tr("PO value","قيمة الأمر")} ${money(gpv)} SAR (24 ${tr("months","شهراً")}) · ${tr("counted so far","المحسوب حتى الآن")} ${money(gdone)} SAR.`:""}</p></div>
+ <div class="card"><h2>${tr("Spend lines","أسطر الصرف")}${per}</h2><table class="t"><tr><th>${tr("Month","الشهر")}</th><th>${tr("Order","الأمر")}</th><th>${tr("Cost center","مركز التكلفة")}</th><th>${tr("Description","الوصف")}</th><th>${tr("Class","التصنيف")}</th><th class="num">${tr("Amount excl. VAT","المبلغ قبل الضريبة")}</th></tr>
+ ${L.map(x=>`<tr${bg(x)}><td class="en">${x.m?esc(monthName(x.m)):"–"}</td><td class="en">${esc(x.order)}</td><td class="en">${esc(x.cc||"")}</td><td class="en">${esc(x.desc||"")}</td><td>${tag(x.cls,x.cls==="CAPEX"?"a":"b")}</td><td class="num">${money(x.amt)}</td></tr>`).join("")||`<tr><td colspan="6"><div class="empty">${tr("No costs in this month.","لا توجد تكاليف في هذا الشهر.")}</div></td></tr>`}
+ ${L.length?`<tr class="tot"><td colspan="5">${tr("Total","المجموع")}</td><td class="num">${money(L.reduce((a,x)=>a+x.amt,0))}</td></tr>`:""}</table>
+ <p class="hint" style="margin-top:8px">${tr("Yellow = generator rental and transport (Byrne, PO","الأصفر = إيجار ونقل المولدات (Byrne، أمر الشراء")} ${GR_PO}) ${tr("per rental month. Blue = utilities suppliers (MBL, TEKLAY, YAZAN, MARAH) from the daily readings at real cost rates – recovered from sub-contractors by back charge:","لكل شهر إيجار. الأزرق = موردو الخدمات من القراءات اليومية – المسترد من المقاولين بإعادة الفوترة:")} <b>${money(rec)}</b> SAR.</p></div>`;};
+{const B0=BIND.capex;BIND.capex=()=>{B0&&B0();const s=$("#cxM");if(s)s.onchange=e=>{CX_M=e.target.value;render();};};}
 </script>
 </body>
 </html>
