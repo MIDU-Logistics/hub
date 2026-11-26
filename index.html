@@ -448,15 +448,18 @@ function logForm(d){
  const lineInfo=l=>{const ln=(l.sl&&whLines().find(x=>x.sl===l.sl))||lineFor(l.code)||{};const it=item(l.code)||{};const a=l.asset?D.assets.find(x=>x.id===l.asset):null;return {ln,it,a};};
  let head="",cols="",rows="",after="",sig="";
  if(d.type==="GRN"){
-  head=`<table style="width:100%;border-collapse:collapse;font-size:11.5px">${kv("GRN No.:",d.no,"Date received:",fd(d.date))}${kv("Supplier:",d.party,"PO No.:",d.po)}${kv("Delivery Note No.:",d.dn,"Received by:",d.by)}${kv("Stored at:",[WH[d.wh]?.name,d.loc].filter(Boolean).join(" › "),"Storage point:",d.sp)}</table><div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">ITEMS RECEIVED</div>`;
-  cols=["No.","Stock Line","Item Code","Description","Unit","Qty Received","Condition","Storage Point"];
-  rows=lines.map((l,i)=>{const {ln,it}=lineInfo(l);return `<tr><td ${td()}>${i+1}</td><td ${td()}>${esc(l.sl||ln.sl||"")}</td><td ${td()}>${esc(l.code)}</td><td ${td("left")}>${esc(l.desc||it.desc||ln.desc||"")}</td><td ${td()}>${esc(l.unit||it.unit||"")}</td><td ${td()}>${l.qty}</td><td ${td()}>${esc(l.cond||"")}</td><td ${td()}>${esc(d.sp||ln.sp||"")}</td></tr>`;}).join("");
+  head=`<table style="width:100%;border-collapse:collapse;font-size:11.5px">${kv("GRN No.:",d.no,"Date received:",fd(d.date))}${kv("Supplier:",d.party,"PO No.:",d.po)}${kv("Delivery Note No.:",d.dn,"Delivery Note Date:",fd(d.dnDate))}${kv("Supplier Invoice No.:",d.inv,"Invoice Date:",fd(d.invDate))}${kv("Stored at:",[WH[d.wh]?.name,d.loc].filter(Boolean).join(" › "),"Storage point:",d.sp)}${kv("Received by:",d.by,"","")}</table>
+  <div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">DELIVERY / TRANSPORT DETAILS</div><table style="width:100%;border-collapse:collapse;font-size:11px"><tr><td ${td("left")}><b>Delivered by (company)</b></td><td ${td("left")}>${esc(d.dlvCo||d.party||"")}</td><td ${td("left")}><b>Driver name</b></td><td ${td("left")}>${esc(d.drv||"")}</td><td ${td("left")}><b>Vehicle plate No.</b></td><td ${td("left")}>${esc(d.veh||"")}</td></tr><tr><td ${td("left")}><b>Driver Iqama / ID No.</b></td><td ${td("left")}>${esc(d.drvId||"")}</td><td ${td("left")}><b>Driver mobile</b></td><td ${td("left")}>${esc(d.drvMob||"")}</td><td ${td("left")}><b>Inspection needed</b></td><td ${td("left")}>${lines.some(l=>l.insp)?"Yes – see lines":lines.some(l=>"insp" in l)||d.entered?"No":""}</td></tr></table>
+  <div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">ITEMS RECEIVED</div>`;
+  cols=["No.","Stock Line","Item Code","Description","Unit","Qty Received","Condition","Storage Point","Eng. Inspection / IMIR"];
+  const ins=l=>l.insp?"Yes"+(l.imir?" – "+l.imir:"")+(l.imirD?" ("+fd(l.imirD)+")":l.imir?"":" – pending"):(d.entered?"No":"");
+  rows=lines.map((l,i)=>{const {ln,it}=lineInfo(l);return `<tr><td ${td()}>${i+1}</td><td ${td()}>${esc(l.sl||ln.sl||"")}</td><td ${td()}>${esc(l.code)}</td><td ${td("left")}>${esc(l.desc||it.desc||ln.desc||"")}</td><td ${td()}>${esc(l.unit||it.unit||"")}</td><td ${td()}>${l.qty}</td><td ${td()}>${esc(l.cond||"")}</td><td ${td()}>${esc(d.sp||ln.sp||"")}</td><td ${td()}>${esc(ins(l))}</td></tr>`;}).join("");
   after=`<div style="font-size:10px;color:#555;margin-top:4px">Total lines: ${lines.length} &nbsp;&nbsp; Total quantity: ${tq}</div><div style="margin-top:8px;font-size:11px"><b>Remarks / shortages / damage:</b> ${d.remarks?esc(d.remarks):"_______________________________________________________________"}</div>
   <div style="font-size:10px;color:#555;margin:8px 0">Received subject to inspection. Quantities were counted on arrival; shortages, excess or damage are written above and reported to Procurement / the supplier.</div>`;
-  sig=[["DELIVERED BY (SUPPLIER / DRIVER)","","",""],["RECEIVED BY (STOREKEEPER)",d.by,staffId(d.by),fd(d.date)],["CHECKED BY (LOGISTICS)","Azzam El Masri","1058",fd(d.date)]];}
+  sig=[["DELIVERED BY (SUPPLIER / DRIVER)",d.drv||"",d.drvId||"",fd(d.date)],["RECEIVED BY (STOREKEEPER)",d.by,staffId(d.by),fd(d.date)],["CHECKED BY (LOGISTICS)","Azzam El Masri","1058",fd(d.date)]];}
  else if(d.type==="MDS"){
   const ty=["New issue","Transfer","Temporary loan"].map(t=>`${d.dtype===t?"☑":"☐"} ${t}${t==="Temporary loan"?` (return by: ${d.returnBy?fd(d.returnBy):"____________"})`:""}`).join("&nbsp;&nbsp;&nbsp;&nbsp;");
-  head=`<table style="width:100%;border-collapse:collapse;font-size:11.5px">${kv("Document No.:",d.no,"Date:",fd(d.date))}${kv("Dispatched from:",mdsFrom(d),"To (Location / Project):",d.to)}<tr><td style="color:#555;padding:3px 0">Dispatch type:</td><td colspan="3">${ty}</td></tr></table>
+  head=`<table style="width:100%;border-collapse:collapse;font-size:11.5px">${kv("Document No.:",d.no,"Date:",fd(d.date))}${kv("Dispatched from:",mdsFrom(d),"To (Location / Project):",d.to)}<tr><td style="color:#555;padding:3px 0">Dispatch type:</td><td colspan="3">${ty}</td></tr>${d.cc||d.purpose?kv("Cost center:",d.cc,"Purpose / used for:",d.purpose):""}${d.veh||d.drv?kv("Vehicle plate No.:",d.veh,"Driver (name / ID):",[d.drv,d.drvId].filter(Boolean).join(" / ")):""}</table>
   <div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">RECEIVER DETAILS</div><table style="width:100%;border-collapse:collapse;font-size:11px"><tr><td ${td("left")}><b>Name</b></td><td ${td("left")}>${esc(d.party||"")}</td><td ${td("left")}><b>Employee / Iqama No.</b></td><td ${td("left")}>${esc(d.iqama||"")}</td></tr><tr><td ${td("left")}><b>Department / Company</b></td><td ${td("left")}>${esc(d.dept||"")}</td><td ${td("left")}><b>Mobile</b></td><td ${td("left")}>${esc(d.mobile||"")}</td></tr></table>
   <div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">ITEM DETAILS</div>`;
   cols=["No.","Item Code / Asset ID","Item Type","Description","Brand / Model","Serial No.","Unit","Qty","Condition"];
@@ -466,7 +469,7 @@ function logForm(d){
   sig=[["ISSUED BY (STOREKEEPER)",d.by,staffId(d.by),fd(d.date)],["APPROVED BY (LOGISTICS)","Azzam El Masri","1058",fd(d.date)],["RECEIVED BY",d.party,d.iqama,fd(d.date)]];}
  else {
   const e0=D.emps.find(x=>x.iqama===d.iqama||x.no===d.iqama)||{},m0=D.docs.filter(x=>x.type==="MDS"&&x.iqama===d.iqama).pop()||{},e={dept:e0.dept||m0.dept||"",mobile:e0.mobile||m0.mobile||""};
-  head=`<table style="width:100%;border-collapse:collapse;font-size:11.5px">${kv("Return No.:",d.no,"Date:",fd(d.date))}${kv("Returned from:",d.party,"Returned to:",[WH[d.wh]?.name,d.loc].filter(Boolean).join(" › "))}</table>
+  head=`<table style="width:100%;border-collapse:collapse;font-size:11.5px">${kv("Return No.:",d.no,"Date:",fd(d.date))}${kv("Returned from:",d.party,"Returned to:",[WH[d.wh]?.name,d.loc].filter(Boolean).join(" › "))}${d.why?kv("Reason for return:",d.why,"",""):""}</table>
   <div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">RETURNED BY</div><table style="width:100%;border-collapse:collapse;font-size:11px"><tr><td ${td("left")}><b>Name</b></td><td ${td("left")}>${esc(d.party||"")}</td><td ${td("left")}><b>Employee ID</b></td><td ${td("left")}>${esc(d.iqama||"")}</td></tr><tr><td ${td("left")}><b>Department</b></td><td ${td("left")}>${esc(e.dept||"")}</td><td ${td("left")}><b>Mobile</b></td><td ${td("left")}>${esc(e.mobile||"")}</td></tr></table>
   <div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">ITEMS RETURNED</div>`;
   cols=["No.","Item Code / Asset ID","Item Type","Description","Brand / Model","Serial No.","Unit","Qty","Condition"];
@@ -482,7 +485,7 @@ function logForm(d){
  const X=d.cancelled?`<div style="border:2px solid #B42318;color:#B42318;font-weight:700;text-align:center;padding:6px;margin:8px 0">CANCELLED ${esc(d.cancelled.at)} — ${esc(d.cancelled.reason)}</div>`:"";
  return `<div class="doc xl" style="font-family:Arial,Helvetica,sans-serif;color:#111;padding:20px 26px"><div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid ${N};padding-bottom:6px"><div><div style="font-size:20px;font-weight:800;color:#000">${cfg.t}</div><div style="font-size:9.5px;color:#555;margin-top:3px">MIDU PROJECT &nbsp;|&nbsp; LOGISTICS DEPARTMENT &nbsp;|&nbsp; WAREHOUSE &amp; STORES &nbsp; • &nbsp; Form ${cfg.f}</div></div><img src="${LOGO}" style="height:30px"></div>
  <div style="height:10px"></div>${X}${head}<table style="width:100%;border-collapse:collapse"><tr>${cols.map(c=>`<th ${th}>${c}</th>`).join("")}</tr>${rows}${empty}</table>${after}${sigT}
- <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#555;margin-top:8px"><span>Form ${cfg.f}${d.edited?" · edited "+esc(d.edited.at):""}</span><span>${cfg.copy}</span></div></div>`;}
+ <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#555;margin-top:8px"><span>Form ${cfg.f}${d.entered&&d.entered.by?" · entered in MIDU-Team Hub by "+esc(d.entered.by)+" on "+esc(String(d.entered.at).slice(0,10)):""}${d.edited?" · edited "+esc(d.edited.at)+(d.edited.by?" by "+esc(d.edited.by):""):""}</span><span>${cfg.copy}</span></div></div>`;}
 
 /* ---------- storekeeper reference (stock lines, categories, storage points) from data/whref.json ---------- */
 const WR=()=>window.WHREF||{lines:[],cats:[],locs:[],sps:[],units:[],staff:[]};
@@ -3090,6 +3093,49 @@ const cxVat=x=>x.vat!==undefined&&x.vat!==null?+x.vat:r2((+x.amt||0)*0.15);
 const actualV=(cc,cls)=>cxSel().filter(x=>x.cc===cc&&x.cls===cls).reduce((a,x)=>a+x.amt+cxVat(x),0);
 const sumClassE=cls=>cxSel().filter(x=>x.cls===cls).reduce((a,x)=>a+x.amt,0);
 const sumClassV=cls=>cxSel().filter(x=>x.cls===cls).reduce((a,x)=>a+x.amt+cxVat(x),0);
+
+/* ===================== Update 65: professional receiving / dispatch / return records (ideas from the MBL MRV form) =====================
+   GRN: delivery note date, supplier invoice No./date, delivery & transport details (company, driver, Iqama/ID, mobile, vehicle plate),
+        per line "engineering inspection required?" + inspection report (IMIR) No./date.
+   MDS: cost center, purpose, transport details (vehicle, driver, ID) for transfers / deliveries.
+   MRS: reason for return.
+   All new fields are optional; old documents print as before. Every form prints who entered it in the Hub and when. */
+const WX_G=[["dnDate","gDnD"],["inv","gInv"],["invDate","gInvD"],["dlvCo","gDlv"],["drv","gDrv"],["drvId","gDId"],["drvMob","gDMob"],["veh","gVeh"]];
+const WX_M=[["cc","mCc"],["purpose","mPur"],["veh","mVeh"],["drv","mDrv"],["drvId","mDId"]];
+const WX_R=[["why","rWhy"]];
+const RET_WHY=["No longer needed","End of temporary loan","Damaged – needs replacement","Employee leaving / end of service","Work / project completed","Transfer back to store","Other"];
+const wxMe=()=>(typeof apMe==="function"&&apMe())||"";
+function wxCard(v){
+ if(v==="grn")return `<div class="card" id="wxCard"><h2>${tr("Invoice and transport details","بيانات الفاتورة والنقل")}</h2><p class="hint">${tr("As written on the delivery note / invoice. Optional, but they let Finance match GRN – PO – invoice and record who brought the material onto site.","كما هي في مذكرة التسليم / الفاتورة. اختيارية، لكنها تساعد المالية في مطابقة الاستلام وأمر الشراء والفاتورة وتسجيل من أحضر المواد للموقع.")}</p><div class="fg">
+  ${fld("gDnD",tr("Delivery note date","تاريخ مذكرة التسليم"),{type:"date"})}${fld("gInv",tr("Supplier invoice No.","رقم فاتورة المورد"),{upper:true})}${fld("gInvD",tr("Invoice date","تاريخ الفاتورة"),{type:"date"})}${fld("gDlv",tr("Delivered by (company / transporter)","سلّمها (الشركة / الناقل)"),{list:"supL"})}
+  ${fld("gDrv",tr("Driver name","اسم السائق"))}${fld("gDId",tr("Driver Iqama / ID No.","رقم إقامة / هوية السائق"))}${fld("gDMob",tr("Driver mobile","جوال السائق"),{ph:"05…"})}${fld("gVeh",tr("Vehicle plate No.","رقم لوحة المركبة"),{upper:true})}</div></div>`;
+ if(v==="mds")return `<div class="card" id="wxCard"><h2>${tr("Purpose and transport","الغرض والنقل")}</h2><div class="fg">
+  ${sel("mCc",tr("Cost center","مركز التكلفة"),[["",tr("— optional —","— اختياري —")],...[...new Set(CC)].map(c=>[c,c])])}${fld("mPur",tr("Purpose / used for","الغرض / يُستخدم في"),{w:"w2",ph:"e.g. Block B formwork · new joiner · site office"})}
+  ${fld("mVeh",tr("Vehicle plate No. (transfer / delivery)","رقم لوحة المركبة (تحويل / توصيل)"),{upper:true})}${fld("mDrv",tr("Driver name","اسم السائق"))}${fld("mDId",tr("Driver Iqama / ID No.","رقم إقامة / هوية السائق"))}</div></div>`;
+ return sel("rWhy",tr("Reason for return","سبب الإرجاع"),[["",tr("— choose —","— اختر —")],...RET_WHY.map(x=>[x,x])],{w:"w2"});}
+const wxGet=M=>{const o={};M.forEach(([k,id])=>{const e=$("#"+id);if(e)o[k]=e.value.trim();});return o;};
+/* GRN item rows: inspection column */
+{const G0=gRow;gRow=function(){const r=G0(),td=document.createElement("td");
+ td.innerHTML=`<select data-k="insp" style="width:140px"><option value="">${tr("Not required","غير مطلوب")}</option><option value="Y">${tr("Required","مطلوب")}</option></select><div data-k="imirBox" style="display:none;margin-top:4px"><input class="en" data-k="imir" placeholder="IMIR No." style="width:110px;margin-bottom:3px"><input class="en" type="date" data-k="imirD" style="width:130px"></div>`;
+ const s=td.querySelector("[data-k=insp]");s.onchange=()=>td.querySelector("[data-k=imirBox]").style.display=s.value?"block":"none";r._insp=()=>s.onchange();
+ r.insertBefore(td,r.lastElementChild);return r;};}
+function wxWrap(v,btn,type,M){const B0=BIND[v];BIND[v]=()=>{B0();const first=$("#main .card");if(first&&!$("#"+M[0][1])){if(v==="mrs")first.querySelector(".fg").insertAdjacentHTML("beforeend",wxCard(v));else first.insertAdjacentHTML("afterend",wxCard(v));}
+  const ED=WH_EDIT&&WH_EDIT.type===type?D.docs.find(x=>x.no===WH_EDIT.no):null;
+  if(v==="grn"){const tb=$("#gLines"),h=tb&&tb.rows[0];if(h&&!h.querySelector("[data-wx]")){const th=document.createElement("th");th.dataset.wx=1;th.textContent=tr("Engineering inspection","فحص هندسي");h.insertBefore(th,h.lastElementChild);}
+   if(ED)[...tb.querySelectorAll("tr")].slice(1).forEach((r,i)=>{const l=ED.lines[i];if(!l||!r._insp)return;r.querySelector("[data-k=insp]").value=l.insp||"";r.querySelector("[data-k=imir]").value=l.imir||"";r.querySelector("[data-k=imirD]").value=l.imirD||"";r._insp();});}
+  if(ED)M.forEach(([k,id])=>{const e=$("#"+id);if(e&&ED[k])e.value=ED[k];});
+  const s=$("#"+btn);if(!s||!s.onclick||s._wx)return;const o=s.onclick;s._wx=1;
+  s.onclick=async ev=>{const x=wxGet(M);let li=null;
+   if(v==="grn")li=[...$("#gLines").querySelectorAll("tr")].slice(1).filter(r=>r.querySelector("[data-k=item]")&&r.querySelector("[data-k=item]").value.trim()).map(r=>r._insp?{insp:r.querySelector("[data-k=insp]").value,imir:r.querySelector("[data-k=imir]").value.trim(),imirD:r.querySelector("[data-k=imirD]").value}:{});
+   if(v==="grn"&&li.some(l=>l.insp&&!l.imir&&!l.imirD)&&!confirm(tr("Some lines need engineering inspection but have no inspection report No. yet. Save anyway and add it later with ✎ Edit?","بعض الأسطر تحتاج فحصاً هندسياً ولا يوجد رقم تقرير فحص بعد. الحفظ الآن وإضافته لاحقاً بالتعديل؟")))return;
+   const ed=WH_EDIT&&WH_EDIT.type===type?WH_EDIT.no:null,prev=ed?D.docs.find(d=>d.no===ed):null,n0=D.docs.filter(d=>d.type===type).length;
+   await o.call(s,ev);let d=null;
+   if(ed){const y=D.docs.find(z=>z.no===ed);if(y&&y!==prev)d=y;}else{const L=D.docs.filter(z=>z.type===type);if(L.length>n0)d=L[L.length-1];}
+   if(!d)return;Object.entries(x).forEach(([k,val])=>{if(val)d[k]=val;else delete d[k];});
+   if(li)(d.lines||[]).forEach((l,i)=>{const e=li[i]||{};["insp","imir","imirD"].forEach(k=>{if(e[k])l[k]=e[k];else delete l[k];});});
+   d.entered=Object.assign({},prev&&prev.entered,{by:(prev&&prev.entered&&prev.entered.by)||wxMe(),at:(prev&&prev.entered&&prev.entered.at)||new Date().toISOString()},prev?{editBy:wxMe(),editAt:new Date().toISOString()}:{});
+   persist();};};}
+wxWrap("grn","gSave","GRN",WX_G);wxWrap("mds","mSave","MDS",WX_M);wxWrap("mrs","rSave","MRS",WX_R);
 </script>
 </body>
 </html>
