@@ -2995,13 +2995,13 @@ INV_LINKS["2026-09|MARAH"]=(INV_LINKS["2026-09|MARAH"]||[]).concat([{n:"26-3232 
 INV_LINKS["2026-10|MARAH"]=(INV_LINKS["2026-10|MARAH"]||[]).concat([{n:"Marah Oct to Osama (email 27-Oct)",u:"https://outlook.office365.com/owa/?ItemID=AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAAAB2Tsf0ZED2R4L6CT9ilR8%2BBwBOnLmPnoVuTpI4fvk7QZoJAAAAAAEJAABOnLmPnoVuTpI4fvk7QZoJAAAbgkUkAAA%3D&exvsurl=1&viewmodel=ReadMessageItem"}]);
 INV_LINKS["2026-08|Byrne"]=(INV_LINKS["2026-08|Byrne"]||[]).concat([{n:"Byrne pro forma to Osama (email 23-Nov)",u:"https://outlook.office365.com/owa/?ItemID=AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAAAB2Tsf0ZED2R4L6CT9ilR8%2BBwBOnLmPnoVuTpI4fvk7QZoJAAAAAAEJAABOnLmPnoVuTpI4fvk7QZoJAAAbgkVOAAA%3D&exvsurl=1&viewmodel=ReadMessageItem"}]);
 /* ===================== Update 62: cost centers in the master register, MIDU Steel back charge, Gheil electrical panels =====================
-   (Azzam, 26 Nov 2026) Cost centers: MIDU Con = Concrete Division, MIDU Steel = MIDU Steel, MIDU Const (ASP-CONST) = MIDU itself;
+   (Azzam, 26 Nov 2026) Cost centers (same names as the Asset Register / PR "CostCenter" choices): ASP-CON = Concrete Division, ASP-STL = MIDU Steel, ASP-CONST = MIDU itself;
    EMCO and MCC are external sub-contractors. Najed's instruction of 3 Oct 2026: furniture and items bought for MIDU Steel are
    back-charged to MIDU Steel – listed on the register until the debit note is created.
    Gheil PO MIDU-PO-260440 (panels, cables and earthing only – the generator part was recalled and given to Byrne): invoice No. 58
    (16-08-2026, 35% of the 930,939.13 PO) and the second invoice (not in the mailbox, derived from the 791,298.26 paid),
    less the 2,191.10 refund of 22-09-2026, counted in CAPEX & OPEX. */
-const DN_CC={"Concrete Division":"MIDU Con","Concrete":"MIDU Con","MIDU Steel":"MIDU Steel","EMCO":"EMCO (external)","MCC":"MCC (external)"};
+const DN_CC={"Concrete Division":"ASP-CON","Concrete":"ASP-CON","MIDU Steel":"ASP-STL","EMCO":"EMCO (external)","MCC":"MCC (external)"};
 const dnCC=d=>d.cc||DN_CC[d.contractor]||d.contractor||"";
 const OWL=id=>"https://outlook.office365.com/owa/?ItemID="+id+"&exvsurl=1&viewmodel=ReadMessageItem";
 const MS_ITEMS=[["Office furniture – Design Views invoice CInv-000008 (07-10-2026), PO MIDU-PO-260527",17710,2656.5],
@@ -3012,7 +3012,7 @@ const MS_LINK=OWL("AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAA
 {const V0=VIEWS.utReg,B0=BIND.utReg;
  VIEWS.utReg=()=>{const h=V0(),done=(D.dns||[]).some(d=>d.contractor==="MIDU Steel"&&!d.cancelled);if(done)return h;
   const ex=MS_ITEMS.reduce((a,x)=>a+x[1],0),vt=MS_ITEMS.reduce((a,x)=>a+x[2],0);
-  return h+`<div class="card"><h2>${tr("To back-charge: MIDU Steel (cost center MIDU Steel)","للتحميل: MIDU Steel (مركز تكلفة MIDU Steel)")}</h2><p class="hint">${tr("Najed's instruction of 3 Oct 2026: furniture and items bought for MIDU Steel are charged to MIDU Steel.","تعليمات نجد بتاريخ 3 أكتوبر 2026: الأثاث والأصناف المشتراة لـ MIDU Steel تُحمّل عليها.")} <a href="${esc(MS_LINK)}" target="_blank" rel="noopener">📎 ${tr("invoices sent to Osama (3 Oct)","الفواتير المرسلة لأسامة (3 أكتوبر)")}</a></p>
+  return h+`<div class="card"><h2>${tr("To back-charge: MIDU Steel (cost center ASP-STL)","للتحميل: MIDU Steel (مركز تكلفة ASP-STL)")}</h2><p class="hint">${tr("Najed's instruction of 3 Oct 2026: furniture and items bought for MIDU Steel are charged to MIDU Steel.","تعليمات نجد بتاريخ 3 أكتوبر 2026: الأثاث والأصناف المشتراة لـ MIDU Steel تُحمّل عليها.")} <a href="${esc(MS_LINK)}" target="_blank" rel="noopener">📎 ${tr("invoices sent to Osama (3 Oct)","الفواتير المرسلة لأسامة (3 أكتوبر)")}</a></p>
   <table class="t"><tr><th>${tr("Item","البند")}</th><th class="num">${tr("Excl. VAT","بدون ضريبة")}</th><th class="num">VAT</th><th class="num">${tr("Incl. VAT","شامل الضريبة")}</th></tr>${MS_ITEMS.map(x=>`<tr><td class="en">${esc(x[0])}</td><td class="num">${money(x[1])}</td><td class="num">${money(x[2])}</td><td class="num">${money(x[1]+x[2])}</td></tr>`).join("")}
   <tr><td class="en">${tr("Nespresso machine – amount to be added","ماكينة نسبريسو – المبلغ يُضاف لاحقاً")}</td><td colspan="2"></td><td>${rcAdmin()?`<input class="en num" type="number" id="msNes" placeholder="${tr("incl. VAT","شامل الضريبة")}" style="width:130px">`:"?"}</td></tr>
   <tr class="tot"><td>${tr("Total","المجموع")}</td><td class="num">${money(ex)}</td><td class="num">${money(vt)}</td><td class="num">${money(ex+vt)}</td></tr></table>
@@ -3021,7 +3021,7 @@ const MS_LINK=OWL("AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAA
   const lines=MS_ITEMS.map(x=>({type:x[0],qty:1,unit:"lot",rate:x[1]}));let sub=MS_ITEMS.reduce((a,x)=>a+x[1],0),vat=MS_ITEMS.reduce((a,x)=>a+x[2],0);
   if(nes){const e=r2(nes/1.15);lines.push({type:"Nespresso machine",qty:1,unit:"lot",rate:e});sub+=e;vat+=r2(nes-e);}
   if(!confirm(tr("Create the debit note to MIDU Steel for ","إنشاء إشعار مدين على MIDU Steel بمبلغ ")+money(sub+vat)+" SAR?"))return;
-  D.dns.push({no:seqNo("ASP-MIDU-2026-",D.dns.map(d=>d.no)),contractor:"MIDU Steel",cc:"MIDU Steel",period:"2026-10",date:today(),sub:r2(sub),vat:r2(vat),status:"Draft",paid:0,auto:false,type:"Furniture & equipment",lines});
+  D.dns.push({no:seqNo("ASP-MIDU-2026-",D.dns.map(d=>d.no)),contractor:"MIDU Steel",cc:"ASP-STL",period:"2026-10",date:today(),sub:r2(sub),vat:r2(vat),status:"Draft",paid:0,auto:false,type:"Furniture & equipment",lines});
   persist();render();toast("✔ "+tr("Debit note created","تم إنشاء إشعار المدين"));};};}
 /* Gheil electrical panels in CAPEX & OPEX */
 const GH_LINK=OWL("AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAAAB2Tsf0ZED2R4L6CT9ilR8%2BBwBOnLmPnoVuTpI4fvk7QZoJAAAbgjr0AABOnLmPnoVuTpI4fvk7QZoJAAAbgmjGAAA%3D"),GH_LINK2=OWL("AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAAAB2Tsf0ZED2R4L6CT9ilR8%2BBwBOnLmPnoVuTpI4fvk7QZoJAAAbgjr0AABOnLmPnoVuTpI4fvk7QZoJAAAbgmjEAAA%3D");
@@ -3031,7 +3031,7 @@ const GH_LINK=OWL("AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAA
  out.push({order:o,cc,desc:"Gheil – refund of the difference to actual work (2,191.10 incl. VAT, 22-09-2026)",cls:"CAPEX",amt:-1905.3,m:"2026-09",src:"po",inv:[{n:"Final breakdown (email 21-Sep)",u:GH_LINK2}]});
  return out;};}
 /* Update 62b: the furniture of PO MIDU-PO-260527 (Design Views) is charged to MIDU Steel (Najed, 3 Oct 2026) – counted on the MIDU Steel cost center */
-const STEEL_CC=()=>CC.find(c=>/steel/i.test(c)&&/midu/i.test(c))||CC.find(c=>/steel/i.test(c))||"MIDU Steel";
+const STEEL_CC=()=>CC.includes("ASP-STL")?"ASP-STL":(CC.find(c=>/^ASP.*(STL|steel)/i.test(c))||"ASP-STL");
 {const C1=cxLines;cxLines=function(){return C1().map(x=>x.order==="MIDU-PO-260527"?Object.assign(x,{cc:STEEL_CC(),desc:x.desc+" – "+tr("charged to MIDU Steel","محمّل على MIDU Steel")}):x);};}
 </script>
 </body>
