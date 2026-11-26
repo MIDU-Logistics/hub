@@ -3161,6 +3161,9 @@ function whApplyPlan(){if(!GAS){Object.keys(WH).forEach(k=>delete WH[k]);WH_PLAN
   return o.call(this,ev);};};});
 /* assets saved from other screens: keep the code that matches the location */
 {const P0=persist;persist=function(){(D.assets||[]).forEach(a=>{if(a.wh&&a.loc){const r=realWh(a.wh,a.loc);if(r!==a.wh)a.wh=r;}});return P0();};}
+/* MDS "To (location / project)": suggest the Asset Register locations */
+{const B0=BIND.mds;BIND.mds=()=>{B0();const t=$("#mTo");if(!t||$("#toLocL"))return;const L=[...new Set(Object.values(WH).filter(w=>!w.alias).flatMap(w=>w.locs))];
+ t.insertAdjacentHTML("afterend",`<datalist id="toLocL">${L.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>`);t.setAttribute("list","toLocL");};}
 whApplyPlan();
 </script>
 </body>
