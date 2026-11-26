@@ -2953,10 +2953,10 @@ const UH_DEF={
   ["Garbage skip","Emaar","MBL","Skips",12,650,0],["Garbage skip","Rewam","MBL","Skips",3,600,1],["Sewage","","MBL","Skips",9.375,250,1],["Potable water","","MBL","m³",360,12,1],
   ["Drinking water cartons","","MBL","Cartons",360,10,1],["Drinking water (labour)","","MBL","L",46875,0.065,1],["Ice cubes","","MBL","Bags",800,3,0]],
  "2026-09":[["Generators diesel","","MBL","L",154617,1.557,1],["Equipment diesel","","MBL","L",3578,1.557,1],["Concrete waste skip","","MBL","Skips",58,1430,1],["Garbage skip","","MBL","Skips",12,650,1],
-  ["Sewage","","MBL","Skips",17.875,250,1],["Potable water","","MBL","m³",508,12,1],["Drinking water cartons","","MBL","Cartons",285,10,1],["Drinking water (labour)","","MARAH","L",77492,0.065,1],["Ice cubes","","MARAH","Bags",1225,4.34782,1]],
+  ["Sewage","","TEKLAY","Skips",17.875,250,1],["Potable water","","TEKLAY","m³",508,12,1],["Drinking water cartons","","MBL","Cartons",285,10,1],["Drinking water (labour)","","TEKLAY","L",77492,0.06,1],["Ice cubes","","MARAH","Bags",1225,4.34782,1]],
  "2026-10":[["Generators diesel","","MBL","L",176057,1.557,0],["Equipment diesel","","MBL","L",11000,1.557,0],["Concrete waste skip","","MBL","Skips",3,1430,0],["Concrete vacuum","","MBL","Trips",138,400,0],
   ["Concrete trucks","","MBL","Trips",259,1540,0],["Garbage skip","Rewam","MBL","Skips",3,600,0],["Garbage skip","Emaar","MBL","Skips",9,650,0],["Drinking water cartons","","MBL","Cartons",411,10,0],
-  ["Sewage","","TEKLAY","Skips",25,250,0],["Potable water","","TEKLAY","m³",768,12,0],["Drinking water (labour)","","YAZAN","L",114700,0.065,0],["Ice cubes","","MARAH","Bags",1320,4.34782,0]]};
+  ["Sewage","","TEKLAY","Skips",25,250,0],["Potable water","","TEKLAY","m³",768,12,0],["Drinking water (labour)","","TEKLAY","L",32500,0.06,0],["Drinking water (labour)","YAZAN 19–31 Oct","YAZAN","L",46400,0.065,0],["Ice cubes","","MARAH","Bags",1320,4.34782,0]]};
 KEYS.uhist=r=>r.id;D.uhist=D.uhist||[];
 if(typeof LOCAL_COLLS!=="undefined"&&!LOCAL_COLLS.includes("uhist"))LOCAL_COLLS.push("uhist");
 if(typeof COLL_AREA!=="undefined")COLL_AREA.uhist="ut";
@@ -2987,6 +2987,13 @@ function uhLines(m){const out=new Map();(UH_DEF[m]||[]).forEach(([cat,co,sup,uni
   $("#uhSave").onclick=()=>{const q=+$("#uhQ").value,rt=+$("#uhR").value;if(!(q>=0)||!(rt>=0)||!$("#uhS").value.trim())return msg("err",ERR.qty());
    Object.assign(rec(sel.value),{sup:$("#uhS").value.trim(),qty:q,rate:rt,est:false,deleted:false,by:whoAmI(),at:new Date().toISOString()});persist();render();msg("ok","✔ "+tr("Line saved","تم حفظ السطر"));};
   $("#uhDel").onclick=()=>{if(!confirm(tr("Remove this line?","حذف هذا السطر؟")))return;Object.assign(rec(sel.value),{deleted:true,by:whoAmI(),at:new Date().toISOString()});persist();render();};};}
+/* Update 61b: invoice emails found in the mailbox (Outlook links – open for the mailbox owner) */
+INV_LINKS["2026-09|TEKLAY"]=(INV_LINKS["2026-09|TEKLAY"]||[]).concat([{n:"INV-122024570 (email 18-Oct)",u:"https://outlook.office365.com/owa/?ItemID=AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAAAB2Tsf0ZED2R4L6CT9ilR8%2BBwBOnLmPnoVuTpI4fvk7QZoJAAAAAAEMAABOnLmPnoVuTpI4fvk7QZoJAABEA7u9AAA%3D&exvsurl=1&viewmodel=ReadMessageItem"}]);
+INV_LINKS["2026-10|TEKLAY"]=(INV_LINKS["2026-10|TEKLAY"]||[]).concat([{n:"INV-122024579 signed to Osama (email 8-Nov)",u:"https://outlook.office365.com/owa/?ItemID=AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAAAB2Tsf0ZED2R4L6CT9ilR8%2BBwBOnLmPnoVuTpI4fvk7QZoJAAAAAAEJAABOnLmPnoVuTpI4fvk7QZoJAAAbgkU0AAA%3D&exvsurl=1&viewmodel=ReadMessageItem"}]);
+INV_LINKS["2026-10|YAZAN"]=(INV_LINKS["2026-10|YAZAN"]||[]).concat([{n:"INV-000084 (email 8-Nov)",u:"https://outlook.office365.com/owa/?ItemID=AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAAAB2Tsf0ZED2R4L6CT9ilR8%2BBwBOnLmPnoVuTpI4fvk7QZoJAAAAAAEMAABOnLmPnoVuTpI4fvk7QZoJAABR6KPcAAA%3D&exvsurl=1&viewmodel=ReadMessageItem"}]);
+INV_LINKS["2026-09|MARAH"]=(INV_LINKS["2026-09|MARAH"]||[]).concat([{n:"26-3232 to Osama (email 13-Sep)",u:"https://outlook.office365.com/owa/?ItemID=AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAAAB2Tsf0ZED2R4L6CT9ilR8%2BBwBOnLmPnoVuTpI4fvk7QZoJAAAAAAEJAABOnLmPnoVuTpI4fvk7QZoJAAAbgkTgAAA%3D&exvsurl=1&viewmodel=ReadMessageItem"}]);
+INV_LINKS["2026-10|MARAH"]=(INV_LINKS["2026-10|MARAH"]||[]).concat([{n:"Marah Oct to Osama (email 27-Oct)",u:"https://outlook.office365.com/owa/?ItemID=AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAAAB2Tsf0ZED2R4L6CT9ilR8%2BBwBOnLmPnoVuTpI4fvk7QZoJAAAAAAEJAABOnLmPnoVuTpI4fvk7QZoJAAAbgkUkAAA%3D&exvsurl=1&viewmodel=ReadMessageItem"}]);
+INV_LINKS["2026-08|Byrne"]=(INV_LINKS["2026-08|Byrne"]||[]).concat([{n:"Byrne pro forma to Osama (email 23-Nov)",u:"https://outlook.office365.com/owa/?ItemID=AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAAAB2Tsf0ZED2R4L6CT9ilR8%2BBwBOnLmPnoVuTpI4fvk7QZoJAAAAAAEJAABOnLmPnoVuTpI4fvk7QZoJAAAbgkVOAAA%3D&exvsurl=1&viewmodel=ReadMessageItem"}]);
 </script>
 </body>
 </html>
