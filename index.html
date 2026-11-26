@@ -448,7 +448,7 @@ function logForm(d){
  const lineInfo=l=>{const ln=(l.sl&&whLines().find(x=>x.sl===l.sl))||lineFor(l.code)||{};const it=item(l.code)||{};const a=l.asset?D.assets.find(x=>x.id===l.asset):null;return {ln,it,a};};
  let head="",cols="",rows="",after="",sig="";
  if(d.type==="GRN"){
-  head=`<table style="width:100%;border-collapse:collapse;font-size:11.5px">${kv("GRN No.:",d.no,"Date received:",fd(d.date))}${kv("Supplier:",d.party,"PO No.:",d.po)}${kv("Delivery Note No.:",d.dn,"Delivery Note Date:",fd(d.dnDate))}${kv("Supplier Invoice No.:",d.inv,"Invoice Date:",fd(d.invDate))}${kv("Stored at:",[WH[d.wh]?.name,d.loc].filter(Boolean).join(" › "),"Storage point:",d.sp)}${kv("Received by:",d.by,"","")}</table>
+  head=`<table style="width:100%;border-collapse:collapse;font-size:11.5px">${kv("GRN No.:",d.no,"Date received:",fd(d.date))}${kv("Supplier:",d.party,"PO No.:",d.po)}${kv("Delivery Note No.:",d.dn,"Delivery Note Date:",fd(d.dnDate))}${kv("Supplier Invoice No.:",d.inv,"Invoice Date:",fd(d.invDate))}${kv("Stored at:",[WH[d.wh]?.name,d.loc].filter(Boolean).join(" › "),"Storage point:",d.sp)}${kv("Received by:",(d.by||"")+(typeof skShift==="function"&&skShift(d.by)?" – "+skShift(d.by):""),"","")}</table>
   <div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">DELIVERY / TRANSPORT DETAILS</div><table style="width:100%;border-collapse:collapse;font-size:11px"><tr><td ${td("left")}><b>Delivered by (company)</b></td><td ${td("left")}>${esc(d.dlvCo||d.party||"")}</td><td ${td("left")}><b>Driver name</b></td><td ${td("left")}>${esc(d.drv||"")}</td><td ${td("left")}><b>Vehicle plate No.</b></td><td ${td("left")}>${esc(d.veh||"")}</td></tr><tr><td ${td("left")}><b>Driver Iqama / ID No.</b></td><td ${td("left")}>${esc(d.drvId||"")}</td><td ${td("left")}><b>Driver mobile</b></td><td ${td("left")}>${esc(d.drvMob||"")}</td><td ${td("left")}><b>Inspection needed</b></td><td ${td("left")}>${lines.some(l=>l.insp)?"Yes – see lines":lines.some(l=>"insp" in l)||d.entered?"No":""}</td></tr></table>
   <div style="font-size:10px;font-weight:700;color:#555;margin:10px 0 3px">ITEMS RECEIVED</div>`;
   cols=["No.","Stock Line","Item Code","Description","Unit","Qty Received","Condition","Storage Point","Eng. Inspection / IMIR"];
@@ -485,10 +485,10 @@ function logForm(d){
  const X=d.cancelled?`<div style="border:2px solid #B42318;color:#B42318;font-weight:700;text-align:center;padding:6px;margin:8px 0">CANCELLED ${esc(d.cancelled.at)} — ${esc(d.cancelled.reason)}</div>`:"";
  return `<div class="doc xl" style="font-family:Arial,Helvetica,sans-serif;color:#111;padding:20px 26px"><div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid ${N};padding-bottom:6px"><div><div style="font-size:20px;font-weight:800;color:#000">${cfg.t}</div><div style="font-size:9.5px;color:#555;margin-top:3px">MIDU PROJECT &nbsp;|&nbsp; LOGISTICS DEPARTMENT &nbsp;|&nbsp; WAREHOUSE &amp; STORES &nbsp; • &nbsp; Form ${cfg.f}</div></div><img src="${LOGO}" style="height:30px"></div>
  <div style="height:10px"></div>${X}${head}<table style="width:100%;border-collapse:collapse"><tr>${cols.map(c=>`<th ${th}>${c}</th>`).join("")}</tr>${rows}${empty}</table>${after}${sigT}
- <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#555;margin-top:8px"><span>Form ${cfg.f}${d.entered&&d.entered.by?" · entered in MIDU-Team Hub by "+esc(d.entered.by)+" on "+esc(String(d.entered.at).slice(0,10)):""}${d.edited?" · edited "+esc(d.edited.at)+(d.edited.by?" by "+esc(d.edited.by):""):""}</span><span>${cfg.copy}</span></div></div>`;}
+ <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#555;margin-top:8px"><span>Form ${cfg.f}${d.entered&&d.entered.by?" · entered in MIDU-Team Hub by "+esc(d.entered.by)+(typeof skShift==="function"&&skShift(d.entered.by)?" ("+skShift(d.entered.by)+")":"")+" on "+esc(String(d.entered.at).slice(0,10)):""}${d.edited?" · edited "+esc(d.edited.at)+(d.edited.by?" by "+esc(d.edited.by):""):""}</span><span>${cfg.copy}</span></div></div>`;}
 
 /* ---------- storekeeper reference (stock lines, categories, storage points) from data/whref.json ---------- */
-const WR=()=>{const w=window.WHREF||{lines:[],cats:[],locs:[],sps:[],units:[],staff:[]};if(w.sps&&!w._nz){w.sps=w.sps.filter(x=>!/^zone\b/i.test(x));w._nz=1;}return w;};
+const WR=()=>{const w=window.WHREF||{lines:[],cats:[],locs:[],sps:[],units:[],staff:[]};if(w.sps&&!w._nz){w.sps=w.sps.filter(x=>!/^zone\b/i.test(x));w._nz=1;}if(Array.isArray(w.staff)&&!w._sx){[["Ammar Bashir",""]].forEach(([n,id])=>{if(!w.staff.some(x=>x.name.toLowerCase()===n.toLowerCase()))w.staff.push({name:n,id});});w._sx=1;}return w;};
 const UNITS=()=>WR().units.length?WR().units:["Pcs","Set","Box","Carton","Roll","Pair","Meter","Kg","Liter","Bag","Bundle","Lot"];
 function whLines(){const m=new Map();WR().lines.forEach(l=>m.set(l.sl,l));D.items.filter(i=>i.sl).forEach(i=>{if(!m.has(i.sl))m.set(i.sl,{sl:i.sl,code:i.code,desc:i.desc,dept:i.dept||"",cat:i.cat||"",loc:i.loc||"",sp:i.sp||"",unit:i.unit,kind:i.kind||""});});return [...m.values()];}
 function lineFor(code){return whLines().find(l=>l.code===code);}
@@ -3165,6 +3165,19 @@ function whApplyPlan(){if(!GAS){Object.keys(WH).forEach(k=>delete WH[k]);WH_PLAN
 {const B0=BIND.mds;BIND.mds=()=>{B0();const t=$("#mTo");if(!t||$("#toLocL"))return;const L=[...new Set(Object.values(WH).filter(w=>!w.alias).flatMap(w=>w.locs))];
  t.insertAdjacentHTML("afterend",`<datalist id="toLocL">${L.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>`);t.setAttribute("list","toLocL");};}
 whApplyPlan();
+
+/* ===================== Update 67: storekeepers sharing one PC (Azzam, 26 Nov 2026) =====================
+   Mazhar Ashraf (main storekeeper), Jashim Uddin (day shift) and Ammar Bashir (night shift) all work on Mazhar's PC / OneDrive.
+   Each one is a Hub user with his own PIN: the bar on Receive / Issue / Return shows who is working and switches the person
+   in one click, so the document, its e-signature and "entered by" carry the name of whoever really did the receipt / dispatch / return. */
+const SK_TEAM={"Mazhar Ashraf":"Main storekeeper","Jashim Uddin":"Day shift","Ammar Bashir":"Night shift"};
+const skShift=n=>SK_TEAM[Object.keys(SK_TEAM).find(k=>k.toLowerCase()===String(n||"").trim().toLowerCase())]||"";
+function skBar(){if(typeof LOCAL==="undefined"||!LOCAL.connected||!LOCAL.user)return "";const sh=skShift(LOCAL.user);
+ return `<div class="banner" id="skBar" style="background:#EEF6FF;border-color:#93C5FD;color:#1E3A5F;display:flex;gap:10px;align-items:center;flex-wrap:wrap">👤 <span>${tr("Storekeeper on duty:","أمين المستودع المناوب:")} <b class="en">${esc(LOCAL.user)}</b>${sh?` · ${esc(tr(sh,{"Main storekeeper":"أمين المستودع الرئيسي","Day shift":"الوردية الصباحية","Night shift":"الوردية الليلية"}[sh]))}`:""}</span>
+  <span class="hint" style="flex:1">${tr("Not you? Switch before saving – the document is saved and signed in this name.","لست أنت؟ بدّل المستخدم قبل الحفظ – يُحفظ المستند ويُوقّع بهذا الاسم.")}</span><button class="b sm" id="skSw">⇄ ${tr("Switch storekeeper","تبديل أمين المستودع")}</button></div>`;}
+["grn","mds","mrs"].forEach(v=>{const B0=BIND[v];BIND[v]=()=>{B0();if($("#skBar"))return;const h=skBar();if(!h)return;const m=$("#main"),c=m&&m.querySelector(".card");if(!c)return;c.insertAdjacentHTML("beforebegin",h);
+ $("#skSw").onclick=async()=>{await LOCAL.changeUser();go(v);};
+ const by={grn:"gBy",mds:"mBy",mrs:"rBy"}[v],e=$("#"+by);if(e&&!e.value&&!(WH_EDIT&&WH_EDIT.type===v.toUpperCase()))e.value=LOCAL.user;};});
 </script>
 </body>
 </html>
