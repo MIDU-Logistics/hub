@@ -1,0 +1,295 @@
+{
+"v": 1,
+"category": "warehouse",
+"updated": "2026-11-26",
+"title": {
+"en": "Warehouse & stores – storekeeper guide",
+"ar": "المستودعات والمخازن – دليل أمين المستودع"
+},
+"slides": {
+"en": [
+{
+"f": "01.jpg",
+"title": "Storekeeper guide: receive, issue, return",
+"note": "Welcome. This guide walks through every warehouse screen in the MIDU-Team Hub. Each step shows a real screen with orange numbers: number 1 on the screen is number 1 in the list next to it. The sample data (suppliers, people, drivers) is for training only."
+},
+{
+"f": "02.jpg",
+"title": "Six words you will see on every screen",
+"note": "Before touching any screen, everyone must agree on these six words. The item code says what the thing is; the stock line is the storekeeper's own line for it; the location comes from the Microsoft list and the storage point is the exact spot inside it. Consumables are counted by quantity. Assets are tracked one by one with an Asset ID and a label, and we always know who holds each one."
+},
+{
+"f": "03.jpg",
+"title": "Three movements, three documents",
+"note": "Everything in the warehouse is one of three movements. A GRN when material arrives from a supplier, an MDS when it goes out to a person or another location, and an MRS when it comes back. Each one is a numbered document, signed with the storekeeper's PIN and printed for signatures on paper."
+},
+{
+"f": "04.jpg",
+"title": "Make sure the Hub shows your name",
+"note": "Mazhar, Jashim and Ammar all work on Mazhar's PC. Before saving anything, check the blue bar. If it shows someone else, click Switch storekeeper and sign in with your own name and PIN. Never use someone else's PIN: it is their electronic signature."
+},
+{
+"f": "05.jpg",
+"title": "Delivery details",
+"note": "Before typing anything, check the delivery physically: count against the delivery note and the PO, look for damage. Then fill the delivery details. Picking the PO from the list is important: the ordered items and the quantities still open load by themselves, and the Hub warns if you receive more than ordered. Fields with a red star are required."
+},
+{
+"f": "06.jpg",
+"title": "Invoice and transport details",
+"note": "These fields are not required, but they make the GRN complete. The invoice number lets Finance match the GRN with the PO and the invoice before paying. The driver and vehicle details record who brought material onto site, which matters for security and for disputes."
+},
+{
+"f": "07.jpg",
+"title": "Items: an item already in the list",
+"note": "Always pick the item from the list; the stock line, code, description, unit and department then fill themselves. Enter the quantity you really counted. For technical material such as electrical panels, cables or concrete products, choose Required under Engineering inspection and add the inspection report number and date when the engineer has checked it. If the report is not ready yet, save anyway and add it later with Edit."
+},
+{
+"f": "08.jpg",
+"title": "Items: a NEW item, only when it is truly not in the list",
+"note": "Create a new item only when it really does not exist. When you type a name the Hub does not know, it shows similar existing items. Here, Water Cooler already exists: if the dispenser is the same kind of unit, click Water Cooler instead of creating a new code. If it is different, choose the category, the unit and whether it is an Asset or a Consumable. A water dispenser is equipment, so Pcs and Asset. The purple box below explains whether Asset IDs will be created."
+},
+{
+"f": "09.jpg",
+"title": "Items: assets get their own Asset ID",
+"note": "Assets such as laptops, tools and equipment are tracked one by one. When the item is an asset, a purple box appears under the line. Type the brand and model, and the serial numbers, one per unit, separated by commas. On saving, each unit gets its own Asset ID, it appears in the Asset register, and its label is ready to print. Stick the label on the item before it leaves the store."
+},
+{
+"f": "10.jpg",
+"title": "Attach the proof, tick the checks, save",
+"note": "The stamped delivery note is the proof that the material arrived: the Hub will not save without it. Tick the three checks only after you have really done them. When you save, the stock goes up immediately and the Hub asks for your PIN: that is your electronic signature. The document then waits for the Logistics Manager's approval."
+},
+{
+"f": "11.jpg",
+"title": "Print, sign, stamp and attach",
+"note": "After saving, open the print preview. Everything is already on the form. The driver signs as Delivered by, the storekeeper signs as Received by, and the form is stamped. Scan or photograph the signed form and attach it from Recent documents. The original stays with Logistics and the supplier gets a copy."
+},
+{
+"f": "12.jpg",
+"title": "Print, sign, stamp and attach",
+"note": "Three dispatch types. New issue: given to a person for use; it becomes their custody. Temporary loan: the same, but it must come back by the return date; if it is late, it appears on the warehouse dashboard. Transfer: material moves to another location, for example from Container 3 to ASP-PL 03; nobody holds it, and the To field must be a location picked from the list so the stock is added there."
+},
+{
+"f": "13.jpg",
+"title": "Purpose and transport",
+"note": "The cost center decides which division pays for the material, so choose it whenever you know it. Fill the vehicle and driver when the material leaves the store on a vehicle, for example on a transfer to another location."
+},
+{
+"f": "14.jpg",
+"title": "Items: what goes out, and from where",
+"note": "Pick each item and the location you are taking it from. The Hub shows what it has at that location and will not let you issue more. If the shelf has more than the Hub shows, a receipt was probably missed: tell Logistics instead of guessing. For tools and equipment, add the brand, model and serial number so we know exactly which unit went to whom."
+},
+{
+"f": "15.jpg",
+"title": "Check, save, print and sign",
+"note": "Check the items with the receiver and look at his ID before saving. Saving takes the material out of stock immediately and asks for your PIN. Then print the dispatch sheet, get it signed by the receiver, stamp it and attach the signed copy. Nothing leaves the store without an MDS."
+},
+{
+"f": "16.jpg",
+"title": "Taking material back",
+"note": "Pick the person and everything they hold appears, with the MDS it came from and any loan date. Tick what came back, correct the quantity if only part came back, and set the condition honestly: damaged items do not go back into usable stock, they wait in Damaged and write-off until the Logistics Manager decides."
+},
+{
+"f": "17.jpg",
+"title": "What happens after you save",
+"note": "Every GRN, MDS and MRS is signed electronically with the storekeeper's PIN and then approved by the Logistics Manager. The stock changes when the document is saved, because the material has physically moved; the approval proves it was checked. If something is wrong, the Logistics Manager returns it with a reason, and the issuer edits and signs again."
+},
+{
+"f": "18.jpg",
+"title": "Stock on hand and minimum levels",
+"note": "Stock on hand shows what the Hub has now, per location or as totals per item. In Totals per item you can type a minimum for each item. Anything at or below its minimum turns red, appears in the Below minimum filter and on the warehouse dashboard, where a purchase request can be raised in one click."
+},
+{
+"f": "19.jpg",
+"title": "Item history: where did it go?",
+"note": "Item history answers questions like: where did these helmets go, who received them, when did they come back. Every receipt, issue, loan, transfer, return, count correction and repair is listed with the running balance. Click a document number to open it."
+},
+{
+"f": "20.jpg",
+"title": "Stock count: one location at a time",
+"note": "Count one location at a time, at least monthly, and whenever something looks wrong. The system quantity stays hidden until you press Compare, so the count is honest. Submit the count: after the Logistics Manager approves it, the Hub corrects the stock by the difference you found, and the correction appears in each item's history."
+},
+{
+"f": "21.jpg",
+"title": "Monthly inventory: every location, every month",
+"note": "Every location that holds stock should be counted at least once a month. This screen shows each location, when it was last counted and whether the count was approved. Click Count and the Stock count screen opens with that location already chosen. The warehouse dashboard also shows how many locations are still to count this month."
+},
+{
+"f": "22.jpg",
+"title": "Yearly stock-take: all locations, one exercise",
+"note": "Once a year every location is counted in one exercise. The Logistics Manager opens the stock-take, the storekeepers print all count sheets and count each location in Stock count, where a blue banner shows the count belongs to the stock-take. Each count is approved as usual but the stock is not changed yet. When everything is counted and approved, the Logistics Manager closes the stock-take and all differences are applied together."
+},
+{
+"f": "23.jpg",
+"title": "Closing the stock-take and signing the report",
+"note": "The stock-take report lists how many locations were counted, how many lines matched, and every shortage and excess with system and counted quantities. After closing, print it and have it signed by the storekeeper, the Logistics Manager and Finance. Quantities only for now; values can be added later."
+},
+{
+"f": "24.jpg",
+"title": "Inventory report for a month or a year",
+"note": "The inventory report shows, for each item, the quantity at the start of the period, everything received, issued, transferred, returned, repaired or corrected by a count, and the quantity at the end. The closing of one month is always the opening of the next. Damaged returns appear for information only. Export it to Excel or print it for the monthly or yearly file."
+},
+{
+"f": "25.jpg",
+"title": "Damaged & write-off",
+"note": "When a return is marked Damaged, the item does not go back into usable stock. It waits in this register. The storekeeper keeps it apart and labelled; the Logistics Manager decides whether it is repaired and goes back to stock, or is written off with a reason. Damaged assets appear here too."
+},
+{
+"f": "26.jpg",
+"title": "The warehouse dashboard tells you what to chase",
+"note": "The warehouse dashboard shows two alert cards when there is something to do. Below minimum stock lists items that need reordering, with a suggested quantity that brings the stock to twice the minimum; Raise PR opens a purchase request with them filled in. Overdue temporary loans lists items that should already be back: ask the person to return them with an MRS, or extend the loan by editing the MDS."
+},
+{
+"f": "27.jpg",
+"title": "The storekeeper’s routine",
+"note": "This is the rhythm of a well-run store: check who is signed in and what the dashboard says at the start of the shift; document every movement when it happens; finish the day with nothing waiting; and count a little every week so the Hub always matches the shelves."
+},
+{
+"f": "28.jpg",
+"title": "Five rules that keep the store honest",
+"note": "Five rules to remember. If everyone follows them, the Hub always matches the shelves, every item can be traced, and every movement has a signature behind it."
+}
+],
+"ar": [
+{
+"f": "01.jpg",
+"title": "دليل أمين المستودع: الاستلام والصرف والإرجاع",
+"note": "مرحباً بكم. يشرح هذا الدليل كل شاشات المستودع في منصة MIDU-Team. في كل خطوة صورة حقيقية من الشاشة عليها أرقام برتقالية: الرقم 1 على الشاشة هو الرقم 1 في القائمة بجانبها. بيانات الأمثلة (الموردون والأشخاص والسائقون) للتدريب فقط."
+},
+{
+"f": "02.jpg",
+"title": "ستة مصطلحات ستراها في كل شاشة",
+"note": "قبل استخدام أي شاشة يجب أن نتفق على هذه المصطلحات الستة. كود الصنف يحدد ما هو الصنف، وسطر المخزون هو سطر أمين المستودع له، والموقع من قائمة Microsoft ونقطة التخزين هي المكان الدقيق داخله. المستهلكات تُحسب بالكمية، والأصول تُتابع قطعة قطعة برقم أصل وملصق، ونعرف دائماً من يحمل كل واحد منها."
+},
+{
+"f": "03.jpg",
+"title": "ثلاث حركات، ثلاثة مستندات",
+"note": "كل ما يحدث في المستودع واحدة من ثلاث حركات: إشعار استلام GRN عند وصول المواد من المورد، وورقة صرف MDS عند خروجها لشخص أو لموقع آخر، وورقة إرجاع MRS عند عودتها. كل واحدة مستند برقم، يوقّعه أمين المستودع برمزه السري، ويُطبع ليوقَّع على الورق."
+},
+{
+"f": "04.jpg",
+"title": "تأكد أن المنصة تعرض اسمك",
+"note": "مظهر وجاشم وعمار يعملون جميعاً على جهاز مظهر. قبل حفظ أي شيء، انظر إلى الشريط الأزرق. إن كان يعرض اسم شخص آخر، اضغط تبديل أمين المستودع وادخل باسمك ورمزك. لا تستخدم رمز غيرك أبداً: فهو توقيعه الإلكتروني."
+},
+{
+"f": "05.jpg",
+"title": "بيانات التوريد",
+"note": "قبل الكتابة افحص التوريد فعلياً: عُدّ الكميات وقارنها بمذكرة التسليم وأمر الشراء وابحث عن أي تلف. ثم املأ بيانات التوريد. اختيار أمر الشراء من القائمة مهم: تظهر الأصناف المطلوبة والكميات المتبقية تلقائياً، وتنبهك المنصة إذا استلمت أكثر من المطلوب. الحقول التي عليها نجمة حمراء إلزامية."
+},
+{
+"f": "06.jpg",
+"title": "بيانات الفاتورة والنقل",
+"note": "هذه الحقول ليست إلزامية لكنها تجعل إشعار الاستلام كاملاً. رقم الفاتورة يسمح للمالية بمطابقة الاستلام مع أمر الشراء والفاتورة قبل الدفع. بيانات السائق والمركبة تسجل من أدخل المواد إلى الموقع، وهذا مهم للأمن وفي حال الخلاف."
+},
+{
+"f": "07.jpg",
+"title": "الأصناف: صنف موجود في القائمة",
+"note": "اختر الصنف دائماً من القائمة؛ عندها يُملأ سطر المخزون والكود والوصف والوحدة والقسم تلقائياً. أدخل الكمية التي عددتها فعلاً. للمواد الفنية مثل اللوحات الكهربائية والكابلات ومنتجات الخرسانة اختر «مطلوب» تحت الفحص الهندسي، وأضف رقم تقرير الفحص وتاريخه عندما يفحصها المهندس. إذا لم يكن التقرير جاهزاً احفظ الآن وأضفه لاحقاً بالتعديل."
+},
+{
+"f": "08.jpg",
+"title": "الأصناف: صنف جديد، فقط إذا لم يكن في القائمة",
+"note": "أنشئ صنفاً جديداً فقط إذا لم يكن موجوداً فعلاً. عندما تكتب اسماً لا تعرفه المنصة تعرض أصنافاً مشابهة. هنا يوجد «مبرد ماء» مسبقاً: إن كان الموزع من نفس النوع فاضغط عليه بدلاً من إنشاء كود جديد. وإن كان مختلفاً فاختر الفئة والوحدة وهل هو أصل أم مستهلك. موزع المياه معدّة، إذن Pcs وأصل. المربع البنفسجي أسفله يوضح هل ستُنشأ أرقام أصول أم لا."
+},
+{
+"f": "09.jpg",
+"title": "الأصناف: كل أصل يأخذ رقم أصل خاصاً به",
+"note": "الأصول مثل الحواسيب والعدد والمعدات تُتابع قطعة قطعة. عندما يكون الصنف أصلاً يظهر مربع بنفسجي تحت السطر. اكتب العلامة والموديل والأرقام التسلسلية، رقماً لكل وحدة مفصولة بفواصل. عند الحفظ تأخذ كل وحدة رقم أصل، وتظهر في سجل الأصول، ويكون ملصقها جاهزاً للطباعة. ألصق الملصق على الصنف قبل خروجه من المستودع."
+},
+{
+"f": "10.jpg",
+"title": "أرفق الإثبات، حدد خانات التحقق، احفظ",
+"note": "مذكرة التسليم المختومة هي إثبات وصول المواد: المنصة لا تحفظ بدونها. حدد خانات التحقق الثلاث فقط بعد أن تقوم بها فعلاً. عند الحفظ يزيد المخزون فوراً وتطلب المنصة رمزك السري، وهو توقيعك الإلكتروني. بعدها ينتظر المستند اعتماد مدير اللوجستيات."
+},
+{
+"f": "11.jpg",
+"title": "اطبع، وقّع، اختم، وأرفق",
+"note": "بعد الحفظ افتح معاينة الطباعة. كل شيء موجود على النموذج. السائق يوقّع في خانة Delivered by، وأمين المستودع في Received by، ثم يُختم النموذج. امسح النموذج الموقع أو صوّره وأرفقه من المستندات الأخيرة. الأصل يبقى في اللوجستيات والمورد يأخذ نسخة. النموذج المطبوع باللغة الإنجليزية."
+},
+{
+"f": "12.jpg",
+"title": "بيانات الصرف",
+"note": "ثلاثة أنواع صرف. صرف جديد: يُعطى لشخص للاستخدام ويصبح في عهدته. إعارة مؤقتة: مثله لكن يجب إرجاعه في تاريخ الإرجاع، وإن تأخر يظهر في لوحة معلومات المستودع. تحويل: نقل المواد لموقع آخر، مثل من Container 3 إلى ASP-PL 03؛ لا أحد يحملها، ويجب اختيار حقل «إلى» من قائمة المواقع حتى يُضاف المخزون هناك."
+},
+{
+"f": "13.jpg",
+"title": "الغرض والنقل",
+"note": "مركز التكلفة يحدد أي قسم يتحمل تكلفة المواد، فاختره كلما عرفته. املأ بيانات المركبة والسائق عندما تخرج المواد من المستودع على مركبة، مثل التحويل إلى موقع آخر."
+},
+{
+"f": "14.jpg",
+"title": "الأصناف: ماذا يخرج ومن أين",
+"note": "اختر كل صنف والموقع الذي تأخذه منه. المنصة تعرض ما لديها في هذا الموقع ولا تسمح بصرف أكثر منه. إذا كان على الرف أكثر مما تعرضه المنصة فغالباً هناك استلام لم يُسجل: أبلغ اللوجستيات بدلاً من التخمين. للعدد والمعدات أضف العلامة والموديل والرقم التسلسلي حتى نعرف بالضبط أي وحدة ذهبت لمن."
+},
+{
+"f": "15.jpg",
+"title": "تحقق، احفظ، اطبع، ووقّع",
+"note": "تحقق من الأصناف مع المستلم وانظر إلى هويته قبل الحفظ. الحفظ يُخرج المواد من المخزون فوراً ويطلب رمزك السري. ثم اطبع ورقة الصرف، واجعل المستلم يوقّعها، واختمها، وأرفق النسخة الموقعة. لا يخرج شيء من المستودع بدون ورقة صرف."
+},
+{
+"f": "16.jpg",
+"title": "استلام المواد المرتجعة",
+"note": "اختر الشخص فتظهر كل عهدته مع ورقة الصرف التي خرجت بها وتاريخ الإعارة إن وجد. حدد ما عاد، وعدّل الكمية إذا عاد جزء فقط، واختر الحالة بصدق: الأصناف التالفة لا تعود للمخزون القابل للاستخدام، بل تنتظر في «التالف والشطب» حتى يقرر مدير اللوجستيات."
+},
+{
+"f": "17.jpg",
+"title": "ماذا يحدث بعد الحفظ",
+"note": "كل استلام وصرف وإرجاع يوقّعه أمين المستودع إلكترونياً برمزه السري ثم يعتمده مدير اللوجستيات. المخزون يتغير عند حفظ المستند لأن المواد تحركت فعلاً؛ والاعتماد يثبت أنها رُوجعت. إذا كان هناك خطأ يعيده مدير اللوجستيات مع السبب، فيعدّله المُصدِر ويوقّع مرة أخرى."
+},
+{
+"f": "18.jpg",
+"title": "المخزون الحالي والحد الأدنى",
+"note": "شاشة المخزون الحالي تعرض ما لدى المنصة الآن، حسب الموقع أو كإجمالي لكل صنف. في «إجمالي لكل صنف» يمكنك كتابة حد أدنى لكل صنف. أي صنف عند حده الأدنى أو تحته يظهر بالأحمر، وفي تصفية «تحت الحد الأدنى»، وفي لوحة معلومات المستودع حيث يمكن إنشاء طلب شراء بضغطة واحدة."
+},
+{
+"f": "19.jpg",
+"title": "سجل الصنف: أين ذهب؟",
+"note": "سجل الصنف يجيب عن أسئلة مثل: أين ذهبت هذه الخوذات، ومن استلمها، ومتى عادت. كل استلام وصرف وإعارة وتحويل وإرجاع وتصحيح جرد وإصلاح يظهر مع الرصيد المتراكم. اضغط رقم المستند لفتحه."
+},
+{
+"f": "20.jpg",
+"title": "الجرد: موقع واحد في كل مرة",
+"note": "اجرد موقعاً واحداً في كل مرة، مرة شهرياً على الأقل، وكلما بدا شيء غير صحيح. كمية النظام تبقى مخفية حتى تضغط «مقارنة» ليكون الجرد صادقاً. أرسل الجرد: بعد اعتماد مدير اللوجستيات تصحح المنصة المخزون بالفرق الذي وجدته، ويظهر التصحيح في سجل كل صنف."
+},
+{
+"f": "21.jpg",
+"title": "الجرد الشهري: كل موقع، كل شهر",
+"note": "كل موقع فيه مخزون يجب أن يُجرد مرة في الشهر على الأقل. تعرض هذه الشاشة كل موقع ومتى جُرد آخر مرة وهل اعتُمد الجرد. اضغط «جرد» فتفتح شاشة الجرد على هذا الموقع مباشرة. لوحة معلومات المستودع تعرض أيضاً عدد المواقع التي لم تُجرد هذا الشهر."
+},
+{
+"f": "22.jpg",
+"title": "الجرد السنوي: كل المواقع في عملية واحدة",
+"note": "مرة في السنة تُجرد كل المواقع في عملية واحدة. يفتح مدير اللوجستيات الجرد السنوي، ويطبع أمناء المستودع كل أوراق الجرد ويجردون كل موقع من شاشة الجرد، حيث يظهر شريط أزرق يبين أن الجرد تابع للجرد السنوي. كل جرد يُعتمد كالمعتاد لكن المخزون لا يتغير بعد. عند جرد واعتماد كل شيء يغلق مدير اللوجستيات الجرد السنوي فتُطبّق كل الفروقات معاً."
+},
+{
+"f": "23.jpg",
+"title": "الجرد السنوي: كل المواقع في عملية واحدة",
+"note": "تقرير الجرد السنوي يبين عدد المواقع التي جُردت وعدد الأسطر المطابقة وكل نقص وزيادة مع كمية النظام والكمية المعدودة. بعد الإغلاق اطبعه ليوقّعه أمين المستودع ومدير اللوجستيات والمالية. التقرير بالكميات فقط حالياً، ويمكن إضافة القيم لاحقاً. التقرير المطبوع باللغة الإنجليزية."
+},
+{
+"f": "24.jpg",
+"title": "تقرير المخزون لشهر أو لسنة",
+"note": "يعرض تقرير المخزون لكل صنف الكمية في بداية الفترة، وكل ما ورد وصُرف وحُوّل وأُرجع وأُصلح أو صُحّح بالجرد، والكمية في نهايتها. ختامي كل شهر هو دائماً افتتاحي الشهر التالي. المرتجعات التالفة تظهر للعلم فقط. صدّره إلى Excel أو اطبعه لملف الشهر أو السنة."
+},
+{
+"f": "25.jpg",
+"title": "التالف والشطب",
+"note": "عندما يُحدد إرجاع بأنه تالف، لا يعود الصنف للمخزون القابل للاستخدام بل ينتظر في هذا السجل. أمين المستودع يحفظه منفصلاً وعليه ملصق، ومدير اللوجستيات يقرر هل يُصلح ويعود للمخزون أم يُشطب مع ذكر السبب. الأصول التالفة تظهر هنا أيضاً."
+},
+{
+"f": "26.jpg",
+"title": "لوحة معلومات المستودع تخبرك بما يجب متابعته",
+"note": "تعرض لوحة معلومات المستودع بطاقتي تنبيه عندما يكون هناك ما يجب عمله. «تحت الحد الأدنى للمخزون» تعرض الأصناف التي تحتاج طلباً مع كمية مقترحة ترفع المخزون لضعف الحد الأدنى، وزر إنشاء طلب الشراء يفتح طلباً بها جاهزة. «الإعارات المؤقتة المتأخرة» تعرض ما كان يجب أن يعود: اطلب من الشخص إرجاعه بورقة إرجاع، أو مدّد الإعارة بتعديل ورقة الصرف."
+},
+{
+"f": "27.jpg",
+"title": "الروتين اليومي لأمين المستودع",
+"note": "هذا إيقاع المستودع المنظم: تأكد من اسمك ومن لوحة المعلومات في بداية الوردية، وسجّل كل حركة وقت حدوثها، وأنهِ يومك بدون شيء معلّق، واجرد قليلاً كل أسبوع حتى تطابق المنصة الرفوف دائماً."
+},
+{
+"f": "28.jpg",
+"title": "خمس قواعد تحافظ على نزاهة المستودع",
+"note": "خمس قواعد يجب تذكرها. إذا التزم بها الجميع تطابق المنصة الرفوف دائماً، ويمكن تتبع كل صنف، ويكون وراء كل حركة توقيع."
+}
+]
+}
+}

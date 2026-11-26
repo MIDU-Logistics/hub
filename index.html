@@ -3434,6 +3434,38 @@ BIND.invRep=()=>{const re=()=>render();$("#irP").onchange=e=>{IR.per=e.target.va
 {const N7=NAV;NAV=()=>{const n=N7();const i=n.findIndex(x=>x[1]==="count");if(i>-1&&!n.some(x=>x[1]==="inv"))n.splice(i+1,0,[1,"inv","📋","#2F6FDE",tr("Monthly inventory","الجرد الشهري")],[1,"stk","🗓","#2F6FDE",tr("Yearly stock-take","الجرد السنوي")+(stOpen()?` <b style="background:#2F6FDE;color:#fff;border-radius:9px;padding:0 6px;font-size:11px">${tr("open","مفتوح")}</b>`:"")],[1,"invRep","▦","#2F6FDE",tr("Inventory report","تقرير المخزون")]);return n;};}
 ["inv","stk","invRep"].forEach(v=>{if(typeof VIEW_AREA!=="undefined")VIEW_AREA[v]="wh";});
 if(typeof M365_ROLES!=="undefined")["storekeeper","storeincharge","assets","logistics"].forEach(r=>{if(Array.isArray(M365_ROLES[r]))["inv","stk","invRep"].forEach(v=>{if(!M365_ROLES[r].includes(v))M365_ROLES[r].push(v);});});
+
+/* ===================== Update 71: User guides (Azzam, 26 Nov 2026) =====================
+   Step-by-step guides inside the Hub, in English and Arabic, one per category (guides/<category>/index.json + slide images).
+   Warehouse is ready; the others are added when each category has been checked. Everyone can open this screen. */
+const GUIDES=[["warehouse","Warehouse & stores","المستودعات والمخازن","⬇","#1E9E6A"],["assets","Assets","الأصول","☷","#714B67"],["utilities","Utilities","المرافق","⚡","#0E7490"],["procurement","Procurement & finance","المشتريات والمالية","🛒","#7C3AED"],["hr","HR & attendance","الموارد البشرية والحضور","👥","#B45309"],["maintenance","Maintenance","الصيانة","⚒","#475569"]];
+const GUIDE_READY=["warehouse"];
+let GD={cat:"",lang:"",i:0,data:{}};
+const gdLang=()=>GD.lang||(L==="ar"?"ar":"en");
+VIEWS.guide=()=>{if(!GD.cat)return head(tr("User guides","أدلة الاستخدام"),tr("Step-by-step guides with screenshots: every field, what to fill in and why. In English and Arabic.","أدلة خطوة بخطوة بالصور: كل حقل، ماذا تُدخل ولماذا. بالعربية والإنجليزية."))+
+ `<div class="cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px">${GUIDES.map(([id,en,ar,ic,c])=>{const ok=GUIDE_READY.includes(id);return `<div class="card" style="margin:0;${ok?"cursor:pointer":"opacity:.6"}" ${ok?`data-gd="${id}"`:""}><div style="display:flex;gap:12px;align-items:center"><span class="ic" style="background:${c};width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px">${ic}</span><div><b style="font-size:16px">${esc(tr(en,ar))}</b><div class="hint">${ok?tr("Ready – English & Arabic","جاهز – عربي وإنجليزي"):tr("Coming after this section is checked","يُضاف بعد مراجعة هذا القسم")}</div></div></div></div>`;}).join("")}</div>`;
+ const d=GD.data[GD.cat],lg=gdLang();if(!d)return head(tr("User guides","أدلة الاستخدام"),"")+`<div class="card"><p class="empty">${tr("Loading…","جارٍ التحميل…")}</p></div>`;
+ const S=d.slides[lg]||[],i=Math.min(GD.i,S.length-1),s=S[i]||{},src=`guides/${GD.cat}/${lg}/${s.f}`;
+ return head(esc(d.title[lg]||d.title.en),tr("Use the arrows or click a page below. The orange numbers on each screen match the list next to it.","استخدم الأسهم أو اضغط صفحة بالأسفل. الأرقام البرتقالية على كل شاشة تطابق القائمة بجانبها."))+
+ `<div class="card"><div class="btns" style="align-items:center;margin-top:0"><button class="b l" id="gdBack">← ${tr("All guides","كل الأدلة")}</button><span style="flex:1"></span><button class="b ${lg==="en"?"n":"l"}" data-gl="en">English</button><button class="b ${lg==="ar"?"n":"l"}" data-gl="ar">عربي</button><button class="b l" id="gdPdf">⬇ PDF</button></div>
+ <div style="display:flex;align-items:center;gap:10px;margin-top:12px"><button class="b" id="gdPrev" ${i<=0?"disabled":""}>‹</button><div style="flex:1;min-width:0"><img src="${esc(src)}" alt="${esc(s.title||"")}" style="width:100%;height:auto;border-radius:10px;box-shadow:0 4px 18px rgba(27,39,61,.15);display:block;background:#fff"></div><button class="b" id="gdNext" ${i>=S.length-1?"disabled":""}>›</button></div>
+ <p style="text-align:center;margin:8px 0 0"><b>${i+1} / ${S.length}</b> · ${esc(s.title||"")}</p>
+ ${s.note?`<p class="${lg==="ar"?"":"en"}" dir="${lg==="ar"?"rtl":"ltr"}" style="font-size:15px;line-height:1.6;background:#F4F6F9;border-radius:8px;padding:12px 14px;margin:10px 0 0">${esc(s.note)}</p>`:""}</div>
+ <div class="card"><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">${S.map((x,j)=>`<div data-gi="${j}" style="cursor:pointer;border:2px solid ${j===i?"#E8590C":"transparent"};border-radius:8px;padding:3px"><img src="guides/${GD.cat}/${lg}/${x.f}" loading="lazy" alt="" style="width:100%;border-radius:5px;display:block"><div class="hint" style="font-size:11px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${j+1}. ${esc(x.title||"")}</div></div>`).join("")}</div></div>`;};
+async function gdLoad(cat){if(GD.data[cat])return;try{const r=await fetch(`guides/${cat}/index.json`,{cache:"no-cache"});GD.data[cat]=await r.json();}catch(e){toast("✖ "+tr("The guide could not be loaded","تعذر تحميل الدليل"));GD.cat="";}}
+BIND.guide=()=>{document.querySelectorAll("[data-gd]").forEach(c=>c.onclick=async()=>{GD.cat=c.dataset.gd;GD.i=0;render();await gdLoad(GD.cat);render();});
+ if(GD.cat&&!GD.data[GD.cat]){gdLoad(GD.cat).then(()=>render());return;}
+ const bk=$("#gdBack");if(!bk)return;bk.onclick=()=>{GD.cat="";render();};
+ document.querySelectorAll("[data-gl]").forEach(b=>b.onclick=()=>{GD.lang=b.dataset.gl;render();});
+ document.querySelectorAll("[data-gi]").forEach(b=>b.onclick=()=>{GD.i=+b.dataset.gi;render();scrollTo(0,0);});
+ const pv=$("#gdPrev"),nx=$("#gdNext");if(pv)pv.onclick=()=>{GD.i=Math.max(0,GD.i-1);render();};if(nx)nx.onclick=()=>{GD.i++;render();};
+ if(!window._gdKeys){window._gdKeys=1;document.addEventListener("keydown",e=>{if(view!=="guide"||!GD.cat||/INPUT|SELECT|TEXTAREA/.test((e.target||{}).tagName||""))return;const rtl=document.documentElement.dir==="rtl";if(e.key==="ArrowRight"){(rtl?$("#gdPrev"):$("#gdNext"))?.click();}if(e.key==="ArrowLeft"){(rtl?$("#gdNext"):$("#gdPrev"))?.click();}});}
+ $("#gdPdf").onclick=async()=>{const d=GD.data[GD.cat],lg=gdLang(),S=d.slides[lg]||[];if(!window.jspdf)return toast("✖ PDF library not loaded");toast(tr("Preparing the PDF…","جارٍ تجهيز ملف PDF…"));
+  try{const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"px",format:[1920,1080],orientation:"landscape",compress:true,hotfixes:["px_scaling"]});
+   for(let j=0;j<S.length;j++){const b=await (await fetch(`guides/${GD.cat}/${lg}/${S[j].f}`)).blob();const u=await new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b);});if(j)doc.addPage([1920,1080],"landscape");doc.addImage(u,"JPEG",0,0,1920,1080);}
+   doc.save(`MIDU-Team Hub - ${GD.cat} guide (${lg.toUpperCase()}).pdf`);}catch(e){toast("✖ "+e.message);}};};
+{const N8=NAV;NAV=()=>{const n=N8();if(!n.some(x=>x[1]==="guide")){const i=n.findIndex(x=>x[1]==="forms");const it=[1,"guide","📘","#0E7490",tr("User guides","أدلة الاستخدام")];if(i>-1)n.splice(i+1,0,it);else n.push(it);}return n;};}
+{const C8=M365.can;M365.can=v=>v==="guide"?true:C8(v);}
 </script>
 </body>
 </html>
