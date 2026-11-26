@@ -3007,19 +3007,19 @@ const OWL=id=>"https://outlook.office365.com/owa/?ItemID="+id+"&exvsurl=1&viewmo
 const MS_ITEMS=[["Office furniture – Design Views invoice CInv-000008 (07-10-2026), PO MIDU-PO-260527",17710,2656.5],
  ["TV 70\", fridge, kettle & microwave (invoice 27-09-2026)",2026.09,303.91],
  ["3 split A/C units for the MIDU Steel porta cabin – Al-Marhabi invoice 7-156 (05-09-2026), 3 × 1,725.65",4501.7,675.25],
- ["TV stand – Rukn Al-Hindawiya invoice 001383 (28-09-2026)",270,40.5]];
+ ["TV stand – Rukn Al-Hindawiya invoice 001383 (28-09-2026)",270,40.5],
+ ["Nespresso Essenza Mini D30 – Nespresso receipt STR-000026 (09-11-2026)",651.3,97.7]];
+const NES_LINK=OWL("AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAAAB2Tsf0ZED2R4L6CT9ilR8%2BBwBOnLmPnoVuTpI4fvk7QZoJAAAAAAEMAABOnLmPnoVuTpI4fvk7QZoJAABdcx2VAAA%3D");
 const MS_LINK=OWL("AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAAAB2Tsf0ZED2R4L6CT9ilR8%2BBwBOnLmPnoVuTpI4fvk7QZoJAAAAAAEJAABOnLmPnoVuTpI4fvk7QZoJAAAbgkT9AAA%3D");
 {const V0=VIEWS.utReg,B0=BIND.utReg;
  VIEWS.utReg=()=>{const h=V0(),done=(D.dns||[]).some(d=>d.contractor==="MIDU Steel"&&!d.cancelled);if(done)return h;
   const ex=MS_ITEMS.reduce((a,x)=>a+x[1],0),vt=MS_ITEMS.reduce((a,x)=>a+x[2],0);
   return h+`<div class="card"><h2>${tr("To back-charge: MIDU Steel (cost center ASP-STL)","للتحميل: MIDU Steel (مركز تكلفة ASP-STL)")}</h2><p class="hint">${tr("Najed's instruction of 3 Oct 2026: furniture and items bought for MIDU Steel are charged to MIDU Steel.","تعليمات نجد بتاريخ 3 أكتوبر 2026: الأثاث والأصناف المشتراة لـ MIDU Steel تُحمّل عليها.")} <a href="${esc(MS_LINK)}" target="_blank" rel="noopener">📎 ${tr("invoices sent to Osama (3 Oct)","الفواتير المرسلة لأسامة (3 أكتوبر)")}</a></p>
   <table class="t"><tr><th>${tr("Item","البند")}</th><th class="num">${tr("Excl. VAT","بدون ضريبة")}</th><th class="num">VAT</th><th class="num">${tr("Incl. VAT","شامل الضريبة")}</th></tr>${MS_ITEMS.map(x=>`<tr><td class="en">${esc(x[0])}</td><td class="num">${money(x[1])}</td><td class="num">${money(x[2])}</td><td class="num">${money(x[1]+x[2])}</td></tr>`).join("")}
-  <tr><td class="en">${tr("Nespresso machine – amount to be added","ماكينة نسبريسو – المبلغ يُضاف لاحقاً")}</td><td colspan="2"></td><td>${rcAdmin()?`<input class="en num" type="number" id="msNes" placeholder="${tr("incl. VAT","شامل الضريبة")}" style="width:130px">`:"?"}</td></tr>
   <tr class="tot"><td>${tr("Total","المجموع")}</td><td class="num">${money(ex)}</td><td class="num">${money(vt)}</td><td class="num">${money(ex+vt)}</td></tr></table>
   ${rcAdmin()?`<div class="btns"><span class="hint">${tr("Creates a draft debit note to MIDU Steel in this register (print and sign as usual).","ينشئ إشعار مدين مسودة على MIDU Steel في هذا السجل.")}</span><span style="flex:1"></span><button class="b" style="background:#0E7490" id="msMake">${tr("Create debit note to MIDU Steel","إنشاء إشعار مدين على MIDU Steel")}</button></div>`:""}</div>`;};
- BIND.utReg=()=>{B0&&B0();const b=$("#msMake");if(!b)return;b.onclick=()=>{const nes=+($("#msNes")&&$("#msNes").value||0);if(nes<0)return toast(ERR.qty());
+ BIND.utReg=()=>{B0&&B0();const b=$("#msMake");if(!b)return;b.onclick=()=>{
   const lines=MS_ITEMS.map(x=>({type:x[0],qty:1,unit:"lot",rate:x[1]}));let sub=MS_ITEMS.reduce((a,x)=>a+x[1],0),vat=MS_ITEMS.reduce((a,x)=>a+x[2],0);
-  if(nes){const e=r2(nes/1.15);lines.push({type:"Nespresso machine",qty:1,unit:"lot",rate:e});sub+=e;vat+=r2(nes-e);}
   if(!confirm(tr("Create the debit note to MIDU Steel for ","إنشاء إشعار مدين على MIDU Steel بمبلغ ")+money(sub+vat)+" SAR?"))return;
   D.dns.push({no:seqNo("ASP-MIDU-2026-",D.dns.map(d=>d.no)),contractor:"MIDU Steel",cc:"ASP-STL",period:"2026-10",date:today(),sub:r2(sub),vat:r2(vat),status:"Draft",paid:0,auto:false,type:"Furniture & equipment",lines});
   persist();render();toast("✔ "+tr("Debit note created","تم إنشاء إشعار المدين"));};};}
@@ -3070,7 +3070,7 @@ function wuReportHtml(m,wk){const first=m+"-01",last=upD(m,upDays(m)),W=[];for(l
      (Back charge & profit: utilities + generator rental), marked "not issued yet".
    - Items bought for MIDU Steel (cost center ASP-STL) besides the furniture PO are CAPEX of ASP-STL in their invoice month. */
 const CON_CC=()=>CC.includes("ASP-CON")?"ASP-CON":(CC.find(c=>/^ASP-CON$/i.test(c))||"ASP-CON");
-const MS_CAPEX=[["2026-09","TV 70\", fridge, kettle & microwave for MIDU Steel (invoice 27-09-2026)",2026.09],["2026-09","3 split A/C units for the MIDU Steel porta cabin (Al-Marhabi 7-156, 05-09-2026)",4501.7],["2026-09","TV stand for MIDU Steel (Rukn Al-Hindawiya 001383, 28-09-2026)",270]];
+const MS_CAPEX=[["2026-09","TV 70\", fridge, kettle & microwave for MIDU Steel (invoice 27-09-2026)",2026.09],["2026-09","3 split A/C units for the MIDU Steel porta cabin (Al-Marhabi 7-156, 05-09-2026)",4501.7],["2026-09","TV stand for MIDU Steel (Rukn Al-Hindawiya 001383, 28-09-2026)",270],["2026-11","Nespresso Essenza Mini D30 for MIDU Steel (Nespresso receipt STR-000026, 09-11-2026)",651.3,NES_LINK,"Nespresso receipt (Bandar, 26 Nov)"]];
 function conBcCalc(m){const c=CONTR.find(x=>/concrete/i.test(x))||"Concrete Division";let a=rcBcRows(m).reduce((s,o)=>s+o.cq[c]*o.bc,0);grRows(m).forEach(g=>a+=g.bc[c]||0);return r2(a);}
 {const C2=cxLines;cxLines=function(){const out=C2(),own=UTX_CC(),con=CON_CC(),isCon=d=>/concrete/i.test(d.contractor||"");
  const dns=(D.dns||[]).filter(d=>!d.cancelled&&isCon(d));
@@ -3082,7 +3082,7 @@ function conBcCalc(m){const c=CONTR.find(x=>/concrete/i.test(x))||"Concrete Divi
  utMonths().filter(m=>(D.ut||[]).some(u=>String(u.date).startsWith(m))&&!dns.some(d=>String(d.period||"").startsWith(m)&&/utilit/i.test((typeof dnType==="function"?dnType(d):d.type)||""))).forEach(m=>{const amt=conBcCalc(m);if(!amt)return;
   out.push({order:tr("not issued yet","لم يصدر بعد"),cc:con,desc:"Back charge to Concrete Division – utilities "+monthName(m)+" (calculated in the Hub, debit note not issued yet)",cls:"OPEX",amt,m,src:"bc",est:true});
   out.push({order:tr("not issued yet","لم يصدر بعد"),cc:own,desc:"Recovered from Concrete Division (ASP-CON) – utilities "+monthName(m)+" (debit note not issued yet)",cls:"OPEX",amt:-amt,m,src:"bc",est:true});});
- MS_CAPEX.forEach(([m,desc,amt])=>out.push({order:tr("Invoice","فاتورة"),cc:STEEL_CC(),desc,cls:"CAPEX",amt,m,src:"po",inv:[{n:"Invoices to Osama (3 Oct)",u:MS_LINK}]}));
+ MS_CAPEX.forEach(([m,desc,amt,u,n])=>out.push({order:tr("Invoice","فاتورة"),cc:STEEL_CC(),desc,cls:"CAPEX",amt,m,src:"po",inv:[{n:n||"Invoices to Osama (3 Oct)",u:u||MS_LINK}]}));
  return out;};}
 /* Update 64b: VAT per spend line – 15 % unless the line carries its own VAT (debit notes keep the VAT they were issued with) */
 const cxVat=x=>x.vat!==undefined&&x.vat!==null?+x.vat:r2((+x.amt||0)*0.15);
