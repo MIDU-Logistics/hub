@@ -50,3 +50,7 @@ Many screens check `GAS` (any backend) vs `LOCAL.connected` (folder mode) vs `M3
 ## Config
 
 Only the block at the top of `m365.js` is meant to be edited for environment changes: `clientId` (empty ⇒ M365 mode off), `tenantId`, `site`, `docRoot`, plus `M365_WH_MAP` (Asset Register location → warehouse) and `M365_DEFAULT_RATES` (back-charge rates). Warehouses/locations used by the screens are in `WH_PLAN` in `index.html`.
+
+## Workflow (owner's standing instruction, 26 Nov 2026)
+
+The owner does not want to merge pull requests by hand. After a change is made and checked in a browser (serve the folder and open the affected screens with Playwright, no page errors), commit it and push it straight to `main` with `git push origin main` (allowed in `.claude/settings.json`) — no pull request. GitHub Pages publishes `main` within about a minute. Then tell the owner what changed and what users need to do (reload, reinstall, …).
