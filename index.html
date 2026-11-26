@@ -258,7 +258,7 @@ const WH_PLAN=[["MAIN","ASP-Warehouse",["Container 1","Container 2","Container 3
  ["MAD","Madina",["Madina"]],["RUH","Riyadh",["Riyadh"]],["KRK","Kroki Saabar Land",["Kroki Saabar Land"]],["HQ","HQ",["HQ"]],
  ["KHU","Khulais Arabia",["Khulais Arabia - Open Yard","Khulais Arabia - Plant Porta Cabin"]],["CEER","CEER 1",["CEER 1"]],["MSB","MSB Office",["MSB Office"]]];
 /* storage points offered for a location (others: type freely or pick from the full list) */
-const SP_PLAN={"ASP-PL 01":["Container 8","Porta Cabin-10"]};
+const SP_PLAN={"ASP-PL 01":["PL 01 Container","Container 8","Porta Cabin-10"]};
 const whOfLocPlan=loc=>{const w=WH_PLAN.find(x=>x[2].includes(loc));return w?w[0]:"";};
 const spOpts=loc=>SP_PLAN[loc]||(/^Container \d/.test(loc||"")?[loc]:WR().sps);
 function spSync(locSel,spInp,listId){const loc=$(locSel)&&$(locSel).value,o=spOpts(loc),dl=document.getElementById(listId);if(dl)dl.innerHTML=o.map(x=>`<option value="${esc(x)}">`).join("");
