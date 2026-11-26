@@ -329,7 +329,7 @@ document.addEventListener("input",e=>{if(e.target.matches("input.en,textarea.en"
 const fld=(id,lab,{req=false,w="",type="text",ph="",val="",ro=false,list="",upper=false}={})=>`<div class="f ${w}"><label for="${id}">${esc(lab)}${req?' <span class="req">*</span>':""}</label><input id="${id}" type="${type}" class="en" ${req?"data-req=1":""} ${upper?"data-upper=1":""} ${ro?"readonly":""} ${list?`list="${list}"`:""} placeholder="${esc(ph)}" value="${esc(val)}" lang="en" autocomplete="off" spellcheck="false"></div>`;
 const sel=(id,lab,opts,{req=false,w="",val=""}={})=>`<div class="f ${w}"><label for="${id}">${esc(lab)}${req?' <span class="req">*</span>':""}</label><select id="${id}" ${req?"data-req=1":""}>${opts.map(o=>{const[v,l]=Array.isArray(o)?o:[o,o];return `<option value="${esc(v)}" ${v===val?"selected":""}>${esc(l)}</option>`}).join("")}</select></div>`;
 const dl=(id,arr)=>`<datalist id="${id}">${arr.map(v=>`<option value="${esc(v)}">`).join("")}</datalist>`;
-const whOpts=()=>{const s=site();return Object.entries(WH).filter(([k])=>s==="ALL"||s===k).map(([k,w])=>[k,w.name]);};
+const whOpts=()=>{const s=site();return Object.entries(WH).filter(([k,w])=>!w.alias&&(s==="ALL"||s===k)).map(([k,w])=>[k,w.name]);};
 const locOpts=wh=>(WH[wh]||{locs:[]}).locs;
 function checkReq(scope){let ok=true;scope.querySelectorAll("[data-req]").forEach(e=>{if(!e.disabled&&!String(e.value).trim()){e.classList.add("bad");ok=false;}else e.classList.remove("bad");});return ok;}
 function msg(type,html){const m=$("#msgbox");m.className="msg "+type;m.innerHTML=html;m.style.display="flex";m.scrollIntoView({block:"nearest"});}
@@ -358,7 +358,7 @@ function navAllowed(){const n=NAV().filter(x=>x.length===1||M365.can(x[1]));retu
 function navLab(t){t=String(t);const k=t.indexOf(" <b style=\"background:#D2463C");return k<0?esc(t):esc(t.slice(0,k))+t.slice(k);}
 function drawNav(){$("#nav").innerHTML=navAllowed().map(n=>n.length===1?`<div class="grp">${esc(n[0])}</div>`:`<button data-v="${n[1]}" class="${view===n[1]?"on":""}"><span class="ic" style="background:${n[3]}">${n[2]}</span>${navLab(n[4])}</button>`).join("");
  $("#nav").querySelectorAll("button").forEach(b=>b.onclick=()=>go(b.dataset.v));}
-function drawSite(){const cur=$("#site").value||"ALL";$("#site").innerHTML=`<option value="ALL">${tr("All sites","كل المواقع")}</option>`+Object.entries(WH).map(([k,w])=>`<option value="${k}">${w.name}</option>`).join("");$("#site").value=cur;}
+function drawSite(){const cur=$("#site").value||"ALL";$("#site").innerHTML=`<option value="ALL">${tr("All sites","كل المواقع")}</option>`+Object.entries(WH).filter(([k,w])=>!w.alias).map(([k,w])=>`<option value="${k}">${w.name}</option>`).join("");$("#site").value=cur;if(!$("#site").value)$("#site").value="ALL";}
 function applyLang(){document.documentElement.lang=L;document.documentElement.dir=L==="ar"?"rtl":"ltr";
  $("#appT").textContent=tr("MIDU-Team Hub","منصة MIDU-Team");$("#appS").textContent=tr("Warehouse · Assets · Utilities · Procurement · HR · Maintenance","المستودع · الأصول · الخدمات · المشتريات · الموارد البشرية · الصيانة");
  $("#protoNote").textContent=LOCAL.connected?tr("Working from the shared OneDrive folder “MIDU Hub Data”. Every save goes to that folder and OneDrive syncs it.","العمل من مجلد OneDrive المشترك «MIDU Hub Data». كل حفظ يذهب إلى هذا المجلد ويزامنه OneDrive."):GAS?tr("Connected to Microsoft 365 (SharePoint lists and OneDrive). Every save goes to the lists.","متصل بـ Microsoft 365 ‏(قوائم SharePoint وOneDrive). كل حفظ يذهب إلى القوائم."):tr("Offline demo with sample data — data stays in this browser. Sign in with your MIDU Microsoft account and the same screens save to SharePoint.","نسخة تجريبية بدون اتصال ببيانات افتراضية — البيانات تبقى في هذا المتصفح. سجّل الدخول بحساب MIDU في Microsoft لتحفظ الشاشات نفسها في SharePoint.");
@@ -391,7 +391,7 @@ function bindDocBtns(){document.querySelectorAll("[data-doc]").forEach(b=>b.oncl
 
 /* ============================ HOME ============================ */
 VIEWS.home=()=>{
- const s=site(),inS=x=>s==="ALL"||x.wh===s;
+ const s=site(),inS=x=>whIn(x.wh,s);
  const low=D.items.filter(i=>i.min>0&&totalStock(i.code)<i.min).length;
  const m=month();const utM=D.ut.filter(u=>u.date.startsWith(m));const utAmt=utM.reduce((a,u)=>a+u.qty*utRate(u.type).rate,0);
  const outDN=D.dns.reduce((a,d)=>a+dnTotal(d)-d.paid,0);
@@ -488,7 +488,7 @@ function logForm(d){
  <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#555;margin-top:8px"><span>Form ${cfg.f}${d.entered&&d.entered.by?" · entered in MIDU-Team Hub by "+esc(d.entered.by)+" on "+esc(String(d.entered.at).slice(0,10)):""}${d.edited?" · edited "+esc(d.edited.at)+(d.edited.by?" by "+esc(d.edited.by):""):""}</span><span>${cfg.copy}</span></div></div>`;}
 
 /* ---------- storekeeper reference (stock lines, categories, storage points) from data/whref.json ---------- */
-const WR=()=>window.WHREF||{lines:[],cats:[],locs:[],sps:[],units:[],staff:[]};
+const WR=()=>{const w=window.WHREF||{lines:[],cats:[],locs:[],sps:[],units:[],staff:[]};if(w.sps&&!w._nz){w.sps=w.sps.filter(x=>!/^zone\b/i.test(x));w._nz=1;}return w;};
 const UNITS=()=>WR().units.length?WR().units:["Pcs","Set","Box","Carton","Roll","Pair","Meter","Kg","Liter","Bag","Bundle","Lot"];
 function whLines(){const m=new Map();WR().lines.forEach(l=>m.set(l.sl,l));D.items.filter(i=>i.sl).forEach(i=>{if(!m.has(i.sl))m.set(i.sl,{sl:i.sl,code:i.code,desc:i.desc,dept:i.dept||"",cat:i.cat||"",loc:i.loc||"",sp:i.sp||"",unit:i.unit,kind:i.kind||""});});return [...m.values()];}
 function lineFor(code){return whLines().find(l=>l.code===code);}
@@ -654,7 +654,7 @@ VIEWS.count=()=>{const w=whOpts();return head(tr("Stock count","جرد"),tr("Bli
  <div class="card" id="cCard" style="display:none"><table class="t" id="cTab"></table><div class="btns"><span style="flex:1"></span><button class="b l" id="cPrint">${tr("Print count sheet","طباعة ورقة الجرد")}</button><button class="b l" id="cCmp">${tr("Compare","مقارنة")}</button><button class="b a" id="cSub">${tr("Submit for approval","إرسال للاعتماد")}</button></div></div>`;};
 BIND.count=()=>{$("#cWh").onchange=e=>$("#cLoc").innerHTML=locOpts(e.target.value).map(l=>`<option>${l}</option>`).join("");
  const draw=c=>{$("#cTab").innerHTML=`<tr><th>#</th><th>${tr("Item code","كود الصنف")}</th><th>${tr("Description","الوصف")}</th><th>${tr("Counted","المعدود")}</th>${c?`<th>${tr("System","النظام")}</th><th>${tr("Difference","الفرق")}</th><th>${tr("Result","النتيجة")}</th>`:""}</tr>`+CNT.lines.map((l,i)=>{const d=l.counted===""?null:+l.counted-l.sys;return `<tr><td>${i+1}</td><td class="en"><b>${l.code}</b></td><td class="en">${esc(item(l.code).desc)}</td><td><input class="en" type="number" min="0" data-i="${i}" value="${l.counted}" style="width:90px"></td>${c?`<td class="num">${l.sys}</td><td class="num"><b>${d===null?"":(d>0?"+":"")+d}</b></td><td>${d===null?"":d===0?tag(tr("Match","مطابق"),"g"):d<0?tag(tr("Shortage","نقص"),"r"):tag(tr("Excess","زيادة"),"a")}</td>`:""}</tr>`}).join("");$("#cTab").querySelectorAll("input").forEach(e=>e.oninput=()=>CNT.lines[+e.dataset.i].counted=e.value);};
- $("#cStart").onclick=()=>{const wh=$("#cWh").value,loc=$("#cLoc").value;CNT={no:$("#cNo").value,wh,loc,lines:D.stock.filter(s=>s.wh===wh&&s.loc===loc).map(s=>({code:s.code,sys:s.qty,counted:""}))};$("#cCard").style.display="block";draw(false);};
+ $("#cStart").onclick=()=>{const loc=$("#cLoc").value,wh=realWh($("#cWh").value,loc);CNT={no:$("#cNo").value,wh,loc,lines:D.stock.filter(s=>s.wh===wh&&s.loc===loc).map(s=>({code:s.code,sys:s.qty,counted:""}))};$("#cCard").style.display="block";draw(false);};
  const cp=$("#cPrint");if(cp)cp.onclick=()=>CNT&&openModal(CNT.no,scForm({no:CNT.no,wh:CNT.wh,loc:CNT.loc,date:today(),lines:CNT.lines.map(l=>({code:l.code,qty:""}))},true),CNT.no);$("#cCmp").onclick=()=>CNT&&draw(true);
  $("#cSub").onclick=()=>{if(!CNT)return;if(CNT.lines.some(l=>l.counted===""))return msg("err",ERR.req());const doc={no:CNT.no,type:"SC",date:today(),party:"Pending approval",wh:CNT.wh,loc:CNT.loc,lines:CNT.lines.map(l=>({code:l.code,qty:+l.counted,sys:l.sys}))};D.docs.push(doc);persist();CNT=null;render();saved(doc.no,doc,"a");};};
 
@@ -1650,7 +1650,7 @@ const DS_CSS=`<style>.dsgo{cursor:pointer;transition:box-shadow .15s,border-colo
 .dsk .udkv{font-size:24px}.dsempty{font-size:12px;color:#6B7280;padding:6px 0}</style>`;
 const dsTable=(cols,rows,empty)=>rows.length?`<table class="udt"><tr>${cols.map(c=>`<th${c[1]?' class="n"':""}>${c[0]}</th>`).join("")}</tr>${rows.join("")}</table>`:`<div class="dsempty">${empty||tr("Nothing to show.","لا يوجد ما يُعرض.")}</div>`;
 /* ---------- figures per category ---------- */
-function dsWhFig(){const s=site(),inS=x=>s==="ALL"||x.wh===s,m=month();
+function dsWhFig(){const s=site(),inS=x=>whIn(x.wh,s),m=month();
  const low=D.items.filter(i=>i.min>0&&totalStock(i.code)<i.min),docsM=D.docs.filter(d=>d.date&&d.date.startsWith(m)&&inS(d)&&!d.cancelled),as=D.assets.filter(inS);
  return {low,docsM,as,stock:D.stock.filter(inS),today:D.docs.filter(d=>d.date===today()&&inS(d)&&!d.cancelled).length,inUse:as.filter(a=>dsAst(a)==="In Use").length,inStock:as.filter(a=>dsAst(a)==="In Stock").length};}
 function dsUtFig(){const m=month(),r=D.ut.filter(u=>u.date.startsWith(m)),dz=r.filter(u=>/diesel/i.test(u.type));
@@ -1701,7 +1701,7 @@ VIEWS.dashWH=()=>{const W=dsWhFig(),m=month(),md=dsMonthDays(m).filter(x=>x<=tod
  const SC={"In Use":"#2F6FDE","In Stock":"#1E9E6A","Under Maintenance":"#D9961A","Damaged":"#D2463C","Lost":"#7F1D1D","Disposed":"#9AA6B8"};
  const byW={};W.stock.forEach(s=>byW[dsWhName(s.wh)]=(byW[dsWhName(s.wh)]||0)+1);
  const cnt=t=>W.docsM.filter(d=>d.type===t).length;
- const rec=D.docs.filter(d=>!d.cancelled&&(site()==="ALL"||d.wh===site())).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.no||"").localeCompare(a.no||"")).slice(0,10);
+ const rec=D.docs.filter(d=>!d.cancelled&&whIn(d.wh,site())).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.no||"").localeCompare(a.no||"")).slice(0,10);
  return dsHead(tr("Warehouse & Assets","المستودع والأصول"),`${monthName(m)} · ${W.docsM.length} documents this month, ${W.today} today.`)+
  dsActions([["grn","Receive (GRN)","⬇","#1E9E6A"],["mds","Issue (MDS)","⬆","#2F6FDE"],["mrs","Return (MRS)","↩","#138A8A"],["asset","New asset","＋","#714B67"],["assetReg","Asset register","☷","#714B67"],["stock","Stock on hand","▤","#1E9E6A"],["count","Stock count","☑","#D9961A"],["labels","Print asset labels","▦","#714B67"],["forms","Blank forms","🖨","#2C3B57"]])+
  `<div class="udg4">${dsTile(int(W.as.length),"Assets registered",`${int(W.inUse)} in use · ${int(W.inStock)} in stock`,dsCan("assetReg")?"assetReg":"")}${dsTile(int(W.stock.length),"Stock lines",`${D.items.length} item codes`)}${dsTile(W.low.length,"Items below minimum",W.low.length?"Reorder needed":"All above minimum","",W.low.length)}${dsTile(W.docsM.length,"Documents this month",`${cnt("GRN")} received · ${cnt("MDS")} issued · ${cnt("MRS")} returned`)}</div>
@@ -3136,6 +3136,32 @@ function wxWrap(v,btn,type,M){const B0=BIND[v];BIND[v]=()=>{B0();const first=$("
    d.entered=Object.assign({},prev&&prev.entered,{by:(prev&&prev.entered&&prev.entered.by)||wxMe(),at:(prev&&prev.entered&&prev.entered.at)||new Date().toISOString()},prev?{editBy:wxMe(),editAt:new Date().toISOString()}:{});
    persist();};};}
 wxWrap("grn","gSave","GRN",WX_G);wxWrap("mds","mSave","MDS",WX_M);wxWrap("mrs","rSave","MRS",WX_R);
+
+/* ===================== Update 66: warehouse names (Azzam, 26 Nov 2026) =====================
+   One "ASP Store" for every ASP location (Laydown, Containers 1–7, ASP-PL 01–05, PL 01 Workshop Container, ASP-General),
+   then "Madina Store", "Riyadh Store"; the other places keep their Asset Register (Microsoft list) location names.
+   Saved records keep their old codes (MAIN = laydown/containers, ASP = PL 01–05/workshop/general), so nothing in the data
+   changes: code ASP is shown as "ASP Store" too and is picked automatically from the location when saving. */
+const ASP_CODE_LOCS=["ASP-PL 01","ASP-PL 02","ASP-PL 03","ASP-PL 04","ASP-PL 05","PL 01 Workshop Container","ASP-General"];
+const ASP_ALL_LOCS=["Laydown - Open Yard","Laydown - Plant Porta Cabin","Container 1","Container 2","Container 3","Container 4","Container 5","Container 6","Container 7",...ASP_CODE_LOCS];
+const WH_NAMES={MAIN:"ASP Store",ASP:"ASP Store",MAD:"Madina Store",RUH:"Riyadh Store"};
+function whIn(wh,s){return s==="ALL"||wh===s||!!(WH[wh]&&WH[wh].alias===s);}
+const realWh=(wh,loc)=>(wh==="MAIN"||wh==="ASP")?(ASP_CODE_LOCS.includes(loc)?"ASP":ASP_ALL_LOCS.includes(loc)?"MAIN":wh):wh;
+WH_PLAN.forEach(p=>{if(WH_NAMES[p[0]])p[1]=WH_NAMES[p[0]];if(p[0]==="MAIN")p[2]=ASP_ALL_LOCS.slice();if(p[0]==="ASP")p[2]=ASP_ALL_LOCS.slice();});
+function whApplyPlan(){if(!GAS){Object.keys(WH).forEach(k=>delete WH[k]);WH_PLAN.forEach(([k,n,l])=>WH[k]={name:n,locs:l.slice()});}
+ Object.entries(WH_NAMES).forEach(([k,n])=>{if(WH[k])WH[k].name=n;});if(WH.ASP&&WH.MAIN){WH.ASP.alias="MAIN";WH.MAIN.locs=ASP_ALL_LOCS.slice();WH.ASP.locs=ASP_ALL_LOCS.slice();}
+ if(typeof drawSite==="function"&&$("#site"))drawSite();}
+{const R0=m365Refs;m365Refs=function(){R0();whApplyPlan();};}
+{const A0=addStock;addStock=function(code,wh,loc,q){return A0(code,realWh(wh,loc),loc,q);};}
+/* forms: the warehouse select shows one ASP Store; the real code is set from the location just before saving */
+[["grn","gSave","gWh","gLoc"],["mds","mSave","mWh","mLoc"],["mrs","rSave","rWh","rLoc"],].forEach(([v,btn,w,l])=>{const B0=BIND[v];if(!B0)return;BIND[v]=()=>{B0();const W=$("#"+w);if(!W)return;
+ if(!W.value&&W.options.length){W.value="MAIN";}
+ const s=$("#"+btn);if(!s||!s.onclick||s._rw)return;const o=s.onclick;s._rw=1;s.onclick=function(ev){const L=$("#"+l),r=L?realWh(W.value,L.value):W.value;
+  if(r!==W.value){if(![...W.options].some(x=>x.value===r)){const op=new Option(WH[r]?WH[r].name:r,r);op.hidden=true;W.add(op);}W.value=r;}
+  return o.call(this,ev);};};});
+/* assets saved from other screens: keep the code that matches the location */
+{const P0=persist;persist=function(){(D.assets||[]).forEach(a=>{if(a.wh&&a.loc){const r=realWh(a.wh,a.loc);if(r!==a.wh)a.wh=r;}});return P0();};}
+whApplyPlan();
 </script>
 </body>
 </html>
