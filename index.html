@@ -526,7 +526,7 @@ VIEWS.grn=()=>{const w=whOpts();const ref=!!window.WHREF;
  return head(tr("Receive (GRN)","استلام (GRN)"),tr("One row per item. Pick an existing stock line, or type the name of a NEW item and choose its category, unit and type — the item code and stock line are created automatically. Attach the stamped delivery note.","سطر لكل صنف. اختر سطر مخزون موجوداً أو اكتب اسم صنف جديد واختر الفئة والوحدة والنوع — يُنشأ كود الصنف وسطر المخزون تلقائياً. أرفق مذكرة التسليم المختومة."))+msgBox+(WH_EDIT&&WH_EDIT.type==="GRN"?editBanner():"")+
  (ref?"":`<div class="banner">${tr("Stock lines and categories are not loaded (whref.json missing) — new items cannot be coded.","لم يتم تحميل أسطر المخزون والفئات — لا يمكن ترميز أصناف جديدة.")}</div>`)+
  `<div class="card"><h2>${tr("Delivery details","بيانات التوريد")}</h2><div class="fg">${fld("gNo",tr("GRN No.","رقم الاستلام"),{ro:true,val:nextNo("GRN")})}${fld("gDate",tr("Date received","تاريخ الاستلام"),{type:"date",val:today(),req:true})}${fld("gSup",tr("Supplier","المورد"),{req:true,list:"supL"})}${fld("gPo",tr("PO No. (or PETTY CASH)","رقم أمر الشراء (أو عهدة نثرية)"),{upper:true,list:"poL",ph:"MIDU-PO-26… · PETTY CASH · MBL BC 2601908"})}
- ${fld("gDn",tr("Delivery note No.","رقم مذكرة التسليم"),{req:true,upper:true})}${sel("gWh",tr("Warehouse","المستودع"),w,{req:true})}${sel("gLoc",tr("Stored at – location","مكان التخزين – الموقع"),locOpts(w[0][0]),{req:true})}${fld("gSp",tr("Storage point","نقطة التخزين"),{list:"spL",ph:"Container No-3 · Porta Cabin P-10 Room 01"})}
+ ${fld("gDn",tr("Delivery note No.","رقم مذكرة التسليم"),{req:true,upper:true})}${sel("gWh",tr("Warehouse","المستودع"),w,{req:true})}${sel("gLoc",tr("Stored at – location","مكان التخزين – الموقع"),locOpts(w[0][0]),{req:true})}${fld("gSp",tr("Storage point","نقطة التخزين"),{list:"spL",ph:"Container 3 · PL 01 Container · Porta Cabin-10"})}
  ${fld("gBy",tr("Received by","المستلم"),{req:true,list:"staffL"})}${fld("gRem",tr("Remarks","ملاحظات"),{w:"w2"})}</div></div>
  <div class="card"><h2>${tr("Items","الأصناف")}</h2><div style="overflow:auto"><table class="t" id="gLines"><tr><th style="min-width:300px">${tr("Item – pick a stock line or type a NEW item","الصنف – اختر سطر مخزون أو اكتب صنفاً جديداً")}</th><th>${tr("Stock line","سطر المخزون")}</th><th>${tr("Item code","كود الصنف")}</th><th>${tr("Description","الوصف")}</th><th>${tr("Unit","الوحدة")}</th><th>${tr("Department","القسم")}</th><th style="width:90px">${tr("Qty","الكمية")}</th><th style="width:120px">${tr("Condition","الحالة")}</th><th></th></tr></table></div>
  <div class="btns"><button class="b l" id="gAdd">${tr("+ Add line","+ إضافة سطر")}</button></div></div>
@@ -3178,6 +3178,70 @@ function skBar(){if(typeof LOCAL==="undefined"||!LOCAL.connected||!LOCAL.user)re
 ["grn","mds","mrs"].forEach(v=>{const B0=BIND[v];BIND[v]=()=>{B0();if($("#skBar"))return;const h=skBar();if(!h)return;const m=$("#main"),c=m&&m.querySelector(".card");if(!c)return;c.insertAdjacentHTML("beforebegin",h);
  $("#skSw").onclick=async()=>{await LOCAL.changeUser();go(v);};
  const by={grn:"gBy",mds:"mBy",mrs:"rBy"}[v],e=$("#"+by);if(e&&!e.value&&!(WH_EDIT&&WH_EDIT.type===v.toUpperCase()))e.value=LOCAL.user;};});
+
+/* ===================== Update 68: warehouse controls (Azzam, 26 Nov 2026) =====================
+   1. MDS "Transfer" moves the stock: deducted at the source and added at the destination location (chosen from the list).
+   2. An approved stock count corrects the stock by the difference found (counted − system at the time of the count).
+   3. "Damaged & write-off": damaged returns are kept in a register until the Logistics Manager repairs them back to stock or writes them off.
+   4. GRN warns when more is received than is still open on the PO line.
+   5. Warehouse dashboard lists overdue temporary loans.
+   6. GRN warns about similar existing items before a NEW item code is created.
+   7. Storekeepers can open Stock on hand, Stock count, Asset register, New asset, Labels and Damaged & write-off. */
+const destWh=loc=>{const e=Object.entries(WH).find(([k,w])=>!w.alias&&(w.locs||[]).includes(loc));return e?realWh(e[0],loc):"";};
+const allLocs=()=>[...new Set(Object.values(WH).filter(w=>!w.alias).flatMap(w=>w.locs||[]))];
+function whSaveHook(v,btn,type,pre,post){const B0=BIND[v];BIND[v]=()=>{B0();const s=$("#"+btn);if(!s||!s.onclick||s._h68)return;const o=s.onclick;s._h68=1;
+ s.onclick=async function(ev){if(pre&&pre()===false)return;const ed=WH_EDIT&&WH_EDIT.type===type?WH_EDIT.no:null,prev=ed?D.docs.find(d=>d.no===ed):null,n0=D.docs.filter(d=>d.type===type).length;
+  await o.call(this,ev);let d=null;if(ed){const y=D.docs.find(z=>z.no===ed);if(y&&y!==prev)d=y;}else{const L=D.docs.filter(z=>z.type===type);if(L.length>n0)d=L[L.length-1];}
+  if(d&&post){post(d);persist();}};};}
+/* 1. transfers */
+whSaveHook("mds","mSave","MDS",()=>{if($("#mType").value!=="Transfer")return true;const to=$("#mTo").value.trim();
+  if(!destWh(to)){msg("err",tr("Transfer: choose the destination location from the list (e.g. ASP-PL 03, Container 5, Madina).","تحويل: اختر موقع الوجهة من القائمة."));$("#mTo").focus();return false;}return true;},
+ d=>{if(d.dtype!=="Transfer"||d.xfer)return;const to=d.to,w=destWh(to);if(!w)return;
+  (d.lines||[]).forEach(l=>{if(l.asset){const a=D.assets.find(x=>x.id===l.asset);if(a){a.cust="";a.custName="";a.status="In Stock";a.wh=w;a.loc=to;}}else addStock(l.code,w,to,+l.qty||0);});
+  d.xfer={wh:w,loc:to};});
+{const R0=whReverse;whReverse=function(d,dry){if(d&&d.type==="MDS"&&d.xfer){for(const l of d.lines||[]){if(!l.asset&&stockQty(l.code,d.xfer.wh,d.xfer.loc)<(+l.qty||0))return tr("Part of this transfer was already issued from","تم صرف جزء من هذا التحويل من")+" "+d.xfer.loc+` (${l.sl||l.code}).`;}
+  if(!dry){(d.lines||[]).forEach(l=>{if(!l.asset)addStock(l.code,d.xfer.wh,d.xfer.loc,-(+l.qty||0));});const r=R0(d,false);delete d.xfer;return r;}}return R0(d,dry);};}
+{const B0=BIND.mds;BIND.mds=()=>{B0();const t=$("#mType"),h=()=>{const to=$("#mTo");if(to)to.placeholder=t.value==="Transfer"?tr("Destination location – pick from the list","موقع الوجهة – اختر من القائمة"):"";};if(t){t.addEventListener("change",h);h();}};}
+/* 2. stock count adjustment on final approval */
+{const A0=esAfter;esAfter=function(k,o,reject,sig,reason){A0(k,o,reject,sig,reason);
+ if(k.id==="sc"&&!reject&&esDone(k,o)&&!o.adjusted&&!o.cancelled){(o.lines||[]).forEach(l=>{const df=(+l.qty||0)-(+l.sys||0);if(df)addStock(l.code,o.wh,o.loc,df);});o.adjusted={at:new Date().toISOString(),by:sig&&sig.by||""};}};}
+/* 3. damaged & write-off register */
+const dmgRows=()=>{const out=[];D.docs.filter(d=>d.type==="MRS"&&!d.cancelled).forEach(d=>(d.lines||[]).forEach((l,i)=>{if(l.cond==="Damaged"&&!l.asset)out.push({k:d.no+"#"+i,doc:d,l,code:l.code,asset:"",qty:+l.qty||0,from:d.party,date:d.date,wh:d.wh,loc:d.loc,st:l.dmg});}));
+ D.assets.filter(a=>a.status==="Damaged"||a.wo).forEach(a=>out.push({k:"A#"+a.id,a,code:a.itemCode||"",asset:a.id,qty:1,from:a.custName||"",date:(a.wo&&a.wo.at)||"",wh:a.wh,loc:a.loc,st:a.wo}));return out;};
+VIEWS.dmg=()=>{const R=dmgRows(),open=R.filter(r=>!r.st),done=R.filter(r=>r.st),can=M365.can("utShare")||whL(apMe())===whL(WH_LM);
+ const desc=r=>r.asset?((D.assets.find(a=>a.id===r.asset)||{}).desc||""):((item(r.code)||{}).desc||(lineFor(r.code)||{}).desc||"");
+ const row=(r,act)=>`<tr><td class="en"><b>${esc(r.asset||r.code)}</b></td><td class="en">${esc(desc(r))}</td><td class="num">${r.qty}</td><td class="en">${esc(r.from)}</td><td class="en">${esc(r.doc?r.doc.no:tr("Asset register","سجل الأصول"))}</td><td>${esc([(WH[r.wh]||{}).name,r.loc].filter(Boolean).join(" › "))}</td><td>${act}</td></tr>`;
+ const th=`<tr><th>${tr("Item / Asset","الصنف / الأصل")}</th><th>${tr("Description","الوصف")}</th><th>${tr("Qty","الكمية")}</th><th>${tr("Returned by","أرجعه")}</th><th>${tr("Document","المستند")}</th><th>${tr("Kept at","مكان الحفظ")}</th><th></th></tr>`;
+ return head(tr("Damaged & write-off","التالف والشطب"),tr("Damaged items returned (MRS) stay here, out of usable stock, until the Logistics Manager decides: repaired → back to stock, or written off.","الأصناف التالفة المرتجعة تبقى هنا خارج المخزون القابل للاستخدام حتى يقرر مدير اللوجستيات: إصلاح وإرجاع للمخزون أو شطب."))+msgBox+
+ `<div class="card"><h2>${tr("Waiting for a decision","بانتظار القرار")} (${open.length})</h2>${open.length?`<table class="t">${th}${open.map(r=>row(r,can?`<button class="b g sm" data-rep="${esc(r.k)}">${tr("Repaired – back to stock","أُصلح – للمخزون")}</button> <button class="b r sm" data-wo="${esc(r.k)}">${tr("Write off","شطب")}</button>`:tag(tr("Logistics Manager decides","يقرر مدير اللوجستيات"),"a"))).join("")}</table>`:`<p class="empty">${tr("Nothing damaged waiting.","لا توجد أصناف تالفة بانتظار القرار.")}</p>`}</div>
+ <div class="card"><h2>${tr("Decided","تم البت")} (${done.length})</h2>${done.length?`<table class="t">${th}${done.map(r=>row(r,`${r.st.act==="repaired"?tag(tr("Repaired – back to stock","أُصلح"),"g"):tag(tr("Written off","مشطوب"),"r")} <span class="hint">${esc(r.st.by||"")} · ${esc(String(r.st.at||"").slice(0,10))}${r.st.reason?" · "+esc(r.st.reason):""}</span>`)).join("")}</table>`:`<p class="empty">—</p>`}</div>`;};
+BIND.dmg=()=>{const R=dmgRows(),f=k=>R.find(r=>r.k===k),me=apMe()||"";
+ document.querySelectorAll("[data-rep]").forEach(b=>b.onclick=()=>{const r=f(b.dataset.rep);if(!r||!confirm(tr("Put back into usable stock at ","إرجاع للمخزون في ")+[(WH[r.wh]||{}).name,r.loc].filter(Boolean).join(" › ")+"?"))return;const st={act:"repaired",at:new Date().toISOString(),by:me};
+  if(r.asset){const a=D.assets.find(x=>x.id===r.asset);a.status="In Stock";a.wo=st;}else{r.l.dmg=st;addStock(r.code,realWh(r.wh,r.loc),r.loc,r.qty);}persist();render();toast("✔ "+tr("Back in stock","أُعيد للمخزون"));});
+ document.querySelectorAll("[data-wo]").forEach(b=>b.onclick=()=>{const r=f(b.dataset.wo);if(!r)return;const why=prompt(tr("Write off – reason (required):","الشطب – السبب (إلزامي):"));if(!why||!why.trim())return;const st={act:"writeoff",at:new Date().toISOString(),by:me,reason:why.trim()};
+  if(r.asset){const a=D.assets.find(x=>x.id===r.asset);a.status="Disposed";a.wo=st;}else r.l.dmg=st;persist();render();toast("✔ "+tr("Written off","تم الشطب"));});};
+{const N5=NAV;NAV=()=>{const n=N5();if(!n.some(x=>x[1]==="dmg")){const i=n.findIndex(x=>x[1]==="count");const c=dmgRows().filter(r=>!r.st).length;if(i>-1)n.splice(i+1,0,[1,"dmg","⚠","#C2410C",tr("Damaged & write-off","التالف والشطب")+(c?` <b style="background:#C2410C;color:#fff;border-radius:9px;padding:0 6px;font-size:11px">${c}</b>`:"")]);}return n;};}
+if(typeof VIEW_AREA!=="undefined")VIEW_AREA.dmg="wh";
+if(typeof M365_ROLES!=="undefined"){["storekeeper","storeincharge"].forEach(r=>{if(Array.isArray(M365_ROLES[r]))["stock","count","assetReg","asset","labels","dmg"].forEach(v=>{if(!M365_ROLES[r].includes(v))M365_ROLES[r].push(v);});});
+ ["assets","logistics"].forEach(r=>{if(Array.isArray(M365_ROLES[r])&&!M365_ROLES[r].includes("dmg"))M365_ROLES[r].push("dmg");});}
+/* 4. over-receipt against the PO */
+{const B0=BIND.grn;BIND.grn=()=>{B0();const s=$("#gSave");if(!s||!s.onclick||s._po68)return;const o=s.onclick;s._po68=1;s.onclick=function(ev){
+ const p=D.pos.find(x=>x.no===$("#gPo").value.trim());if(p&&p.kind==="PO"&&!(WH_EDIT&&WH_EDIT.type==="GRN")){const over=[];[...$("#gLines").querySelectorAll("tr")].slice(1).forEach(r=>{if(r._poLine==null)return;const l=p.lines[r._poLine];if(!l)return;const rem=(+l.qty||0)-poRecv(p,l),q=+r.querySelector("[data-k=qty]").value||0;if(q>rem)over.push((l.desc||l.code)+": "+q+" > "+rem);});
+  if(over.length&&!confirm(tr("More than the PO still allows:","أكثر من المتبقي في أمر الشراء:")+"\n"+over.join("\n")+"\n\n"+tr("Receive anyway? (Tell Procurement about the excess.)","الاستلام على أي حال؟ (أبلغ المشتريات بالزيادة.)")))return;}
+ return o.call(this,ev);};};}
+/* 5. overdue temporary loans */
+const overdueLoans=()=>{const t=today(),out=[];D.docs.filter(d=>d.type==="MDS"&&!d.cancelled&&d.dtype==="Temporary loan"&&d.returnBy&&d.returnBy<t).forEach(d=>{const h=holdings(d.iqama);(d.lines||[]).forEach(l=>{const x=h.find(y=>(y.asset||y.code)===(l.asset||l.code)&&y.loan===d.returnBy);if(x)out.push({d,l,qty:x.qty});});});return out;};
+{const B0=BIND.dashWH;BIND.dashWH=()=>{B0&&B0();const L=overdueLoans();if(!L.length||$("#odL"))return;const c=$("#main .udc")||$("#main .card");if(!c)return;
+ c.insertAdjacentHTML("beforebegin",`<div class="card" id="odL" style="border-color:#F59E0B"><h2>⏰ ${tr("Overdue temporary loans","إعارات مؤقتة متأخرة")} (${L.length})</h2><table class="t"><tr><th>${tr("Person","الشخص")}</th><th>${tr("Item / Asset","الصنف / الأصل")}</th><th>${tr("Qty","الكمية")}</th><th>${tr("Return by","تاريخ الإرجاع")}</th><th>MDS</th></tr>${L.map(x=>`<tr><td class="en">${esc(x.d.party)}</td><td class="en">${esc(x.l.asset||x.l.code)}</td><td class="num">${x.qty}</td><td><b style="color:#B42318">${esc(x.d.returnBy)}</b></td><td class="en">${esc(x.d.no)}</td></tr>`).join("")}</table><p class="hint">${tr("Ask the person to return the items (Return – MRS) or extend the loan with ✎ Edit on the MDS.","اطلب من الشخص الإرجاع (MRS) أو مدّد الإعارة بتعديل MDS.")}</p></div>`);};}
+/* 6. similar existing items before creating a NEW item */
+const SIM_SYN={dispenser:["cooler"],cooler:["dispenser"],fridge:["refrigerator"],refrigerator:["fridge"],table:["desk"],desk:["table"],cupboard:["cabinet"],cabinet:["cupboard"],hose:["pipe"],tv:["display","lcd"],screen:["monitor"],monitor:["screen"]};
+const simItems=v=>{const w=String(v||"").toLowerCase().split(/[^a-z0-9]+/).filter(x=>x.length>=3||/^(ac|tv)$/.test(x));if(!w.length)return [];const re=x=>new RegExp("\\b"+x.replace(/s$/,"")+"s?\\b","i");
+ const seen=new Set();return whLines().map(l=>{const d=String(l.desc||"");let sc=0;w.forEach((x,i)=>{const wt=x.length+(i===w.length-1?4:0);if(re(x).test(d))sc+=wt;else if((SIM_SYN[x]||[]).some(y=>re(y).test(d)))sc+=wt-1;});return [l,sc];})
+  .filter(x=>x[1]>=5).sort((a,b)=>b[1]-a[1]).filter(x=>{const k=x[0].code;if(seen.has(k))return false;seen.add(k);return true;}).slice(0,5).map(x=>x[0]);};
+{const G0=gRow;gRow=function(){const r=G0(),inp=r.querySelector("[data-k=item]"),box=r.querySelector("[data-k=new]");const sb=document.createElement("div");sb.style.cssText="margin-bottom:6px;font-size:12px";box.prepend(sb);
+ const chk=()=>{if(!r._isNew){sb.innerHTML="";return;}const S=simItems(inp.value);sb.innerHTML=S.length?`<div style="color:#B45309;font-weight:700">${tr("Similar items already exist – use one of them if it is the same item:","توجد أصناف مشابهة – استخدم أحدها إن كان نفس الصنف:")}</div>${S.map((l,i)=>`<button type="button" class="b l sm" data-sim="${i}" style="margin:3px 3px 0 0">${esc(l.desc)} <span class="hint">${esc(l.code)}</span></button>`).join("")}`:"";
+  sb.querySelectorAll("[data-sim]").forEach(b=>b.onclick=()=>{inp.value=slLabel(S[+b.dataset.sim]);inp.dispatchEvent(new Event("change"));});};
+ inp.addEventListener("change",()=>setTimeout(chk,0));return r;};}
 </script>
 </body>
 </html>
