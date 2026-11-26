@@ -2233,7 +2233,7 @@ function whSendDlg(list){if(!list.length)return;const U=(LOCAL.users||[]).filter
 
 /* ===== Update 41: e-mail alerts – the Hub drops one small file per e-mail in 00 System/_mail outbox;
    a Power Automate flow (Azzam's Outlook) sends it and deletes the file. ===== */
-const HUB_URL="https://midu-logistics.github.io/hub/";
+const HUB_URL="https://midu-team.github.io/hub/";
 const HUB_MAIL={"azzamelmasri":"m.elmasri@midu.com.sa","mazharashraf":"m.ashraf@midu.com.sa","turkialghamdi":"t.alghamdi@midu.com.sa","najedfakhreddine":"nfakhreddine@midu.com.sa","osamaalsaggaf":"o.alsaggaf@midu.com.sa","raghadaltowirgi":"r.altowirgi@midu.com.sa","kaidalharbi":"kaid@midu.com.sa","marwantelmesani":"marwan@midu.com.sa","rawanalharbi":"r.alharbi@midu.com.sa"};
 const mailOf=n=>{const k=String(n||"").toLowerCase().replace(/[^a-z]/g,"");const u=(typeof LOCAL!=="undefined"&&LOCAL.users||[]).find(x=>String(x.name||"").toLowerCase().replace(/[^a-z]/g,"")===k);return (u&&u.email)||HUB_MAIL[k]||"";};
 const MAIL_DIR="00 System/_mail outbox";
