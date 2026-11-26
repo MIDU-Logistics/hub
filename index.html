@@ -19,7 +19,7 @@
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="vendor/midu-stamps.js" defer></script>
 <script src="m365.js?v=202611261200"></script>
-<script src="local.js?v=202611261200"></script>
+<script src="local.js?v=202611261500"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -242,7 +242,7 @@ function persist(){if(typeof LOCAL!=="undefined"&&LOCAL.connected&&LOCAL.readOnl
  if(!LASTLOAD){syncState("err",tr("data not loaded yet","البيانات لم تُحمّل بعد"));return;}
  const out={},sent={};for(const k in KEYS){const ch=rowsOf(k).filter(r=>SNAP[k]?.[KEYS[k](r)]!==JSON.stringify(r));if(ch.length){out[k]=ch;sent[k]=ch.map(r=>[KEYS[k](r),JSON.stringify(r)]);}}
  if(!Object.keys(out).length)return;syncState("saving");
- GAS.withSuccessHandler(()=>{for(const k in sent){SNAP[k]=SNAP[k]||{};sent[k].forEach(([key,j])=>SNAP[k][key]=j);}syncState("ok");})
+ GAS.withSuccessHandler(()=>{if(!(typeof LOCAL!=="undefined"&&LOCAL.connected))for(const k in sent){SNAP[k]=SNAP[k]||{};sent[k].forEach(([key,j])=>SNAP[k][key]=j);}syncState("ok");})
     .withFailureHandler(e=>{syncState("err",e&&e.message);toast("✖ "+(e&&e.message||"Error"));}).upsertMany(out);}
 function loadServer(cb){if(!GAS){cb&&cb();return;}syncState("loading");
  GAS.withSuccessHandler(res=>{MISSING=res._missing||[];DBEMPTY=MISSING.length>0;
@@ -3242,6 +3242,81 @@ const simItems=v=>{const w=String(v||"").toLowerCase().split(/[^a-z0-9]+/).filte
  const chk=()=>{if(!r._isNew){sb.innerHTML="";return;}const S=simItems(inp.value);sb.innerHTML=S.length?`<div style="color:#B45309;font-weight:700">${tr("Similar items already exist – use one of them if it is the same item:","توجد أصناف مشابهة – استخدم أحدها إن كان نفس الصنف:")}</div>${S.map((l,i)=>`<button type="button" class="b l sm" data-sim="${i}" style="margin:3px 3px 0 0">${esc(l.desc)} <span class="hint">${esc(l.code)}</span></button>`).join("")}`:"";
   sb.querySelectorAll("[data-sim]").forEach(b=>b.onclick=()=>{inp.value=slLabel(S[+b.dataset.sim]);inp.dispatchEvent(new Event("change"));});};
  inp.addEventListener("change",()=>setTimeout(chk,0));return r;};}
+
+/* ===================== Update 69 (Azzam, 26 Nov 2026) =====================
+   A. GRN lines of an ASSET item create the asset records (Asset ID, In Stock at the GRN location, linked to the GRN) and queue
+      their labels – assets are tracked one by one in the Asset register, not as stock quantities. Brand / model / serial numbers
+      can be typed on the GRN line. Needs an asset type for the item code (Asset types); otherwise the line stays as stock.
+   B. Minimum stock per item (Stock on hand › Totals per item), "Below minimum" list on the warehouse dashboard and "Raise PR".
+   C. Item history: every receipt, issue, transfer, return, count correction and repair of one item, with the running balance. */
+/* ---------- A. assets from GRN ---------- */
+const grnKind=(l,r)=>{if(r&&r._isNew)return r.querySelector("[data-k=nkind]").value;const it=item(l?l.code:"")||{};return it.kind||((r&&r._line)||lineFor(l&&l.code)||{}).kind||"";};
+const atOf=code=>(D.assetTypes||[]).find(t=>t.code===code);
+{const G0=gRow;gRow=function(){const r=G0(),cell=r.querySelector("td");const box=document.createElement("div");box.dataset.k="abox";box.style.cssText="display:none;margin-top:6px;padding:8px;border:1px dashed #714B67;border-radius:8px;background:#FAF5FF;font-size:12px";
+ box.innerHTML=`<div style="font-weight:700;color:#714B67;margin-bottom:4px" data-k="ahd"></div><input class="en" data-k="abm" placeholder="${esc(tr("Brand / model","العلامة / الموديل"))}" style="width:100%;margin-bottom:4px"><input class="en" data-k="asn" placeholder="${esc(tr("Serial No(s) – one per unit, separated by commas","الأرقام التسلسلية – رقم لكل وحدة، مفصولة بفواصل"))}" style="width:100%">`;cell.appendChild(box);
+ const upd=()=>{const v=r.querySelector("[data-k=item]").value.trim();const k=v?grnKind(r._line,r):"";const code=r._isNew?(r._newCodes&&r._newCodes.code):(r._line&&r._line.code);const at=code&&atOf(code);
+  box.style.display=k==="Asset"?"block":"none";box.querySelector("[data-k=ahd]").innerHTML=k==="Asset"?(at?"🏷 "+tr("Asset – each unit gets its own Asset ID","أصل – كل وحدة تأخذ رقم أصل")+` (${esc(at.prefix)}-…)`:"⚠ "+tr("Asset, but this item code has no asset type yet – it is received as stock. Ask Logistics to add the asset type, then register it in New asset.","أصل لكن لا يوجد نوع أصل لهذا الكود – يُستلم كمخزون.")):"";};
+ r.querySelector("[data-k=item]").addEventListener("change",()=>setTimeout(upd,0));r.querySelector("[data-k=nkind]").addEventListener("change",upd);r.querySelector("[data-k=cat]").addEventListener("change",()=>setTimeout(upd,0));r._aupd=upd;return r;};}
+let GRN_AX=null;
+whSaveHook("grn","gSave","GRN",()=>{GRN_AX=[...$("#gLines").querySelectorAll("tr")].slice(1).filter(r=>r.querySelector("[data-k=item]")&&r.querySelector("[data-k=item]").value.trim()).map(r=>({kind:grnKind(r._line,r),bm:(r.querySelector("[data-k=abm]")||{}).value||"",sn:String((r.querySelector("[data-k=asn]")||{}).value||"").split(/[,;\n]/).map(x=>x.trim()).filter(Boolean)}));return true;},
+ d=>{const X=GRN_AX||[];GRN_AX=null;const made=[];
+  (d.lines||[]).forEach((l,i)=>{const x=X[i]||{};if(l.assets||x.kind!=="Asset")return;const at=atOf(l.code);if(!at)return;const q=Math.round(+l.qty||0);if(!(q>0))return;
+   const ids=[];const old=D.assets.filter(a=>a.grn===d.no&&a.grnLine===i&&a.status==="Cancelled");
+   for(let n=0;n<q;n++){let a=old[n];const [br,...mo]=String(x.bm||"").split(/\s+/);
+    if(!a){a={id:nextAssetId(at.prefix),type:at.name,itemCode:l.code,own:"MIDU-owned",cust:"",custName:""};D.assets.push(a);}
+    Object.assign(a,{desc:l.desc||at.name,brand:a.brand||br||"",model:a.model||mo.join(" "),serial:x.sn[n]||a.serial||"",wh:d.wh,loc:d.loc,sp:d.sp||"",status:"In Stock",grn:d.no,grnLine:i});ids.push(a.id);}
+   addStock(l.code,d.wh,d.loc,-q);l.assets=ids;made.push(...ids);});
+  if(made.length){made.forEach(id=>{const a=D.assets.find(z=>z.id===id);if(!LBQ.some(q=>q.id===id))LBQ.push({id,desc:a.desc||"",copies:1});});lbSave();
+   setTimeout(()=>toast("🏷 "+made.length+" "+tr("asset(s) registered","أصل سُجّل")+": "+made.join(", ")+" – "+tr("labels queued in Print asset labels","الملصقات في طابور الطباعة")),400);}});
+{const R0=whReverse;whReverse=function(d,dry){if(!(d&&d.type==="GRN"&&(d.lines||[]).some(l=>l.assets)))return R0(d,dry);
+ for(const l of d.lines)for(const id of l.assets||[]){const a=D.assets.find(x=>x.id===id);if(a&&(a.cust||a.status!=="In Stock"))return tr("Asset","الأصل")+" "+id+" "+tr("from this receipt was already issued or changed. Return it first.","من هذا الاستلام صُرف أو تغيّر. أرجعه أولاً.");}
+ if(dry)return R0(Object.assign({},d,{lines:d.lines.filter(l=>!l.assets)}),true);
+ d.lines.forEach(l=>{if(!l.assets)return;l.assets.forEach(id=>{const a=D.assets.find(x=>x.id===id);if(a)a.status="Cancelled";});addStock(l.code,d.wh,d.loc,+l.qty||0);delete l.assets;});return R0(d,false);};}
+/* the print shows the Asset IDs of each GRN line */
+{const F=logForm;logForm=d=>{let h=F(d);if(d.type==="GRN")(d.lines||[]).forEach(l=>{if(l.assets&&l.assets.length){const t=esc(l.desc||(item(l.code)||{}).desc||"");if(t&&h.includes(">"+t+"<"))h=h.replace(">"+t+"<",">"+t+`<br><span style="font-size:9px;color:#714B67">Asset IDs: ${esc(l.assets.join(", "))}</span><`);}});return h;};}
+/* ---------- B. minimum stock ---------- */
+const onHand=code=>D.stock.filter(s=>s.code===code).reduce((a,s)=>a+(+s.qty||0),0);
+const lowStock=()=>{const m=new Map();(D.items||[]).filter(i=>+i.min>0).forEach(i=>m.set(i.code,i));return [...m.values()].map(i=>({it:i,qty:onHand(i.code)})).filter(x=>x.qty<=+x.it.min).sort((a,b)=>a.qty/a.it.min-b.qty/b.it.min);};
+let PR_FILL=null;
+{const T0=sohTable;sohTable=function(R){if(SOH.mode!=="item")return T0(R);let I=sohItems(R);const can=M365.can("stock")&&!(typeof LOCAL!=="undefined"&&LOCAL.readOnly);
+ if(SOH.low){const L=new Set(lowStock().map(x=>x.it.code));I=I.filter(o=>L.has(o.code));lowStock().forEach(x=>{if(!I.some(o=>o.code===x.it.code))I.push({code:x.it.code,desc:x.it.desc,dept:sohDept(x.it.code),unit:x.it.unit,qty:x.qty,locs:[]});});}
+ return `<table class="t"><tr><th>#</th><th>${tr("Item code","كود الصنف")}</th><th>${tr("Description","الوصف")}</th><th>${tr("Department","القسم")}</th><th class="num">${tr("Total on hand","الإجمالي")}</th><th>${tr("Unit","الوحدة")}</th><th>${tr("Minimum","الحد الأدنى")}</th><th>${tr("Where","المواقع")}</th><th></th></tr>${I.map((o,i)=>{const it=item(o.code)||{},mn=+it.min||0,low=mn>0&&o.qty<=mn;return `<tr${low?' style="background:#FEF2F2"':""}><td>${i+1}</td><td class="en"><b>${esc(o.code)}</b></td><td class="en">${esc(o.desc)}</td><td class="en">${esc(o.dept)}</td><td class="num"><b${low?' style="color:#B42318"':""}>${int(o.qty)}</b></td><td class="en">${esc(o.unit)}</td><td>${can?`<input class="en num" type="number" min="0" data-min="${esc(o.code)}" value="${mn||""}" placeholder="—" style="width:70px">`:(mn||"—")}</td><td class="en" style="font-size:12px">${esc(o.locs.join(" · "))}</td><td><button class="b l sm" data-hist="${esc(o.code)}">${tr("History","السجل")}</button></td></tr>`;}).join("")||`<tr><td colspan="9" class="empty">${tr("No stock for this filter.","لا يوجد مخزون لهذا الاختيار.")}</td></tr>`}</table>`;};}
+function sohBindExtra(){document.querySelectorAll("[data-min]").forEach(e=>e.onchange=()=>{const c=e.dataset.min,v=Math.max(0,+e.value||0);let it=D.items.find(x=>x.code===c);
+  if(!it){const l=lineFor(c)||{};it={code:c,desc:l.desc||"",unit:l.unit||"",kind:l.kind||"",dept:l.dept||"",cat:l.cat||"",sl:l.sl||"",price:0,min:0};D.items.push(it);}it.min=v;persist();toast("✔ "+tr("Minimum saved","تم حفظ الحد الأدنى")+": "+c+" = "+v);});
+ document.querySelectorAll("[data-hist]").forEach(b=>b.onclick=()=>{IHC=b.dataset.hist;go("itemHist");});}
+{const B0=BIND.stock;BIND.stock=()=>{B0();if(SOH.mode==="item"&&!$("#sohLow")){const z=$("#sohZero");if(z)z.closest("label").insertAdjacentHTML("afterend",`<label style="display:flex;gap:6px;align-items:center;margin-left:14px"><input type="checkbox" id="sohLow"${SOH.low?" checked":""}> ${tr("Below minimum only","تحت الحد الأدنى فقط")}</label>`);const l=$("#sohLow");if(l)l.onchange=e=>{SOH.low=e.target.checked;render();};}
+ sohBindExtra();const q=$("#sohQ");if(q)q.addEventListener("input",()=>setTimeout(sohBindExtra,300));};}
+{const B0=BIND.dashWH;BIND.dashWH=()=>{B0&&B0();const L=lowStock();if(!L.length||$("#lowS"))return;const c=$("#main .udc")||$("#main .card");if(!c)return;
+ c.insertAdjacentHTML("beforebegin",`<div class="card" id="lowS" style="border-color:#DC2626"><h2>📉 ${tr("Below minimum stock","تحت الحد الأدنى للمخزون")} (${L.length})</h2><table class="t"><tr><th>${tr("Item","الصنف")}</th><th class="num">${tr("On hand","المتوفر")}</th><th class="num">${tr("Minimum","الحد الأدنى")}</th><th class="num">${tr("Suggested order","الكمية المقترحة")}</th></tr>${L.slice(0,15).map(x=>`<tr><td class="en"><b>${esc(x.it.code)}</b> ${esc(x.it.desc||"")}</td><td class="num"><b style="color:#B42318">${int(x.qty)}</b></td><td class="num">${int(x.it.min)}</td><td class="num">${int(Math.max(1,2*x.it.min-x.qty))}</td></tr>`).join("")}</table>${M365.can("pr")?`<div class="btns"><span class="hint">${tr("Suggested order brings the stock to twice the minimum. Adjust the quantities on the PR.","الكمية المقترحة ترفع المخزون لضعف الحد الأدنى. عدّل الكميات في طلب الشراء.")}</span><span style="flex:1"></span><button class="b" id="lowPR">🛒 ${tr("Raise PR for these items","إنشاء طلب شراء لهذه الأصناف")}</button></div>`:""}</div>`);
+ const b=$("#lowPR");if(b)b.onclick=()=>{PR_FILL=L.map(x=>({it:x.it,qty:Math.max(1,2*x.it.min-x.qty)}));go("pr");};};}
+{const B0=BIND.pr;BIND.pr=()=>{B0();if(!PR_FILL)return;const F=PR_FILL;PR_FILL=null;const tb=$("#pLines");if(!tb)return;[...tb.querySelectorAll("tr")].slice(1).forEach(r=>{const i=r.querySelector("[data-k=item]");if(i&&!i.value)r.remove();});
+ F.forEach(x=>{const r=pRow();tb.appendChild(r);const i=r.querySelector("[data-k=item]");i.value=itemLabel(x.it);i.dispatchEvent(new Event("change"));const q=r.querySelector("[data-k=qty]");if(q)q.value=x.qty;});
+ const j=$("#pJust")||$("#pPur");if(j&&!j.value)j.value="Stock replenishment – items below minimum stock";toast("🛒 "+F.length+" "+tr("item(s) added to the PR – complete the details and submit.","صنف أضيف لطلب الشراء – أكمل البيانات وأرسل."));};}
+/* ---------- C. item history ---------- */
+let IHC="";
+function itemMoves(code){const M=[],loc=(w,l)=>[(WH[w]||{}).name||w,l].filter(Boolean).join(" › ");
+ D.docs.filter(d=>!d.cancelled).forEach(d=>(d.lines||[]).forEach(l=>{if(l.code!==code)return;const q=+l.qty||0,dt=d.date||"";
+  if(d.type==="GRN"){if(l.assets)M.push({dt,no:d.no,t:tr("Receipt (as assets)","استلام (كأصول)"),who:d.party,at:loc(d.wh,d.loc),inq:0,outq:0,note:l.assets.join(", ")});else M.push({dt,no:d.no,t:tr("Receipt","استلام"),who:d.party,at:loc(d.wh,d.loc),inq:q,outq:0,note:d.po||""});}
+  else if(d.type==="MDS"&&!l.asset){M.push({dt,no:d.no,t:d.dtype==="Transfer"?tr("Transfer out","تحويل – خروج"):d.dtype==="Temporary loan"?tr("Loan","إعارة"):tr("Issue","صرف"),who:d.party,at:loc(l.wh||d.wh,l.loc||d.loc),inq:0,outq:q,note:d.to||""});
+   if(d.xfer)M.push({dt,no:d.no,t:tr("Transfer in","تحويل – دخول"),who:"",at:loc(d.xfer.wh,d.xfer.loc),inq:q,outq:0,note:""});}
+  else if(d.type==="MRS"&&!l.asset){M.push({dt,no:d.no,t:l.cond==="Damaged"?tr("Return – damaged (not in stock)","إرجاع – تالف"):tr("Return","إرجاع"),who:d.party,at:loc(d.wh,d.loc),inq:l.cond==="Damaged"?0:q,outq:0,note:l.cond||""});
+   if(l.dmg&&l.dmg.act==="repaired")M.push({dt:String(l.dmg.at).slice(0,10),no:d.no,t:tr("Repaired – back to stock","أُصلح – للمخزون"),who:l.dmg.by,at:loc(d.wh,d.loc),inq:q,outq:0,note:""});
+   if(l.dmg&&l.dmg.act==="writeoff")M.push({dt:String(l.dmg.at).slice(0,10),no:d.no,t:tr("Written off","مشطوب"),who:l.dmg.by,at:"",inq:0,outq:0,note:l.dmg.reason||""});}
+  else if(d.type==="SC"&&d.adjusted){const df=q-(+l.sys||0);if(df)M.push({dt:String(d.adjusted.at).slice(0,10),no:d.no,t:tr("Stock count correction","تصحيح جرد"),who:d.adjusted.by,at:loc(d.wh,d.loc),inq:df>0?df:0,outq:df<0?-df:0,note:""});}}));
+ M.sort((a,b)=>(a.dt||"").localeCompare(b.dt||"")||String(a.no).localeCompare(String(b.no)));const net=M.reduce((a,m)=>a+m.inq-m.outq,0),open=onHand(code)-net;let bal=open;M.forEach(m=>{bal+=m.inq-m.outq;m.bal=bal;});return {M,open};}
+VIEWS.itemHist=()=>{const codes=[...new Map([...(D.items||[]).map(i=>[i.code,i.desc]),...whLines().map(l=>[l.code,l.desc])]).entries()];const c=IHC,it=c?(item(c)||lineFor(c)||{}):null;
+ let body="";if(c){const {M,open}=itemMoves(c);const by=D.stock.filter(s=>s.code===c&&+s.qty);const A=D.assets.filter(a=>a.itemCode===c&&a.status!=="Cancelled");
+  body=`<div class="card"><h2 class="en">${esc(c)} – ${esc(it.desc||"")}</h2><p class="hint">${tr("On hand now","المتوفر الآن")}: <b>${int(onHand(c))}</b> ${esc(it.unit||"")}${by.length?" · "+by.map(s=>esc(((WH[s.wh]||{}).name||s.wh)+" › "+s.loc)+" ("+int(s.qty)+")").join(" · "):""}${+it.min?` · ${tr("Minimum","الحد الأدنى")}: ${int(it.min)}`:""}${A.length?` · ${tr("Assets","الأصول")}: ${A.length}`:""}</p>
+  <table class="t"><tr><th>${tr("Date","التاريخ")}</th><th>${tr("Document","المستند")}</th><th>${tr("Movement","الحركة")}</th><th>${tr("From / to","من / إلى")}</th><th>${tr("Location","الموقع")}</th><th class="num">${tr("In","وارد")}</th><th class="num">${tr("Out","منصرف")}</th><th class="num">${tr("Balance","الرصيد")}</th><th>${tr("Note","ملاحظة")}</th></tr>
+  <tr><td colspan="7" class="hint">${tr("Opening balance (stock loaded from the storekeeper file, before documents in the Hub)","الرصيد الافتتاحي (من ملف أمين المستودع قبل مستندات المنصة)")}</td><td class="num"><b>${int(open)}</b></td><td></td></tr>
+  ${M.map(m=>`<tr><td>${esc(m.dt)}</td><td class="en"><a href="#" data-doc="${esc(m.no)}">${esc(m.no)}</a></td><td>${esc(m.t)}</td><td class="en">${esc(m.who||"")}</td><td class="en">${esc(m.at)}</td><td class="num">${m.inq?int(m.inq):""}</td><td class="num">${m.outq?int(m.outq):""}</td><td class="num"><b>${int(m.bal)}</b></td><td class="en" style="font-size:12px">${esc(m.note||"")}</td></tr>`).join("")}</table>
+  ${A.length?`<h3 style="margin-top:14px">${tr("Assets of this item","أصول هذا الصنف")}</h3><table class="t"><tr><th>${tr("Asset ID","رقم الأصل")}</th><th>${tr("Serial","التسلسلي")}</th><th>${tr("Status","الحالة")}</th><th>${tr("With / at","مع / في")}</th></tr>${A.map(a=>`<tr><td class="en"><b>${esc(a.id)}</b></td><td class="en">${esc(a.serial||"")}</td><td>${esc(a.status||"")}</td><td class="en">${esc(a.custName||[(WH[a.wh]||{}).name,a.loc].filter(Boolean).join(" › "))}</td></tr>`).join("")}</table>`:""}</div>`;}
+ return head(tr("Item history","سجل الصنف"),tr("All movements of one item: receipts, issues, transfers, returns, count corrections and repairs, with the running balance.","كل حركات صنف واحد مع الرصيد المتراكم."))+
+ `<div class="card"><div class="fg"><div class="f w2"><label>${tr("Item – type code or name","الصنف – اكتب الكود أو الاسم")}</label><input id="ihQ" class="en" list="ihL" value="${esc(c?c+" | "+(it.desc||""):"")}" placeholder="MIDU-HSE-HEL-001 · Safety Helmet"></div></div></div>${body}<datalist id="ihL">${codes.map(([k,d])=>`<option value="${esc(k+" | "+(d||""))}">`).join("")}</datalist>`;};
+BIND.itemHist=()=>{const q=$("#ihQ");q.onchange=()=>{const v=q.value.split("|")[0].trim();if(v){IHC=v;render();}};document.querySelectorAll("[data-doc]").forEach(a=>a.onclick=e=>{e.preventDefault();const d=findDoc(a.dataset.doc);if(d)openDoc(d);});};
+{const N6=NAV;NAV=()=>{const n=N6();if(!n.some(x=>x[1]==="itemHist")){const i=n.findIndex(x=>x[1]==="stock");if(i>-1)n.splice(i+1,0,[1,"itemHist","☰","#1E9E6A",tr("Item history","سجل الصنف")]);}return n;};}
+if(typeof VIEW_AREA!=="undefined")VIEW_AREA.itemHist="wh";
+if(typeof M365_ROLES!=="undefined")["storekeeper","storeincharge","assets","logistics"].forEach(r=>{if(Array.isArray(M365_ROLES[r])&&!M365_ROLES[r].includes("itemHist"))M365_ROLES[r].push("itemHist");});
 </script>
 </body>
 </html>

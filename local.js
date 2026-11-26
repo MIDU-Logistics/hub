@@ -263,7 +263,7 @@ async function localGetAll() {
 }
 async function localUpsertMany(payload) {
   if (LOCAL.readOnly) throw new Error("View only — this user cannot save changes.");
-  const now = new Date().toISOString(), result = {}, others = [], hist = {};
+  const now = new Date().toISOString(), result = {}, others = [], hist = {}, renamed = []; let merged = 0;
   for (const name of Object.keys(payload || {})) {
     if (!KEYS[name] || name === "uitems" || name === "assetTypes") continue;          // reference lists are read-only here too
     const area = COLL_AREA[name] || "sys";
@@ -275,8 +275,17 @@ async function localUpsertMany(payload) {
     file.records = file.records || {}; file.meta = file.meta || {};
     SNAP[name] = SNAP[name] || {};
     payload[name].forEach(rec => {
+      /* (26 Nov 2026) two PCs saved a NEW document with the same number at the same time: keep both, give ours the next free number */
+      if (name === "docs" && rec.no && !SNAP[name][rec.no] && file.records[rec.no] && strip(file.records[rec.no]) !== strip(rec) && /-\d+$/.test(rec.no)) {
+        const old = rec.no, base = old.replace(/-\d+$/, "-"), w = old.match(/-(\d+)$/)[1].length;
+        let n = +old.match(/-(\d+)$/)[1]; while (file.records[base + String(n).padStart(w, "0")]) n++;
+        rec.no = base + String(n).padStart(w, "0"); renamed.push(old + " → " + rec.no);
+      }
+      /* stock is a quantity: if another PC changed the same stock line since we loaded it, add our change to theirs instead of overwriting */
+      if (name === "stock") { const k0 = KEYS[name](rec), o0 = SNAP[name][k0], c0 = file.records[k0];
+        if (o0 && c0 && strip(c0) !== o0) { try { const was = +JSON.parse(o0).qty || 0; rec.qty = (+c0.qty || 0) + ((+rec.qty || 0) - was); merged++; } catch (e) {} } }
       const k = KEYS[name](rec), old = SNAP[name][k], cur = file.records[k];
-      if (cur && old && strip(cur) !== old && strip(cur) !== strip(rec)) others.push((file.meta[k] || {}).by || "another user");
+      if (cur && old && strip(cur) !== old && strip(cur) !== strip(rec) && name !== "stock") others.push((file.meta[k] || {}).by || "another user");
       if (AUDIT.indexOf(name) > -1 && (!cur || strip(cur) !== strip(rec))) {
         const e = histEntry(name, k, cur, rec, now); if (e) (hist[area] = hist[area] || []).push(e);
       }
@@ -290,6 +299,8 @@ async function localUpsertMany(payload) {
   }
   try { xlSchedule([...new Set(Object.keys(result).map(n => COLL_AREA[n] || "sys"))], (payload.ut || []).map(u => String(u.date || "").slice(0, 7)).filter(Boolean)); } catch (e) { console.warn(e); }
   for (const a of Object.keys(hist)) { try { await histAppend(a, hist[a]); } catch (e) { console.warn("history", e); toast("⚠ " + tr("Saved, but the change history could not be written: ", "تم الحفظ لكن تعذّر تسجيل سجل التغييرات: ") + e.message); } }
+  if (renamed.length) { toast("⚠ " + T("The document number was just used on another PC – saved as ", "رقم المستند استُخدم للتو على جهاز آخر – حُفظ باسم ") + renamed.join(", ")); try { if (typeof render === "function") render(); } catch (e) {} }
+  if (merged) console.info("stock lines merged with another PC's change:", merged);
   if (others.length) toast("⚠ " + tr("Saved. Note: ", "تم الحفظ. ملاحظة: ") + others.length + " " + tr("record(s) had also been changed by", "سجل عدّله أيضاً") + " " + [...new Set(others)].join(", "));
   return result;
 }
