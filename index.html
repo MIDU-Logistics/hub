@@ -3441,7 +3441,7 @@ if(typeof M365_ROLES!=="undefined")["storekeeper","storeincharge","assets","logi
    Step-by-step guides inside the Hub, in English and Arabic, one per category (guides/<category>/index.json + slide images).
    Warehouse is ready; the others are added when each category has been checked. Everyone can open this screen. */
 const GUIDES=[["warehouse","Warehouse & stores","المستودعات والمخازن","⬇","#1E9E6A"],["assets","Assets","الأصول","☷","#714B67"],["utilities","Utilities","المرافق","⚡","#0E7490"],["procurement","Procurement & finance","المشتريات والمالية","🛒","#7C3AED"],["hr","HR & attendance","الموارد البشرية والحضور","👥","#B45309"],["maintenance","Maintenance","الصيانة","⚒","#475569"]];
-const GUIDE_READY=["warehouse"];
+const GUIDE_READY=["warehouse","procurement"];
 let GD={cat:"",lang:"",i:0,data:{}};
 const gdLang=()=>GD.lang||(L==="ar"?"ar":"en");
 VIEWS.guide=()=>{if(!GD.cat)return head(tr("User guides","أدلة الاستخدام"),tr("Step-by-step guides with screenshots: every field, what to fill in and why. In English and Arabic.","أدلة خطوة بخطوة بالصور: كل حقل، ماذا تُدخل ولماذا. بالعربية والإنجليزية."))+
@@ -3998,6 +3998,8 @@ function poRevDlg(p){const inv=(D.invs||[]).filter(v=>v.po===p.no).reduce((a,v)=
  <tr class="tot"><td colspan="2">${tr("All projects","كل المشاريع")}</td><td class="num">${money(T.ca)}</td><td class="num">${money(T.cb)}</td><td class="num">${money(T.oa)}</td><td class="num">${money(T.ob)}</td><td class="num">${money(T.t)}</td><td class="num">${pct(T.t,T.tb)}</td></tr></table>
  <p class="hint" style="margin-top:6px">${tr("Each project = the sum of its cost centers below. Includes POs, invoices without PO, petty cash, generator rental, utilities, vehicles / equipment / property and asset moves between projects.","كل مشروع = مجموع مراكز التكلفة أدناه. يشمل أوامر الشراء والفواتير بدون أمر شراء والنثرية وإيجار المولدات والخدمات والمركبات والمعدات والعقارات ونقل الأصول بين المشاريع.")}</p></div>`;
  return h.slice(0,j)+card+h.slice(j);};}
+/* invoice form: a PO with a supplier not VAT registered proposes VAT 0 */
+{const B=BIND.costs;if(B)BIND.costs=()=>{B();const po=$("#ivPo"),v=$("#ivV");if(!po||!v)return;po.addEventListener("change",()=>{const p=D.pos.find(x=>x.no===po.value);if(p&&p.noVat){v.value="0";v.dispatchEvent(new Event("input",{bubbles:true}));}else if(v.value==="0"){v.value="";v.dispatchEvent(new Event("input",{bubbles:true}));}});};}
 </script>
 </body>
 </html>
