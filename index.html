@@ -1789,7 +1789,7 @@ function prNewBox(r){const td=r.querySelector("td");const box=document.createEle
  const cats=WR().cats||[];
  box.innerHTML=`<div style="font-size:12px;color:#8A5A00;margin-bottom:6px"><b>${tr("New item – not in the item list","صنف جديد – غير موجود في قائمة الأصناف")}</b> · ${tr("Item code","رمز الصنف")}: <b data-k="ncode">${tr("pick a category","اختر الفئة")}</b></div>
  <div style="display:grid;grid-template-columns:1.4fr 1.6fr .7fr;gap:6px">
- <input class="en" data-k="nen" lang="en" autocomplete="off" placeholder="${tr("Item name in English *","اسم الصنف بالإنجليزية *")}">
+ <input class="en" data-k="nen" data-enonly="1" lang="en" autocomplete="off" placeholder="${tr("Item name in English *","اسم الصنف بالإنجليزية *")}">
  <select data-k="ncat"><option value="">${tr("Category *","الفئة *")}</option>${cats.map(c=>`<option value="${esc(c.key)}">${esc(c.label||c.key)}</option>`).join("")}</select>
  <select data-k="nunit">${UNITS().map(u=>`<option>${esc(u)}</option>`).join("")}</select></div>`;
  td.appendChild(box);const inp=r.querySelector("[data-k=item]");inp.dataset.ar=1;
@@ -3679,6 +3679,11 @@ function payDo(v,after){if(!M365.can("fin"))return toast("✖ "+tr("Only Finance
 
 /* Update 75b: whoever can raise a PR can open My approvals (technical review of the quotations) */
 if(typeof M365_ROLES!=="undefined")Object.keys(M365_ROLES).forEach(r=>{const v=M365_ROLES[r];if(Array.isArray(v)&&v.includes("pr")&&!v.includes("appr"))v.push("appr");});
+/* ===== Update 76: Arabic or English allowed in text fields; codes, serial and document numbers stay English ===== */
+function enforce(el){if(el.dataset.ar)return;let v=el.value,b=v;v=v.replace(/[٠-٩]/g,d=>AR_DIG.indexOf(d)).replace(/[۰-۹]/g,d=>FA_DIG.indexOf(d));
+ if(el.dataset.upper||el.dataset.enonly){const had=AR_RE.test(v);AR_RE.lastIndex=0;if(had){v=v.replace(AR_RE,"");showTip(el,tr("English letters and numbers only in this field (code / number)","هذا الحقل بالأحرف الإنجليزية والأرقام فقط (رمز / رقم)"));}}
+ if(el.dataset.upper)v=v.toUpperCase();if(v!==b){el.value=v;}}
+{const st=document.createElement("style");st.textContent="input.en,textarea.en{unicode-bidi:plaintext}";document.head.appendChild(st);}
 </script>
 </body>
 </html>
