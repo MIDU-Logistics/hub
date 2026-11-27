@@ -977,7 +977,7 @@ const ppC=(v,a,x)=>`<td style="border:${PP_B};font-size:8.5px;padding:3px 4px;he
 const ppM=v=>(+v||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 const ppEmp=n=>{const e=D.emps.find(x=>x.name&&n&&x.name.toLowerCase()===String(n).toLowerCase());return e?e.dept:"";};
 /* Purchase Request Form */
-function prDoc(p){const L=p.lines||[],tot=L.reduce((a,l)=>a+l.qty*l.est,0),band=tot>=5000?"L2  -  3 quotation(s) required":"L1  -  1 quotation(s) required";
+function prDoc(p){const L=p.lines||[],tot=L.reduce((a,l)=>a+l.qty*l.est,0),band=tot>QT3_LIMIT?"L2  -  3 quotation(s) required":"L1  -  1 quotation(s) required";
  const c=D.cqs.find(x=>x.pr===p.no),o=D.pos.find(x=>x.pr===p.no);const it=code=>item(code)||{};
  const rows=Array.from({length:Math.max(15,L.length)},(_,i)=>{const l=L[i];if(!l)return `<tr>${ppC(i+1,"right")}${ppC("")}${ppC("")}${ppC("")}${ppC("")}${ppC("")}${ppC("")}${ppC("")}</tr>`;
   return `<tr style="height:30px">${ppC(i+1,"right")}${ppC(esc(l.code||""))}${ppC(esc(l.desc))}${ppC(esc(it(l.code).kind||(l.cls==="CAPEX"?"Asset":"Consumable")))}${ppC(esc(l.unit||it(l.code).unit||"Pcs"))}${ppC(l.qty,"right")}${ppC(ppM(l.est),"right")}${ppC(ppM(l.qty*l.est),"right")}</tr>`;}).join("");
@@ -1011,7 +1011,7 @@ function cqsDoc(c){const p=D.prs.find(x=>x.no===c.pr)||{},Q=c.quotes||[],S=cqsSc
  <tr>${ppL("PR estimate (SAR excl. VAT)")}${ppV(ppM(est),"text-align:right")}${ppL("Quotations")}${ppV(Q.length)}<td></td><td></td></tr></table>
  <table style="width:100%;border-collapse:collapse;margin-top:12px"><tr>${["#","Supplier","Quote Ref","Amount excl. VAT","VAT","Total incl. VAT","Delivery (days)","Payment Terms","Warranty (months)","Tech. compliant","Price score","Delivery score","Tech. score","TOTAL /100","Rank"].map((h,i)=>ppTh(h,"",i===1?"17%":i===7?"9%":"")).join("")}</tr>${rows}</table>
  <table style="width:72%;border-collapse:collapse;margin:16px 0 0 5%"><tr>${ppL("Recommended by Procurement (Rank 1)")}${ppV(esc(r1.sup||""),"width:50%")}${ppV(r1.price?ppM(r1.price*1.15):"","width:12%")}</tr>
- <tr style="height:24px">${ppL("Approved supplier (PD + FM decision)")}${ppV(esc(c.sel||""))}${ppV(o?esc(o.no):"")}<td style="font-size:8.5px;font-weight:700;color:${PP_N};padding-left:6px">Quotations<br>required</td>${ppV(est>=5000?"3":"1","width:9%;text-align:center")}</tr>
+ <tr style="height:24px">${ppL("Approved supplier (PD + FM decision)")}${ppV(esc(c.sel||""))}${ppV(o?esc(o.no):"")}<td style="font-size:8.5px;font-weight:700;color:${PP_N};padding-left:6px">Quotations<br>required</td>${ppV(String(qtNeed(c.pr,Q.length?Math.min(...Q.map(q=>+q.price||0)):0)),"width:9%;text-align:center")}</tr>
  <tr>${ppL("Approved supplier not Rank 1?")}${ppV(c.sel&&r1.sup&&c.sel!==r1.sup?"Yes":"No")}<td></td></tr><tr>${ppL("Reason given by PD / FM")}${ppV(esc(c.reason||""))}<td></td></tr><tr>${ppL("Procurement comment")}${ppV(esc(c.comment||""))}<td></td></tr></table>
  <table style="width:100%;border-collapse:collapse;margin-top:16px"><tr><th style="background:${PP_N};border:${PP_B};width:5%"></th>${ppTh("Prepared by (Procurement)","","40%")}${ppTh("Project Director","","33%")}${ppTh("Finance Manager","")}</tr>
  <tr>${ppL("Name")}${ppC(esc(cqsPrepName(c)))}${ppC("Najed Fakhreddine")}${ppC("Osama Al Saggaf")}</tr><tr>${ppL("Status")}${ppC(cqsPrepCell(c))}${ppC(c.ap!==undefined?apCell("cqs",c,"PD"):ap)}${ppC(c.ap!==undefined?apCell("cqs",c,"FM"):ap)}</tr><tr style="height:40px">${ppL("Signature")}${ppC(cqsPrepSig(c))}${ppC(c.ap!==undefined?apSigCell("cqs",c,"PD"):"")}${ppC(c.ap!==undefined?apSigCell("cqs",c,"FM"):"")}</tr></table>
@@ -1875,7 +1875,7 @@ function prDoc(p){const L=p.lines||[],tot=L.reduce((a,l)=>a+l.qty*l.est,0),c=D.c
  <tr style="height:14px"><td colspan="8"></td></tr>
  <tr style="height:40px">${th("#","")}${th("Item Code","رمز الصنف")}${th("Description","الوصف")}${th("Type","النوع")}${th("Unit","الوحدة")}${th("Qty","الكمية")}${th("Est. Unit Price","السعر التقديري")}${th("Est. Total (SAR)","الإجمالي")}</tr>${rows}
  <tr><td colspan="4"></td>${td("<b>Est. Total excl. VAT</b>",'" colspan="3')}${td("<b>"+ppM(tot)+"</b>")}</tr>
- <tr><td></td>${td("<b>Quotations needed</b>")}${td(tot>=5000?"3 quotations + CQS":"1 quotation")}<td colspan="5"></td></tr>
+ <tr><td></td>${td("<b>Quotations needed</b>")}${td(tot>QT3_LIMIT?"3 quotations + CQS":"1 quotation")}<td colspan="5"></td></tr>
  <tr><td></td>${td("<b>Status</b>")}${td(esc(stTxt),(rej?"color:#C00000;font-weight:700;":"")+'" colspan="6')}</tr>
  <tr style="height:14px"><td colspan="8"></td></tr>
 </table>
