@@ -312,7 +312,7 @@ const poTotal=p=>p.lines.reduce((a,l)=>a+l.qty*l.price,0);
 const poRecv=(p,l)=>{const i=p.lines.indexOf(l);const g=D.docs.filter(d=>d.type==="GRN"&&!d.cancelled&&d.po===p.no).reduce((a,d)=>a+d.lines.filter(x=>x.poLine!=null?x.poLine===i:(!!l.code&&x.code===l.code)).reduce((s,x)=>s+(+x.qty||0),0),0);return g+(l.rcv||[]).reduce((a,x)=>a+(+x.qty||0),0)-(typeof rtsQty==="function"?rtsQty(p,i,l):0);};
 const poLineDone=(p,l)=>!!l.closed||poRecv(p,l)>=l.qty;
 const poFull=p=>!!p&&(p.kind==="PC"||p.lines.every(l=>poLineDone(p,l)));
-const poPayable=p=>p.lines.reduce((a,l)=>a+(l.closed?Math.min(poRecv(p,l),l.qty):l.qty)*l.price,0)*1.15;
+const poPayable=p=>p.lines.reduce((a,l)=>a+(l.closed?Math.min(poRecv(p,l),l.qty):l.qty)*l.price,0)*(1+vatR(p));
 const pcRecv=p=>D.docs.some(d=>d.type==="GRN"&&!d.cancelled&&d.po===p.no);
 const pcTag=p=>pcRecv(p)?tag(tr("Received (GRN)","مستلم (GRN)"),"g"):tag(tr("Awaiting storekeeper receipt","بانتظار استلام أمين المستودع"),"a");
 const utRate=type=>UT.find(u=>u.type===type)||{type,unit:"",rate:0};
@@ -947,9 +947,9 @@ function poRcvDraw(){const box=$("#rLines");if(!box)return;const p=D.pos.find(x=
  box.querySelectorAll("[data-cxo]").forEach(b=>b.onclick=()=>{delete p.lines[+b.dataset.cxo].closed;persist();render();toast("✔");});}
 BIND.po=()=>{bindDocBtns();const rp=$("#rPo");if(rp){rp.onchange=poRcvDraw;poRcvDraw();}document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{document.querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("on",x===b));$("#tabpo").style.display=b.dataset.tab==="po"?"block":"none";$("#tabpc").style.display=b.dataset.tab==="pc"?"block":"none";});
  const prev=()=>{const p=D.prs.find(x=>x.no===$("#oPr").value);if(!p){$("#oPrev").innerHTML="";return;}const c=D.cqs.find(x=>x.pr===p.no);const q=c.quotes.find(x=>x.sup===c.sel);const tot=p.lines.reduce((a,l)=>a+l.qty*l.est,0);const f=q.price/(tot||q.price);
-  $("#oPrev").innerHTML=`<table class="t"><tr><th>${tr("Supplier (from CQS)","المورد (من المقارنة)")}</th><th>CQS</th><th>${tr("Cost center (from PR)","مركز التكلفة (من الطلب)")}</th><th class="num">${tr("Amount excl. VAT","المبلغ قبل الضريبة")}</th><th class="num">VAT 15%</th><th class="num">${tr("Total","الإجمالي")}</th></tr><tr><td class="en"><b>${esc(c.sel)}</b></td><td class="en">${c.no}</td><td class="en">${p.cc}</td><td class="num">${money(q.price)}</td><td class="num">${money(q.price*.15)}</td><td class="num"><b>${money(q.price*1.15)}</b></td></tr></table>`;$("#oPrev")._d={p,c,q,f};};
+  $("#oPrev").innerHTML=`<table class="t"><tr><th>${tr("Supplier (from CQS)","المورد (من المقارنة)")}</th><th>CQS</th><th>${tr("Cost center (from PR)","مركز التكلفة (من الطلب)")}</th><th class="num">${tr("Amount excl. VAT","المبلغ قبل الضريبة")}</th><th class="num">VAT</th><th class="num">${tr("Total","الإجمالي")}</th></tr><tr><td class="en"><b>${esc(c.sel)}</b></td><td class="en">${c.no}</td><td class="en">${p.cc}</td><td class="num">${money(q.price)}</td><td class="num">${money(q.noVat?0:q.price*.15)}</td><td class="num"><b>${money(q.price*(q.noVat?1:1.15))}</b></td></tr></table>`;$("#oPrev")._d={p,c,q,f};};
  $("#oPr").onchange=prev;prev();
- $("#oSave").onclick=()=>{const d=$("#oPrev")._d;if(!d)return msg("err",ERR.req());const po={no:poNextNo(),kind:"PO",date:$("#oDate").value,pr:d.p.no,cqs:d.c.no,sup:d.c.sel,cc:d.p.cc,lines:d.p.lines.map(l=>({code:l.code,desc:l.desc,qty:l.qty,price:Math.round(l.est*d.f*100)/100,cls:l.cls}))};D.pos.push(po);persist();render();saved(po.no,poDoc(po));};
+ $("#oSave").onclick=()=>{const d=$("#oPrev")._d;if(!d)return msg("err",ERR.req());const po={no:poNextNo(),kind:"PO",date:$("#oDate").value,pr:d.p.no,cqs:d.c.no,sup:d.c.sel,cc:d.p.cc,lines:d.p.lines.map((l,i)=>({code:l.code,desc:l.desc,qty:l.qty,price:d.q.lp&&d.q.lp[i]!=null?+d.q.lp[i]:Math.round(l.est*d.f*100)/100,cls:l.cls})),...(d.q.noVat?{noVat:true}:{}),...(d.q.lp?{lpFrom:d.c.no}:{})};D.pos.push(po);persist();render();saved(po.no,poDoc(po));};
  const ct=()=>{$("#cTot").value=money((+$("#cQty").value||0)*(+$("#cPrice").value||0));};$("#cQty").addEventListener("input",ct);$("#cPrice").addEventListener("input",ct);
  $("#cSave").onclick=()=>{if(!checkReq($("#tabpc")))return msg("err",ERR.req());const tot=(+$("#cQty").value)*(+$("#cPrice").value);if(!(tot>0))return msg("err",ERR.qty());if(tot*1.15>5000)return msg("err",tr("Above the SAR 5,000 petty cash limit — raise a PR instead.","يتجاوز حد النثرية 5,000 ريال — ارفع طلب شراء بدلاً من ذلك."));
   const pc={no:seqNo(("PC-"+YY()+"-"),D.pos.filter(p=>p.kind==="PC").map(p=>p.no)),kind:"PC",date:today(),pr:"",cqs:"",sup:$("#cSup").value.trim(),cc:$("#cCc").value,fin:"Pending",lines:[{code:"",desc:$("#cDesc").value.trim(),qty:+$("#cQty").value,price:+$("#cPrice").value,cls:$("#cCls").value}]};D.pos.push(pc);persist();render();saved(pc.no,poDoc(pc),"a");};};
@@ -957,7 +957,7 @@ BIND.po=()=>{bindDocBtns();const rp=$("#rPo");if(rp){rp.onchange=poRcvDraw;poRcv
 VIEWS.fin=()=>head(tr("Finance — invoices & payment","المالية — الفواتير والسداد"),tr("3-way match: PO · warehouse receipt (GRN) · supplier invoice. Payment is allowed only when the PO is fully received.","المطابقة الثلاثية: أمر الشراء · الاستلام (GRN) · فاتورة المورد. السداد مسموح فقط عند اكتمال الاستلام."))+prFlow("fin")+msgBox+
  `<div class="card"><h2>${tr("Register supplier invoice","تسجيل فاتورة مورد")}</h2><div class="fg">${sel("iPo",tr("PO","أمر الشراء"),D.pos.filter(p=>p.kind==="PO"&&!p.cancelled).map(p=>[p.no,`${p.no} — ${p.sup}`]),{req:true,w:"w2"})}${fld("iNo",tr("Invoice No.","رقم الفاتورة"),{req:true,upper:true})}${fld("iAmt",tr("Invoice total incl. VAT","إجمالي الفاتورة مع الضريبة"),{type:"number",req:true})}</div><div class="btns"><span style="flex:1"></span><button class="b" style="background:#7C3AED" id="iSave">${tr("Save invoice","حفظ الفاتورة")}</button></div></div>
  <div class="card"><h2>${tr("3-way match and payment","المطابقة الثلاثية والسداد")}</h2><table class="t"><tr><th>PO</th><th>${tr("Invoice","الفاتورة")}</th><th class="num">${tr("PO total","إجمالي الأمر")}</th><th class="num">${tr("Invoice","الفاتورة")}</th><th>${tr("Received (GRN)","المستلم (GRN)")}</th><th class="num">${tr("Invoiced to date / payable","المفوتر حتى تاريخه / المستحق")}</th><th>${tr("Check","الفحص")}</th><th>${tr("Payment","السداد")}</th></tr>
- ${D.invs.map((v,i)=>{const p=D.pos.find(x=>x.no===v.po);const full=poFull(p);const pt=poTotal(p)*1.15;const pay=poPayable(p);const invd=D.invs.filter(x=>x.po===p.no).reduce((a,x)=>a+(+x.amt||0),0);const amtOk=invd<=pay+1;const rec=p.lines.map(l=>`${poRecv(p,l)}/${l.qty}${l.closed?" ✂":""}`).join(" · ");
+ ${D.invs.map((v,i)=>{const p=D.pos.find(x=>x.no===v.po);const full=poFull(p);const pt=poTotal(p)*(1+vatR(p));const pay=poPayable(p);const invd=D.invs.filter(x=>x.po===p.no).reduce((a,x)=>a+(+x.amt||0),0);const amtOk=invd<=pay+1;const rec=p.lines.map(l=>`${poRecv(p,l)}/${l.qty}${l.closed?" ✂":""}`).join(" · ");
   return `<tr><td class="en"><b>${p.no}</b></td><td class="en">${esc(v.no)}</td><td class="num">${money(pt)}</td><td class="num">${money(v.amt)}</td><td class="en">${rec}</td><td class="num">${money(invd)} / ${money(pay)}</td><td>${full&&amtOk?tag(tr("OK — matched","مطابق"),"g"):!full?tag(tr("Not fully received","الاستلام غير مكتمل"),"r"):tag(tr("Invoices exceed payable value","الفواتير تتجاوز المبلغ المستحق"),"a")}</td>
   <td>${v.paid?tag(tr("Paid","مدفوع")+" "+v.paid,"g"):`<button class="b g sm" data-pay="${i}" ${full&&amtOk?"":"disabled"}>${tr("Mark paid","تسجيل السداد")}</button>`} <button class="b l sm" data-doc="${p.no}">PO</button> <button class="b l sm" data-inv="${i}">${tr("Voucher","سند الصرف")}</button></td></tr>`;}).join("")}</table>
  ${(()=>{const pcs=D.pos.filter(p=>p.kind==="PC");return `<h2 style="margin-top:18px">${tr("Petty cash vouchers — Finance approval","سندات العهدة النثرية — اعتماد المالية")}</h2><table class="t"><tr><th>${tr("Voucher","السند")}</th><th>${tr("Shop","المحل")}</th><th>${tr("Cost center","مركز التكلفة")}</th><th>${tr("Class","التصنيف")}</th><th class="num">${tr("Total incl. VAT","الإجمالي مع الضريبة")}</th><th>${tr("Finance","المالية")}</th></tr>${pcs.map(p=>`<tr><td class="en"><b>${p.no}</b> <button class="b l sm" data-doc="${p.no}">${tr("Print","طباعة")}</button></td><td class="en">${esc(p.sup)}</td><td class="en">${p.cc}</td><td>${tag(p.lines[0].cls,p.lines[0].cls==="CAPEX"?"a":"b")}</td><td class="num">${money(poTotal(p)*1.15)}</td><td>${pcTag(p)} ${p.fin==="Approved"?tag(tr("Approved","معتمد"),"g"):`<button class="b g sm" data-pcok="${p.no}">${tr("Approve","اعتماد")}</button>`} <button class="b l sm" data-doc="${p.no}">${tr("Print","طباعة")}</button></td></tr>`).join("")}</table>`;})()}</div>`;
@@ -1003,7 +1003,7 @@ function cqsScore(Q){const ok=q=>q.spec&&q.valid,good=Q.filter(ok),minP=Math.min
 function cqsDoc(c){const p=D.prs.find(x=>x.no===c.pr)||{},Q=c.quotes||[],S=cqsScore(Q),est=(p.lines||[]).reduce((a,l)=>a+l.qty*l.est,0);
  const r1=Q[S.findIndex(x=>x.rank===1)]||{},o=D.pos.find(x=>x.cqs===c.no);
  const rows=Array.from({length:Math.max(5,Q.length)},(_,i)=>{const q=Q[i],s=S[i];if(!q)return `<tr>${ppC(i+1,"right")}${Array.from({length:14},()=>ppC("")).join("")}</tr>`;
-  const vat=q.price*.15;return `<tr style="height:20px">${ppC(i+1,"right")}${ppC(esc(q.sup))}${ppC(esc(q.ref||""))}${ppC(ppM(q.price),"right")}${ppC(ppM(vat),"right")}${ppC(ppM(q.price+vat),"right")}${ppC(q.days||"","center")}${ppC(esc(q.terms||""),"center")}${ppC(q.war||"","center")}${ppC(q.spec&&q.valid?"Yes":"No","center")}${ppC(s.p.toFixed(1),"center")}${ppC(s.d.toFixed(1),"center")}${ppC(s.t.toFixed(0),"center")}${ppC("<b>"+s.tot.toFixed(1)+"</b>","center")}${ppC(s.rank,"center")}</tr>`;}).join("");
+  const vat=q.noVat?0:q.price*.15;return `<tr style="height:20px">${ppC(i+1,"right")}${ppC(esc(q.sup))}${ppC(esc(q.ref||""))}${ppC(ppM(q.price),"right")}${ppC(ppM(vat),"right")}${ppC(ppM(q.price+vat),"right")}${ppC(q.days||"","center")}${ppC(esc(q.terms||""),"center")}${ppC(q.war||"","center")}${ppC(q.spec&&q.valid?"Yes":"No","center")}${ppC(s.p.toFixed(1),"center")}${ppC(s.d.toFixed(1),"center")}${ppC(s.t.toFixed(0),"center")}${ppC("<b>"+s.tot.toFixed(1)+"</b>","center")}${ppC(s.rank,"center")}</tr>`;}).join("");
  const ap=c.approved?"Approved":"";
  return `<div class="doc xl" style="font-family:Arial,Helvetica,sans-serif;color:#111;padding:14px 18px">${ppHead("COMPARATIVE QUOTATION SHEET &amp; SUPPLIER SELECTION","جدول مقارنة العروض واختيار المورد","Procurement Department","إدارة المشتريات")}
  <table style="width:86%;border-collapse:collapse;margin-left:5%"><tr>${ppL("CQS No.","رقم المقارنة")}${ppV(`<b>${esc(c.no)}</b>`,"background:"+PP_Y+";width:9%")}${ppL("Date")}${ppV(ppD(c.date),"width:13%")}${ppL("PR No.")}${ppV(esc(c.pr||""),"width:16%")}</tr>
@@ -1018,7 +1018,7 @@ function cqsDoc(c){const p=D.prs.find(x=>x.no===c.pr)||{},Q=c.quotes||[],S=cqsSc
  <table style="width:auto;margin:14px 0 0 5%;border-collapse:collapse"><tr>${ppL("All approvals complete?")}${ppV(c.approved?"Yes":"No","width:90px")}</tr></table></div>`;}
 /* Purchase Order Form + Petty Cash Voucher */
 const PP_SUP={};
-function poDoc(p){if(p.kind==="PC")return pcDoc(p);const L=p.lines||[],sub=L.reduce((a,l)=>a+l.qty*l.price,0),vat=sub*.15,S=PP_SUP[p.sup]||{};
+function poDoc(p){if(p.kind==="PC")return pcDoc(p);const L=p.lines||[],sub=L.reduce((a,l)=>a+l.qty*l.price,0),vat=sub*vatR(p),S=PP_SUP[p.sup]||{};
  const rows=Array.from({length:Math.max(15,L.length)},(_,i)=>{const l=L[i];if(!l)return `<tr>${ppC(i+1,"right")}${Array.from({length:6},()=>ppC("")).join("")}</tr>`;
   return `<tr>${ppC(i+1,"right")}${ppC(esc(l.code||""))}${ppC(esc(l.desc))}${ppC(esc(l.unit||(item(l.code)||{}).unit||"Each"))}${ppC(l.qty,"center")}${ppC(ppM(l.price),"right")}${ppC(ppM(l.qty*l.price),"right")}</tr>`;}).join("");
  const words=n=>{const a=["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"],t=["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
@@ -1034,7 +1034,7 @@ function poDoc(p){if(p.kind==="PC")return pcDoc(p);const L=p.lines||[],sub=L.red
  ${[["Name",S.name||p.sup,'MIDU COMPANY LTD &nbsp;| &nbsp;<span dir="rtl">شركة مايدو المحدودة</span>'],["CR No.",S.cr,"4030520418"],["VAT No.",S.vat,"311764779200003"],["Contact",S.contact,"The Automotive Supplier Park, Jeddah 23425-3987, KSA"],["Email",S.email,"info@midu.com.sa"],["Address",S.addr,""],["Bank / IBAN",S.iban,""]].map(([k,v,m])=>`<tr>${ppL(k)}${ppC(esc(v||""))}<td></td>${ppC(m)}</tr>`).join("")}</table>
  <table style="width:100%;border-collapse:collapse;margin-top:12px"><tr>${ppTh("S/N","","10%")}${ppTh("Item Code","رمز الصنف","19%")}${ppTh("Description","البيان","32%")}${ppTh("Unit","الوحدة","7%")}${ppTh("Qty","الكمية","6%")}${ppTh("Unit Price","سعر الوحدة","12%")}${ppTh("Total (SAR)","المجموع","")}</tr>${rows}
  <tr>${ppL("Payment")}<td colspan="2" style="border:${PP_B};font-size:8.5px;padding:3px">${esc(p.pay||"100% after completion")}</td><td colspan="3" style="font-size:8.5px;font-weight:700;color:${PP_N};padding:3px">Total Amount excl. VAT</td>${ppC(ppM(sub),"right")}</tr>
- <tr>${ppL("Delivery")}<td colspan="2" style="border:${PP_B};font-size:8.5px;padding:3px">${esc(p.del||"ASP, Jeddah")}</td><td colspan="3" style="font-size:8.5px;font-weight:700;color:${PP_N};padding:3px">VAT 15%</td>${ppC(ppM(vat),"right")}</tr>
+ <tr>${ppL("Delivery")}<td colspan="2" style="border:${PP_B};font-size:8.5px;padding:3px">${esc(p.del||"ASP, Jeddah")}</td><td colspan="3" style="font-size:8.5px;font-weight:700;color:${PP_N};padding:3px">${p.noVat?"VAT – supplier not VAT registered":"VAT 15%"}</td>${ppC(ppM(vat),"right")}</tr>
  <tr>${ppL("Method")}<td colspan="2" style="border:${PP_B};font-size:8.5px;padding:3px">Purchase Order</td><td colspan="3" style="font-size:8.5px;font-weight:700;color:${PP_N};padding:3px">Total Amount incl. VAT (SAR)</td>${ppC("<b>"+ppM(sub+vat)+"</b>","right")}</tr>
  <tr>${ppL("Amount in<br>words")}<td colspan="6" style="border:${PP_B};background:${PP_Y};font-size:8.5px;padding:4px">${words(sub+vat)}</td></tr></table>
  <table style="width:100%;border-collapse:collapse;margin-top:18px"><tr><th style="background:${PP_N};border:${PP_B};width:10%"></th>${ppTh("Prepared by (Procurement)","","22%")}${ppTh("Project Director","","33%")}${ppTh("Finance Manager","","13%")}${ppTh("CEO","")}</tr>
@@ -1059,14 +1059,14 @@ function pcDoc(p){const L=p.lines||[],tot=L.reduce((a,l)=>a+l.qty*l.price,0)*1.1
  <tr>${fL("")}${fV("")}${fL("Petty cash limit (incl. VAT)")}${fV("5,000.00")}</tr><tr>${fL("")}${fV("")}${fL("")}${fV("")}</tr><tr>${fL("")}${fV("")}${fL("")}${fV("")}</tr></table>
  ${fSig([["Purchaser",p.buyer||p.sup],["Approved by","Osama Al Saggaf"],["Finance","Osama Al Saggaf"],["Received cash by",p.buyer||p.sup]])}</div>`;}
 /* Payment Voucher / Request (supplier invoice) */
-function invDoc(v){const p=D.pos.find(x=>x.no===v.po)||{lines:[]},pt=poTotal(p)*1.15,recv=(p.lines||[]).reduce((a,l)=>a+Math.min(poRecv(p,l),l.qty)*l.price,0)*1.15,invd=D.invs.filter(x=>x.po===v.po).reduce((a,x)=>a+(+x.amt||0),0);
- const full=poFull(p),ok=invd<=(full?poPayable(p):pt)+1,ex=(+v.amt||0)/1.15,sig=p.sig||{};
+function invDoc(v){const p=D.pos.find(x=>x.no===v.po)||{lines:[]},pt=poTotal(p)*(1+vatR(p)),recv=(p.lines||[]).reduce((a,l)=>a+Math.min(poRecv(p,l),l.qty)*l.price,0)*(1+vatR(p)),invd=D.invs.filter(x=>x.po===v.po).reduce((a,x)=>a+(+x.amt||0),0);
+ const full=poFull(p),ok=invd<=(full?poPayable(p):pt)+1,ex=(+v.amt||0)/(1+vatR(p)),sig=p.sig||{};
  return `<div class="doc xl" style="font-family:Georgia,'Times New Roman',serif;color:#111;padding:14px 22px">${fhead("PAYMENT VOUCHER / REQUEST","طلب صرف")}
  <table style="width:100%;border-collapse:collapse"><tr>${fL("Invoice No.","رقم الفاتورة")}${fV(`<b>${esc(v.no)}</b>`,"background:"+PP_Y)}${fL("Date","التاريخ")}${fV(today().split("-").reverse().join("/"))}</tr>
  <tr>${fL("PO No.")}${fV(esc(v.po))}${fL("Supplier")}${fV(esc(p.sup||""))}</tr><tr>${fL("Invoice date")}${fV((v.date||"").split("-").reverse().join("/"))}${fL("Type")}${fV("Invoice")}</tr>
  <tr style="height:30px">${fL("Cost center")}${fV(esc(p.cc||""))}${fL("Subject")}${fV(esc((D.prs.find(x=>x.no===p.pr)||{}).just||""))}</tr><tr>${fL("Bank")}${fV(esc((PP_SUP[p.sup]||{}).bank||""))}${fL("IBAN")}${fV(esc((PP_SUP[p.sup]||{}).iban||""))}</tr></table>
  <table style="width:100%;border-collapse:collapse;margin-top:12px">${fBar('AMOUNTS / <span dir="rtl">المبالغ</span>','CHECKS / <span dir="rtl">التحقق</span>')}
- <tr>${fL("Amount excl. VAT")}${fV(ppM(ex))}${fL("PO amount incl. VAT")}${fV(ppM(pt))}</tr><tr>${fL("VAT")}${fV(ppM(ex*.15))}${fL("Received value incl. VAT (to date)")}${fV(ppM(recv))}</tr>
+ <tr>${fL("Amount excl. VAT")}${fV(ppM(ex))}${fL("PO amount incl. VAT")}${fV(ppM(pt))}</tr><tr>${fL("VAT")}${fV(ppM(ex*vatR(p)))}${fL("Received value incl. VAT (to date)")}${fV(ppM(recv))}</tr>
  <tr>${fL("Total incl. VAT (SAR)")}${fV(ppM(v.amt))}${fL("Invoiced to date (this PO)")}${fV(ppM(invd))}</tr><tr>${fL("Due date")}${fV(esc(v.due||""))}${fL("Remaining on PO")}${fV(ppM(pt-invd))}</tr>
  <tr>${fL("Payment status")}${fV(v.paid?"Paid "+v.paid:"Pending")}${fL("3-way check")}${fV(full&&ok?"OK":"Check")}</tr><tr>${fL("Payment ref.")}${fV(esc(v.ref||""))}${fL("PO fully signed?")}${fV(sig.pd&&sig.fm&&sig.ceo?"Yes":"No")}</tr>
  <tr>${fL("Payment allowed?")}${fV(full&&ok?"Yes":"No")}${fL("PO fully received?")}${fV(full?"Yes":"No")}</tr></table>
@@ -1929,7 +1929,7 @@ const APPR={PD:"Najed Fakhreddine",FM:"Osama Al Saggaf",CEO:"Marwan Telmesani"};
 const AP_ROLE={PD:"Project Director",FM:"Finance Manager",CEO:"CEO",TECH:"Technical evaluation"};
 const CHAIN={pr:["PD"],cqs:["FM","PD"],po:["FM","PD","CEO"]};
 const AP_COLL={pr:"prs",cqs:"cqs",po:"pos"};
-function apFp(k,d){const x=k==="pr"?[d.no,d.cc,d.just,d.need,(d.lines||[]).map(l=>[l.code,l.desc,l.qty,l.est,l.cls])]:k==="cqs"?[d.no,d.pr||d.prCancelled,d.sel,(d.quotes||[]).map(q=>[q.sup,q.price,q.days,q.war,q.spec,q.valid])]:[d.no,d.sup,d.cc,d.pr||d.prCancelled,d.cqs,(d.lines||[]).map(l=>[l.code,l.desc,l.qty,l.price,l.cls])];
+function apFp(k,d){const x=k==="pr"?[d.no,d.cc,d.just,d.need,(d.lines||[]).map(l=>[l.code,l.desc,l.qty,l.est,l.cls])]:k==="cqs"?[d.no,d.pr||d.prCancelled,d.sel,(d.quotes||[]).map(q=>[q.sup,q.price,q.days,q.war,q.spec,q.valid,...(q.lp||q.noVat?[q.lp||null,!!q.noVat]:[])])]:[d.no,d.sup,d.cc,d.pr||d.prCancelled,d.cqs,(d.lines||[]).map(l=>[l.code,l.desc,l.qty,l.price,l.cls])];
  const s=JSON.stringify(x);let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}return h.toString(16).padStart(8,"0").toUpperCase();}
 const apGet=(d,r)=>(d.ap||[]).filter(a=>a.role===r).pop();
 const apOk=(k,d,r)=>{const a=apGet(d,r);return !!a&&a.fp===apFp(k,d);};
@@ -2386,8 +2386,8 @@ ES_K.push(
   applies:o=>o.kind==="PC"&&!o.cancelled,
   fields:o=>[o.no,o.sup,o.cc,(o.lines||[]).map(l=>[l.desc,l.qty,l.price,l.cls])],steps:iss=>[["PREP","Purchaser / prepared by",iss],["FM","Approved by (Finance Manager)",ES_OSAMA]],doc:o=>pcDoc(o)},
  {id:"pv",coll:"invs",key:"es",scr:"fin",area:"pr",label:"Payment voucher",title:o=>(o.po||"")+" · "+money(+o.amt||0)+" SAR",issuerOf:o=>o.by||"",
-  applies:o=>!!o&&!!o.no,
-  fields:o=>[o.no,o.po,+o.amt||0],steps:(iss,o)=>[["PREP","Prepared by (Finance)",iss],["FM","Finance Manager",ES_OSAMA],["PD","Project Director",ES_NAJED],...(((+(o&&o.amt)||0)/1.15>CEO_LIMIT)?[["CEO","CEO",ES_MARWAN]]:[])],doc:o=>invDoc(o)});
+  applies:o=>!!o&&!!o.no&&!o.credit&&!(+o.amt<0),
+  fields:o=>[o.no,o.po,+o.amt||0],steps:(iss,o)=>[["PREP","Prepared by (Finance)",iss],["FM","Finance Manager",ES_OSAMA],["PD","Project Director",ES_NAJED],...(((+(o&&o.amt)||0)/(1+vatR(D.pos.find(x=>x.no===(o&&o.po))))>CEO_LIMIT)?[["CEO","CEO",ES_MARWAN]]:[])],doc:o=>invDoc(o)});
 /* results written back on the record */
 {const A0=esAfter;esAfter=function(k,o,reject,sig,reason){A0(k,o,reject,sig,reason);
  if(k.id==="prr"&&!reject){Object.assign(o,{rcvSigned:true,rcvBy:sig.by,rcvDate:today()});if(whL(sig.by)!==whL(ES_RAGHAD))o.rcvName=sig.by;}
@@ -2478,7 +2478,7 @@ const buyerOpts=()=>{const L=[PURCHASER];try{(LOCAL.users||[]).filter(u=>u.activ
 /* e-mail the purchaser when a PO is fully approved (go ahead and buy) */
 function buyerMailScan(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.readOnly)return;
  D.pos.filter(p=>p.kind==="PO"&&p.buyer&&!p.cancelled&&p.ap!==undefined&&apDone("po",p)).forEach(p=>{p.mailed=p.mailed||{};if(p.mailed.buyer)return;p.mailed.buyer=new Date().toISOString();
-  mailSend(p.buyer,`PO approved – please proceed: ${p.no}`,[`<b>${esc(p.no)}</b> to <b>${esc(p.sup||"")}</b> (${money(poTotal(p)*1.15)} SAR incl. VAT) is now fully approved (FM, PD, CEO).`,`PR ${esc(p.pr||"")} · CQS ${esc(p.cqs||"")}. Please send the PO to the supplier and follow up the delivery.`],"po");});}
+  mailSend(p.buyer,`PO approved – please proceed: ${p.no}`,[`<b>${esc(p.no)}</b> to <b>${esc(p.sup||"")}</b> (${money(poTotal(p)*(1+vatR(p)))} SAR incl. VAT) is now fully approved (FM, PD, CEO).`,`PR ${esc(p.pr||"")} · CQS ${esc(p.cqs||"")}. Please send the PO to the supplier and follow up the delivery.`],"po");});}
 {const P2=persist;persist=function(...a){try{buyerMailScan();}catch(e){console.warn(e);}return P2.apply(this,a);};}
 
 /* ===================== Update 50: Basel Shamma (Project Manager, ASP) + Petty cash custody (advance → invoices → clearance) ===================== */
@@ -2592,7 +2592,7 @@ KEYS.cost=r=>r.key;D.cost=D.cost||[];
 const INV_TYPES=["Supplier invoice","Back charge from MBL","Rental","Utilities bill","Services / subcontract","Other"];
 const projOf=cc=>{const s=String(cc||"").trim();if(!s)return "Other";const m=s.match(/^([A-Za-z]+)/);const p=(m?m[1]:s).toUpperCase();return p==="HQ"||p==="HO"?"HO":p;};
 const MONS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const ivEx=v=>v.excl!==undefined&&v.excl!==""?+v.excl:Math.round((+v.amt||0)/1.15*100)/100;
+const ivEx=v=>v.excl!==undefined&&v.excl!==""?+v.excl:Math.round((+v.amt||0)/(1+vatR(D.pos.find(p=>p.no===v.po)))*100)/100;
 /* every cost line of the company, one shape: {src, month, cc, proj, type, from, no, desc, excl, total, att, ref} */
 function costRows(){const out=[],po=no=>D.pos.find(p=>p.no===no)||{};
  (D.invs||[]).forEach(v=>{const p=po(v.po),cc=v.cc||p.cc;out.push({src:"inv",month:(v.month||v.date||"").slice(0,7),cc,proj:projOf(cc),type:v.type||"Supplier invoice",from:v.sup||p.sup||"",no:v.no,desc:v.desc||("PO "+v.po),excl:ivEx(v),total:+v.amt||0,att:v.att,ref:v.po,paid:v.paid,rec:v});});
@@ -3608,9 +3608,9 @@ function techDlg(c){const pr=prOf(c),Q=c.quotes||[];
  <div style="margin-top:12px"><button class="b g" id="tGo">✍ ${tr("Confirm and sign","تأكيد وتوقيع")}</button> <span id="tE" style="color:#D2463C;font-size:13px"></span></div></div>`,"");
  const box=$("#ov")||document;box.querySelectorAll("[data-tqf]").forEach(a=>a.onclick=e=>{e.preventDefault();openAtt(Q[+a.dataset.tqf].att);});
  const acc=()=>Q.map((q,i)=>({q,i,ok:box.querySelector(`[data-tok="${i}"]`).value})).filter(x=>x.ok==="1"&&x.q.valid).sort((a,b)=>a.q.price-b.q.price);
- const fill=()=>{const A=acc(),s=$("#tSel"),cur=s.value;s.innerHTML=A.map(x=>`<option value="${x.i}">${esc(x.q.sup)} – ${money(x.q.price)}</option>`).join("")||`<option value="">${tr("no accepted supplier","لا يوجد مورد مقبول")}</option>`;if(A.some(x=>String(x.i)===cur))s.value=cur;why();};
+ const fill=()=>{const A=acc(),s=$("#tSel"),cur=s.value;s.innerHTML=A.map(x=>`<option value="${x.i}">${esc(x.q.sup)} – ${money(x.q.price)}</option>`).join("")||`<option value="">${tr("no accepted supplier","لا يوجد مورد مقبول")}</option>`;if(s._user&&A.some(x=>String(x.i)===cur))s.value=cur;why();};
  const why=()=>{const A=acc();$("#tWhyF").style.display=A.length&&$("#tSel").value!==""&&+$("#tSel").value!==A[0].i?"block":"none";};
- box.querySelectorAll("[data-tok]").forEach(s=>s.onchange=fill);$("#tSel").onchange=why;fill();
+ box.querySelectorAll("[data-tok]").forEach(s=>s.onchange=fill);$("#tSel").onchange=()=>{$("#tSel")._user=1;why();};fill();
  $("#tGo").onclick=()=>{const e=$("#tE");e.textContent="";const ev=Q.map((q,i)=>({ok:box.querySelector(`[data-tok="${i}"]`).value,cm:box.querySelector(`[data-tcm="${i}"]`).value.trim()}));
   if(ev.some(x=>x.ok===""))return e.textContent=tr("Mark every supplier Acceptable or Not acceptable.","حدد كل مورد مقبول أو غير مقبول.");
   if(ev.some(x=>x.ok==="0"&&!x.cm))return e.textContent=tr("Write why each not-acceptable offer does not match.","اكتب سبب عدم مطابقة كل عرض غير مقبول.");
@@ -3696,7 +3696,7 @@ function enforce(el){if(el.dataset.ar)return;let v=el.value,b=v;v=v.replace(/[٠
 function invPoCheck(po,no,amt){const p=D.pos.find(x=>x.no===po);if(!p)return tr("Choose the PO.","اختر أمر الشراء.");
  if(p.cancelled)return tr("This PO is cancelled.","أمر الشراء هذا ملغى.");if(p.kind==="PO"&&!poSigned(p))return tr("This PO is not fully approved yet – the invoice cannot be registered.","أمر الشراء غير معتمد بالكامل بعد – لا يمكن تسجيل الفاتورة.");
  const k=x=>String(x||"").trim().toUpperCase();if((D.invs||[]).some(v=>k(v.no)===k(no)&&(v.po===po||(D.pos.find(x=>x.no===v.po)||{}).sup===p.sup)))return tr("This invoice number is already registered for this supplier.","رقم الفاتورة مسجل مسبقاً لهذا المورد.");
- const max=poTotal(p)*1.15,done=(D.invs||[]).filter(v=>v.po===po).reduce((a,v)=>a+(+v.amt||0),0);
+ const max=poTotal(p)*(1+vatR(p)),done=(D.invs||[]).filter(v=>v.po===po).reduce((a,v)=>a+(+v.amt||0),0);
  if(done+amt>max+1)return tr(`Invoices would exceed the PO: PO ${money(max)} SAR incl. VAT, already invoiced ${money(done)}, this invoice ${money(amt)}.`,`الفواتير ستتجاوز أمر الشراء: الأمر ${money(max)} ريال مع الضريبة، المفوتر ${money(done)}، هذه الفاتورة ${money(amt)}.`);return "";}
 document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.closest("#iSave,#ivSave");if(!b)return;let e="";
  if(b.id==="iSave"){const no=$("#iNo").value.trim();if(!no)return;e=invPoCheck($("#iPo").value,no,+$("#iAmt").value||0);}
@@ -3804,10 +3804,10 @@ BIND.rts=()=>{const g=$("#rtG"),O=$("#rtO");
     if(x.closedPo&&p){const pl=p.lines[rtsPoIdx(p,x)];if(pl&&pl.closedBy===r.no){pl.closed=false;delete pl.closedBy;}}});
    r.cancelled={at:today(),by:sig.by,reason};persist();render();toast("✔ "+r.no+" "+tr("cancelled","أُلغي"));});});
  document.querySelectorAll("[data-rtc]").forEach(b=>b.onclick=()=>{const r=D.rts.find(x=>x.no===b.dataset.rtc),p=D.pos.find(x=>x.no===r.po);if(!r||!p)return;
-  const sug=r2x(r.lines.reduce((a,x)=>{const i=rtsPoIdx(p,x);return a+(i>-1?x.qty*(+p.lines[i].price||0):0);},0)*1.15);DLGX={dxCn:"",dxCa:String(sug)};
+  const sug=r2x(r.lines.reduce((a,x)=>{const i=rtsPoIdx(p,x);return a+(i>-1?x.qty*(+p.lines[i].price||0):0);},0)*(1+vatR(p)));DLGX={dxCn:"",dxCa:String(sug)};
   apPinDlg(tr("Supplier credit note","إشعار دائن من المورد")+" – "+r.no,`<p style="margin:0">${esc(r.sup)} · ${esc(r.po)}</p><div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap"><label>${tr("Credit note No.","رقم الإشعار")}<br><input id="dxCn" class="en" data-upper="1"></label><label>${tr("Amount incl. VAT","المبلغ مع الضريبة")}<br><input id="dxCa" type="number" step="0.01" value="${sug}"></label></div>`,false,sig=>{
    const no=String(DLGX.dxCn||"").trim().toUpperCase(),amt=r2x(DLGX.dxCa);if(!no||!(amt>0)){toast("✖ "+tr("Enter the credit note number and amount.","أدخل رقم الإشعار والمبلغ."));return;}
-   r.cn={no,amt,date:today(),by:sig.by};D.invs.push({po:r.po,no:"CN "+no,date:today(),amt:-amt,excl:-r2x(amt/1.15),credit:true,rts:r.no,sup:r.sup,paid:today(),payM:"Credit note",type:"Supplier credit note",desc:"Credit note for "+r.no});persist();render();toast("✔ "+tr("Credit note recorded","سُجّل إشعار الدائن"));});});};
+   r.cn={no,amt,date:today(),by:sig.by};D.invs.push({po:r.po,no:"CN "+no,date:today(),amt:-amt,excl:-r2x(amt/(1+vatR(p))),credit:true,rts:r.no,sup:r.sup,paid:today(),payM:"Credit note",type:"Supplier credit note",desc:"Credit note for "+r.no});persist();render();toast("✔ "+tr("Credit note recorded","سُجّل إشعار الدائن"));});});};
 
 /* ---------- 2. Asset cost moves with the asset ---------- */
 function assetBase(a){if(a.grn){const g=D.docs.find(d=>d.no===a.grn&&d.type==="GRN");const p=g&&g.po&&D.pos.find(x=>x.no===g.po);if(p){const gl=(g.lines||[])[a.grnLine]||{},i=rtsPoIdx(p,gl);const pl=p.lines[i];if(pl)return {amt:+pl.price||0,cc:p.cc,src:p.no};}}
@@ -3920,6 +3920,84 @@ BIND.rent=()=>{const show=()=>{const o=$("#rnO").value==="Owned";document.queryS
   openModal(tr("Move to another project","نقل لمشروع آخر")+" – "+r.no,`<div style="padding:16px 20px;font-size:13px"><p style="margin:0 0 8px">${esc(r.ref||"")} ${esc(r.desc||"")} · ${tr("now","حالياً")}: <b>${esc(cur||"—")}</b></p><div class="fg"><div class="f"><label>${tr("New cost center","مركز التكلفة الجديد")}</label><select id="rmC">${ccOpts("")}</select></div><div class="f"><label>${tr("From date","من تاريخ")}</label><input id="rmD" type="date" value="${today()}"></div></div>
   <p class="hint">${r.own==="Owned"?tr("The purchase value moves from the old project to the new one on this date (CAPEX).","تنتقل قيمة الشراء من المشروع القديم للجديد في هذا التاريخ (CAPEX)."):tr("From this date the rent is charged to the new project; days before stay with the old one.","من هذا التاريخ يُحمّل الإيجار على المشروع الجديد؛ الأيام السابقة تبقى على القديم.")}</p><button class="b g" id="rmGo">✔ ${tr("Move","نقل")}</button></div>`,"");
   $("#rmGo").onclick=()=>{const c=$("#rmC").value,d=$("#rmD").value;if(!c||!d)return;if(c===cur)return closeModal();r.ccs=[...(r.ccs||[]).filter(x=>x.from!==d),{from:(r.ccs||[]).length?d:[d,r.start].sort()[0],cc:c}];closeModal();persist();render();toast("✔ "+r.no+" → "+c);};});};
+/* ===== Update 79: quotation prices per line → PO prices · suppliers not VAT registered · PO revisions (Rev 1, Rev 2 …) with re-approval ===== */
+function vatR(p){return p&&p.noVat?0:0.15;}
+/* --- CQS: "VAT registered?" per supplier + unit price per PR line for each supplier --- */
+{const V=VIEWS.cqs;VIEWS.cqs=()=>{let h=V();
+ h=h.replace(`<th>${tr("Quotation file","ملف العرض")}`,`<th>${tr("VAT registered?","مسجل في الضريبة؟")}</th><th>${tr("Quotation file","ملف العرض")}`);
+ h=h.split(`<td><input type="file" data-q="file"`).join(`<td><select data-q="vatreg"><option value="1">${tr("Yes – 15%","نعم – 15%")}</option><option value="0">${tr("No VAT","بدون ضريبة")}</option></select></td><td><input type="file" data-q="file"`);
+ const i=h.indexOf('id="qTab"');if(i>-1){const j=h.indexOf("</table>",i)+8;h=h.slice(0,j)+`<div id="qLP" style="margin-top:12px"></div>`+h.slice(j);}
+ return h;};}
+var LPV={};
+function cqsRows(){return [...(($("#qTab")||{querySelectorAll:()=>[]}).querySelectorAll("tr"))].filter(r=>r.querySelector("[data-q=sup]"));}
+function cqsLpDraw(){const box=$("#qLP");if(!box)return;const pr=D.prs.find(p=>p.no===($("#qPr")||{}).value);if(!pr||!(pr.lines||[]).length){box.innerHTML="";return;}
+ const R=cqsRows();const sups=R.map((r,i)=>r.querySelector("[data-q=sup]").value.trim()||tr("Supplier","المورد")+" "+(i+1));
+ box.innerHTML=`<p style="margin:0 0 6px"><b>${tr("Unit price per line (excl. VAT)","سعر الوحدة لكل سطر (قبل الضريبة)")}</b> – <span class="hint">${tr("copy each supplier's unit prices from the quotation. The supplier's total is calculated, and the PO takes exactly these prices.","انسخ أسعار الوحدة من عرض كل مورد. يُحسب الإجمالي تلقائياً ويأخذ أمر الشراء هذه الأسعار نفسها.")}</span></p>
+ <div style="overflow-x:auto"><table class="t"><tr><th>${tr("Item","الصنف")}</th><th class="num">${tr("Qty","الكمية")}</th><th class="num">${tr("PR estimate","تقدير الطلب")}</th>${sups.map(s=>`<th>${esc(s)}</th>`).join("")}</tr>
+ ${pr.lines.map((l,li)=>`<tr><td class="en"><b>${esc(l.code||"")}</b> ${esc(l.desc||"")}</td><td class="num">${l.qty} ${esc(l.unit||"")}</td><td class="num">${money(l.est)}</td>${R.map((r,ri)=>`<td><input type="number" step="0.01" min="0" data-lpr="${li}" data-lpc="${ri}" style="width:110px" value="${((LPV[ri]||{})[li]??"")}"></td>`).join("")}</tr>`).join("")}
+ <tr class="tot"><td colspan="3">${tr("Total excl. VAT","الإجمالي قبل الضريبة")}</td>${R.map((r,ri)=>`<td class="num" data-lpt="${ri}"></td>`).join("")}</tr></table></div>`;
+ const tot=ri=>{const v=LPV[ri]||{},n=pr.lines.filter((l,li)=>v[li]!==undefined&&v[li]!=="").length;const t=pr.lines.reduce((a,l,li)=>a+(+l.qty||0)*(+(v[li])||0),0);const c=box.querySelector(`[data-lpt="${ri}"]`);
+  if(c)c.innerHTML=n===0?"":n<pr.lines.length?`<span style="color:#B45309">${n}/${pr.lines.length}</span>`:`<b>${money(t)}</b>`;
+  if(n===pr.lines.length){const pi=R[ri]&&R[ri].querySelector("[data-q=price]");if(pi&&+pi.value!==Math.round(t*100)/100){pi.value=Math.round(t*100)/100;pi.dispatchEvent(new Event("input",{bubbles:true}));}}};
+ box.querySelectorAll("[data-lpr]").forEach(x=>x.oninput=()=>{const ri=+x.dataset.lpc,li=+x.dataset.lpr;LPV[ri]=LPV[ri]||{};LPV[ri][li]=x.value;tot(ri);});R.forEach((r,ri)=>tot(ri));}
+{const B=BIND.cqs;BIND.cqs=()=>{LPV={};B&&B();const pr=$("#qPr");if(pr)pr.addEventListener("change",()=>{LPV={};cqsLpDraw();});
+ const t=$("#qTab");if(t)t.addEventListener("change",e=>{if(e.target.matches("[data-q=sup]"))cqsLpDraw();});
+ const ar=$("#qAddRow");if(ar)ar.addEventListener("click",()=>setTimeout(()=>{const R=cqsRows(),last=R[R.length-1];if(last){const v=last.querySelector("[data-q=vatreg]");if(v)v.value="1";}cqsLpDraw();},30));
+ cqsLpDraw();};}
+document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.closest("#qSave");if(!b)return;const pr=D.prs.find(p=>p.no===($("#qPr")||{}).value);if(!pr)return;const nL=(pr.lines||[]).length;
+ const rows=[];for(const [ri,r] of cqsRows().entries()){const sup=r.querySelector("[data-q=sup]").value.trim(),price=+r.querySelector("[data-q=price]").value;if(!sup||!(price>0))continue;
+  const v=LPV[ri]||{},filled=[...Array(nL).keys()].filter(li=>v[li]!==undefined&&v[li]!=="");
+  if(filled.length&&filled.length<nL){ev.stopImmediatePropagation();ev.preventDefault();return msg("err",tr("Unit prices: fill every line for","أسعار الوحدة: أكمل كل الأسطر لـ")+" <b>"+esc(sup)+"</b> "+tr("or leave all its lines empty.","أو اترك كل أسطره فارغة."));}
+  rows.push({sup,noVat:(r.querySelector("[data-q=vatreg]")||{}).value==="0",lp:filled.length===nL?[...Array(nL).keys()].map(li=>Math.round(+v[li]*100)/100):null});}
+ const n0=D.cqs.length;let k=0;const t=setInterval(()=>{if(++k>200)return clearInterval(t);if(D.cqs.length<=n0)return;clearInterval(t);const c=D.cqs[D.cqs.length-1];if(c.pr!==pr.no)return;
+  (c.quotes||[]).forEach(q=>{const x=rows.find(r=>r.sup===q.sup);if(!x)return;if(x.noVat)q.noVat=true;if(x.lp)q.lp=x.lp;});persist();},300);},true);
+/* CQS print: unit prices per line and VAT status */
+{const F=cqsDoc;cqsDoc=c=>{let h=F(c);const Q=(c.quotes||[]).filter(q=>q.lp||q.noVat);if(!Q.length)return h;const pr=D.prs.find(p=>p.no===(c.pr||c.prCancelled))||{lines:[]};
+ const add=`<table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:8.5px"><tr><td colspan="${2+(c.quotes||[]).length}" style="background:#E8F0FE;border:1px solid #8A94A6;padding:4px;font-weight:700">UNIT PRICES PER LINE (SAR excl. VAT)</td></tr>
+ <tr><td style="border:1px solid #8A94A6;padding:3px;font-weight:700">Item</td><td style="border:1px solid #8A94A6;padding:3px;font-weight:700">Qty</td>${(c.quotes||[]).map(q=>`<td style="border:1px solid #8A94A6;padding:3px;font-weight:700">${esc(q.sup)}${q.noVat?"<br><i>not VAT registered</i>":""}</td>`).join("")}</tr>
+ ${(pr.lines||[]).map((l,li)=>`<tr><td style="border:1px solid #8A94A6;padding:3px">${esc(l.code||"")} ${esc(l.desc||"")}</td><td style="border:1px solid #8A94A6;padding:3px">${l.qty}</td>${(c.quotes||[]).map(q=>`<td style="border:1px solid #8A94A6;padding:3px;text-align:right">${q.lp?ppM(q.lp[li]):"–"}</td>`).join("")}</tr>`).join("")}</table>`;
+ const i=h.lastIndexOf("</div>");return i>-1?h.slice(0,i)+add+h.slice(i):h+add;};}
+
+/* --- PO revision: change quantities, unit prices or delivery date of an issued PO; it goes back for approval --- */
+const poRevOk=p=>p&&p.kind==="PO"&&p.ap!==undefined&&!p.cancelled&&!p.legacy;
+function poRevDlg(p){const inv=(D.invs||[]).filter(v=>v.po===p.no).reduce((a,v)=>a+(+v.amt||0),0);
+ openModal(tr("Revise PO","تعديل أمر الشراء")+" "+p.no,`<div style="padding:16px 20px;font-size:13px"><p style="margin:0 0 8px">${esc(p.sup)} · ${tr("now","الآن")} ${money(poTotal(p))} SAR ${tr("excl. VAT","قبل الضريبة")}${p.rev?` · Rev ${p.rev}`:""}. ${tr("After saving, the PO goes back for approval (FM → PD, and CEO above","بعد الحفظ يعود أمر الشراء للاعتماد (المالية ← مدير المشروع، والرئيس التنفيذي فوق")} ${money(CEO_LIMIT)}). ${tr("Receiving and invoices wait until it is approved again.","الاستلام والفواتير تنتظر حتى يُعتمد من جديد.")}</p>
+ <table class="t"><tr><th>${tr("Item","الصنف")}</th><th class="num">${tr("Received","المستلم")}</th><th>${tr("Qty","الكمية")}</th><th>${tr("Unit price","سعر الوحدة")}</th></tr>
+ ${p.lines.map((l,i)=>`<tr><td class="en"><b>${esc(l.code||"")}</b> ${esc(l.desc||"")}</td><td class="num">${poRecv(p,l)}</td><td><input type="number" min="${poRecv(p,l)}" step="any" data-rq="${i}" value="${l.qty}" style="width:90px"></td><td><input type="number" min="0" step="0.01" data-rp="${i}" value="${l.price}" style="width:110px"></td></tr>`).join("")}</table>
+ <div class="fg" style="margin-top:10px"><div class="f"><label>${tr("Delivery date","تاريخ التوريد")}</label><input type="date" id="rvDd" value="${esc(p.dd||"")}"></div><div class="f w2"><label>${tr("Reason for the revision","سبب التعديل")} *</label><input id="rvR" class="en" autocomplete="off"></div></div>
+ <div style="margin-top:12px"><button class="b g" id="rvGo">${tr("Continue – sign with PIN","متابعة – التوقيع بالرمز")}</button> <span id="rvE" style="color:#D2463C"></span></div></div>`,"");
+ $("#rvGo").onclick=()=>{const e=$("#rvE"),why=$("#rvR").value.trim();if(!why){e.textContent=tr("Write the reason.","اكتب السبب.");return;}
+  const nl=p.lines.map((l,i)=>({...l,qty:+document.querySelector(`[data-rq="${i}"]`).value,price:+document.querySelector(`[data-rp="${i}"]`).value}));
+  for(const [i,l] of nl.entries()){if(!(l.qty>=0)||!(l.price>=0)){e.textContent=tr("Check the quantities and prices.","تحقق من الكميات والأسعار.");return;}if(l.qty<poRecv(p,p.lines[i])){e.textContent=tr("A quantity cannot be lower than what was already received","لا يمكن أن تقل الكمية عن المستلم")+" ("+esc(l.code)+").";return;}}
+  const nt=nl.reduce((a,l)=>a+l.qty*l.price,0);if(!(nt>0)){e.textContent=tr("The PO total cannot be zero – cancel the PO instead.","لا يمكن أن يكون الإجمالي صفراً – ألغِ أمر الشراء بدلاً من ذلك.");return;}
+  if(inv>nt*(1+vatR(p))+1){e.textContent=tr("Already invoiced","المفوتر حتى الآن")+" "+money(inv)+" SAR "+tr("is more than the new total.","أكبر من الإجمالي الجديد.");return;}
+  const dd=$("#rvDd").value,same=nl.every((l,i)=>l.qty===p.lines[i].qty&&l.price===p.lines[i].price)&&dd===(p.dd||"");if(same){e.textContent=tr("Nothing was changed.","لم يتغير شيء.");return;}
+  apPinDlg(tr("Sign PO revision","توقيع تعديل أمر الشراء")+" – "+p.no,`<p style="margin:0">${money(poTotal(p))} → <b>${money(nt)}</b> SAR ${tr("excl. VAT","قبل الضريبة")}<br>${esc(why)}</p>`,false,sig=>{
+   const rev=(+p.rev||0)+1;p.revs=[...(p.revs||[]),{rev,date:today(),by:sig.by,sig,reason:why,before:{lines:JSON.parse(JSON.stringify(p.lines)),dd:p.dd||"",total:poTotal(p)},after:nt,...(p.rej?{rej:p.rej}:{})}];
+   p.lines.forEach((l,i)=>{l.qty=nl[i].qty;l.price=nl[i].price;});if(dd)p.dd=dd;p.rev=rev;delete p.rej;persist();render();toast("✔ "+p.no+" Rev "+rev+" – "+tr("sent for approval to","أُرسل للاعتماد إلى")+" "+APPR.FM);});
+  setTimeout(()=>{const g=$("#apGo");if(g)g.textContent="✔ "+tr("Sign the revision","توقيع التعديل");},20);};}
+{const V=VIEWS.po;VIEWS.po=()=>{let h=V();const E=D.pos.filter(poRevOk);
+ D.pos.filter(p=>p.kind==="PO"&&(p.rev||p.noVat)).forEach(p=>{h=h.split(`<td class="en"><b>${p.no}</b>`).join(`<td class="en"><b>${p.no}</b>${p.rev?` <span class="tag a">Rev ${p.rev}</span>`:""}${p.noVat?` <span class="tag">${tr("no VAT","بدون ضريبة")}</span>`:""}`);});
+ return h+(E.length&&M365.can("po")?`<div class="card"><h2>${tr("Revise an issued PO","تعديل أمر شراء صادر")}</h2><p class="hint">${tr("Price or quantity changed after the PO was issued, or the PO was returned not approved? Revise it here – it is re-numbered Rev 1, Rev 2 … and goes back for approval. To stop a purchase completely, cancel the PO instead.","تغيّر السعر أو الكمية بعد إصدار أمر الشراء، أو أُعيد غير معتمد؟ عدّله هنا – يأخذ Rev 1 و Rev 2 … ويعود للاعتماد. لإيقاف الشراء كلياً ألغِ أمر الشراء.")}</p>
+ <div class="fg"><div class="f w2"><label>PO</label><select id="rvPo">${E.slice().reverse().map(p=>`<option value="${esc(p.no)}">${esc(p.no)}${p.rev?" Rev "+p.rev:""} — ${esc(p.sup)} — ${money(poTotal(p))}</option>`).join("")}</select></div></div><div class="btns"><button class="b" id="rvOpen">✎ ${tr("Revise","تعديل")}</button></div></div>`:"");};}
+{const B=BIND.po;BIND.po=()=>{B&&B();const b=$("#rvOpen");if(b)b.onclick=()=>{const p=D.pos.find(x=>x.no===$("#rvPo").value);if(poRevOk(p))poRevDlg(p);};};}
+/* PO print: revision number and history */
+{const F=poDoc;poDoc=p=>{let h=F(p);if(!p.rev)return h;h=h.replace(`<b>${esc(p.no)}</b>`,`<b>${esc(p.no)}</b> &nbsp;Rev ${p.rev}`);
+ const add=`<table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:8.5px"><tr><td colspan="4" style="background:#FFF2CC;border:1px solid #9AA4B5;padding:4px;font-weight:700">REVISIONS</td></tr>${(p.revs||[]).map(r=>`<tr><td style="border:1px solid #9AA4B5;padding:3px">Rev ${r.rev}</td><td style="border:1px solid #9AA4B5;padding:3px">${ppD(r.date)} – ${esc(r.by)}</td><td style="border:1px solid #9AA4B5;padding:3px">${ppM(r.before.total)} → ${ppM(r.after)} SAR excl. VAT</td><td style="border:1px solid #9AA4B5;padding:3px">${esc(r.reason)}</td></tr>`).join("")}</table>`;
+ const i=h.lastIndexOf("</div>");return i>-1?h.slice(0,i)+add+h.slice(i):h+add;};}
+/* CAPEX & OPEX: no VAT on suppliers not VAT registered or on internal asset moves; total per project above the cost-center table */
+{const C=cxLines;cxLines=function(){return C().map(x=>{if(x.src==="amove")return Object.assign(x,{vat:0});if(x.src==="po"){const p=D.pos.find(q=>q.no===x.order);if(p&&p.noVat)return Object.assign(x,{vat:0});}return x;});};}
+{const V=VIEWS.capex;VIEWS.capex=()=>{let h=V();const i=h.indexOf(`<th>${tr("Cost center","مركز التكلفة")}`);if(i<0)return h;const j=h.lastIndexOf('<div class="card"',i);if(j<0)return h;
+ const L=cxSel(),B=D.budget||{},P=[...new Set([...CC.map(projOf),...L.map(x=>projOf(x.cc))])];
+ const row=pj=>{const ccs=CC.filter(c=>projOf(c)===pj),inP=x=>projOf(x.cc)===pj,s=k=>L.filter(x=>inP(x)&&x.cls===k).reduce((a,x)=>a+x.amt,0),b=k=>ccs.reduce((a,c)=>a+(+((B[c]||{})[k])||0),0);
+  const ca=s("CAPEX"),oa=s("OPEX"),cb=b("CAPEX"),ob=b("OPEX"),t=ca+oa,tb=cb+ob;return {pj,ccs,ca,oa,cb,ob,t,tb};};
+ const R=P.map(row).filter(r=>r.t||r.tb||r.ccs.length);const T=R.reduce((a,r)=>({ca:a.ca+r.ca,oa:a.oa+r.oa,cb:a.cb+r.cb,ob:a.ob+r.ob,t:a.t+r.t,tb:a.tb+r.tb}),{ca:0,oa:0,cb:0,ob:0,t:0,tb:0});
+ const pct=(a,b)=>b?`<span style="color:${a>b?"#B91C1C":"#15803D"};font-weight:700">${Math.round(a/b*100)}%</span>`:"–";
+ const card=`<div class="card"><h2>${tr("Cost per project (SAR excl. VAT)","التكلفة لكل مشروع (ريال قبل الضريبة)")}${CX_M?" – "+esc(monthName(CX_M)):""}</h2><table class="t"><tr><th>${tr("Project","المشروع")}</th><th>${tr("Cost centers","مراكز التكلفة")}</th><th class="num">CAPEX</th><th class="num">${tr("CAPEX budget","ميزانية CAPEX")}</th><th class="num">OPEX</th><th class="num">${tr("OPEX budget","ميزانية OPEX")}</th><th class="num">${tr("Total","الإجمالي")}</th><th class="num">${tr("Used of budget","المستهلك من الميزانية")}</th></tr>
+ ${R.map(r=>`<tr><td><b>${esc(r.pj)}</b></td><td class="en" style="font-size:12px">${esc(r.ccs.join(", "))}</td><td class="num">${money(r.ca)}</td><td class="num">${money(r.cb)}</td><td class="num">${money(r.oa)}</td><td class="num">${money(r.ob)}</td><td class="num"><b>${money(r.t)}</b></td><td class="num">${pct(r.t,r.tb)}</td></tr>`).join("")}
+ <tr class="tot"><td colspan="2">${tr("All projects","كل المشاريع")}</td><td class="num">${money(T.ca)}</td><td class="num">${money(T.cb)}</td><td class="num">${money(T.oa)}</td><td class="num">${money(T.ob)}</td><td class="num">${money(T.t)}</td><td class="num">${pct(T.t,T.tb)}</td></tr></table>
+ <p class="hint" style="margin-top:6px">${tr("Each project = the sum of its cost centers below. Includes POs, invoices without PO, petty cash, generator rental, utilities, vehicles / equipment / property and asset moves between projects.","كل مشروع = مجموع مراكز التكلفة أدناه. يشمل أوامر الشراء والفواتير بدون أمر شراء والنثرية وإيجار المولدات والخدمات والمركبات والمعدات والعقارات ونقل الأصول بين المشاريع.")}</p></div>`;
+ return h.slice(0,j)+card+h.slice(j);};}
 </script>
 </body>
 </html>
