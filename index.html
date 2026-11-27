@@ -154,7 +154,8 @@ const tr=(en,ar)=>L==="ar"?ar:en;
 
 /* ============================ DATA ============================ */
 const WH={MAIN:{name:"Main Warehouse",locs:["Laydown Yard","Container No-7","Porta Cabin Store"]},ASP:{name:"ASP Site Store",locs:["Container No-4","Container No-2","Batching Plant Store"]}};
-const CC=["ASP Steel","ASP Concrete","Madina Airport","CEER Construction","HQ / Admin"];
+const CC=["ASP-STL","ASP-CON","ASP-CONST","MED-STL","MED-CON","CEER-STL","CEER-CON","HO-GEN"];   /* same codes as the Asset Register / PR CostCenter choice (Update 72) */
+function ccLabel(c){const n={"ASP-STL":"MIDU Steel","ASP-CON":"Concrete Division","ASP-CONST":"MIDU (ASP construction)"}[c];return n?c+" – "+n:c;}
 const SUPS=["Al Imdad Est.","Systems Co.","Gulf Safety Supplies","Al Rajhi Building Materials","Tech Zone Trading","Jeddah Tools Center"];
 const CONTR=["Concrete Division","EMCO","MCC"];
 const UT0=M365_DEFAULT_RATES.map(u=>({...u}));
@@ -180,18 +181,18 @@ function seed(){
   {no:"MDS-20261118-02",type:"MDS",date:"2026-11-18",dtype:"Temporary loan",party:"Joseph Thomas Mathew",iqama:"2511223344",wh:"ASP",loc:"Batching Plant Store",to:"Batching Plant",returnBy:"2026-11-30",lines:[{code:"MIDU-CIV-DRL-003",asset:"DRL-002",qty:1,cond:"Used"}]},
   {no:"MDS-20261119-01",type:"MDS",date:"2026-11-19",dtype:"New issue",party:"Omar Hassan Saeed",iqama:"2577889900",wh:"ASP",loc:"Container No-4",to:"ASP Gate 2",lines:[{code:"MIDU-HSE-HEL-001",qty:2,cond:"New"},{code:"MIDU-HSE-GLV-002",qty:4,cond:"New"}]}],
  prs:[
-  {no:"PR-26-0001",date:"2026-11-10",cc:"ASP Concrete",req:"Azzam El Masri",need:"2026-11-20",just:"PPE stock for new labour batch",pd:true,lines:[{code:"MIDU-HSE-HEL-001",desc:"Safety Helmet White",qty:30,est:25,cls:"OPEX"},{code:"MIDU-HSE-GLV-002",desc:"Cotton Gloves",qty:60,est:4,cls:"OPEX"}]},
-  {no:"PR-26-0002",date:"2026-11-14",cc:"HQ / Admin",req:"Azzam El Masri",need:"2026-11-28",just:"Laptops for new site engineers",pd:true,lines:[{code:"MIDU-ITN-LAP-001",desc:"Laptop Dell Latitude 5440",qty:3,est:4300,cls:"CAPEX"}]},
-  {no:"PR-26-0003",date:"2026-11-18",cc:"ASP Steel",req:"Azzam El Masri",need:"2026-12-05",just:"Cable for tower lights",pd:false,lines:[{code:"MIDU-ELE-CBL-004",desc:"Cable 4mm2 (100 m roll)",qty:4,est:420,cls:"OPEX"}]}],
+  {no:"PR-26-0001",date:"2026-11-10",cc:"ASP-CON",req:"Azzam El Masri",need:"2026-11-20",just:"PPE stock for new labour batch",pd:true,lines:[{code:"MIDU-HSE-HEL-001",desc:"Safety Helmet White",qty:30,est:25,cls:"OPEX"},{code:"MIDU-HSE-GLV-002",desc:"Cotton Gloves",qty:60,est:4,cls:"OPEX"}]},
+  {no:"PR-26-0002",date:"2026-11-14",cc:"HO-GEN",req:"Azzam El Masri",need:"2026-11-28",just:"Laptops for new site engineers",pd:true,lines:[{code:"MIDU-ITN-LAP-001",desc:"Laptop Dell Latitude 5440",qty:3,est:4300,cls:"CAPEX"}]},
+  {no:"PR-26-0003",date:"2026-11-18",cc:"ASP-STL",req:"Azzam El Masri",need:"2026-12-05",just:"Cable for tower lights",pd:false,lines:[{code:"MIDU-ELE-CBL-004",desc:"Cable 4mm2 (100 m roll)",qty:4,est:420,cls:"OPEX"}]}],
  cqs:[
   {no:"CQS-26-0001",pr:"PR-26-0001",date:"2026-11-12",quotes:[{sup:"Gulf Safety Supplies",price:960,days:4,war:0,spec:true,valid:true},{sup:"Al Imdad Est.",price:1020,days:3,war:0,spec:true,valid:true},{sup:"Jeddah Tools Center",price:890,days:10,war:0,spec:false,valid:true}],sel:"Gulf Safety Supplies",approved:true},
   {no:"CQS-26-0002",pr:"PR-26-0002",date:"2026-11-16",quotes:[{sup:"Tech Zone Trading",price:12600,days:7,war:36,spec:true,valid:true},{sup:"Systems Co.",price:12900,days:5,war:36,spec:true,valid:true},{sup:"Al Imdad Est.",price:11800,days:21,war:12,spec:false,valid:true}],sel:"Tech Zone Trading",approved:true}],
  pos:[
-  {no:"MIDU-PO-260528",kind:"PO",date:"2026-11-13",pr:"PR-26-0001",cqs:"CQS-26-0001",sup:"Gulf Safety Supplies",cc:"ASP Concrete",lines:[{code:"MIDU-HSE-HEL-001",desc:"Safety Helmet White",qty:30,price:24,cls:"OPEX"},{code:"MIDU-HSE-GLV-002",desc:"Cotton Gloves",qty:60,price:4,cls:"OPEX"}]},
-  {no:"MIDU-PO-260529",kind:"PO",date:"2026-11-17",pr:"PR-26-0002",cqs:"CQS-26-0002",sup:"Tech Zone Trading",cc:"HQ / Admin",lines:[{code:"MIDU-ITN-LAP-001",desc:"Laptop Dell Latitude 5440",qty:3,price:4200,cls:"CAPEX"}]},
-  {no:"PC-26-0045",kind:"PC",date:"2026-11-15",pr:"",cqs:"",sup:"Local market",cc:"ASP Steel",fin:"Approved",lines:[{code:"",desc:"Padlocks for containers",qty:6,price:45,cls:"OPEX"},{code:"",desc:"Extension cords 10 m",qty:4,price:60,cls:"OPEX"}]}],
+  {no:"MIDU-PO-260528",kind:"PO",date:"2026-11-13",pr:"PR-26-0001",cqs:"CQS-26-0001",sup:"Gulf Safety Supplies",cc:"ASP-CON",lines:[{code:"MIDU-HSE-HEL-001",desc:"Safety Helmet White",qty:30,price:24,cls:"OPEX"},{code:"MIDU-HSE-GLV-002",desc:"Cotton Gloves",qty:60,price:4,cls:"OPEX"}]},
+  {no:"MIDU-PO-260529",kind:"PO",date:"2026-11-17",pr:"PR-26-0002",cqs:"CQS-26-0002",sup:"Tech Zone Trading",cc:"HO-GEN",lines:[{code:"MIDU-ITN-LAP-001",desc:"Laptop Dell Latitude 5440",qty:3,price:4200,cls:"CAPEX"}]},
+  {no:"PC-26-0045",kind:"PC",date:"2026-11-15",pr:"",cqs:"",sup:"Local market",cc:"ASP-STL",fin:"Approved",lines:[{code:"",desc:"Padlocks for containers",qty:6,price:45,cls:"OPEX"},{code:"",desc:"Extension cords 10 m",qty:4,price:60,cls:"OPEX"}]}],
  invs:[{po:"MIDU-PO-260528",no:"GSS-INV-7781",date:"2026-11-18",amt:1104,paid:""},{po:"MIDU-PO-260529",no:"TZT-INV-0312",date:"2026-11-19",amt:14490,paid:""}],
- budget:{"ASP Steel":{CAPEX:150000,OPEX:60000},"ASP Concrete":{CAPEX:120000,OPEX:80000},"Madina Airport":{CAPEX:90000,OPEX:40000},"CEER Construction":{CAPEX:70000,OPEX:30000},"HQ / Admin":{CAPEX:50000,OPEX:25000}},
+ budget:{"ASP-STL":{CAPEX:150000,OPEX:60000},"ASP-CON":{CAPEX:120000,OPEX:80000},"MED-STL":{CAPEX:90000,OPEX:40000},"CEER-STL":{CAPEX:70000,OPEX:30000},"HO-GEN":{CAPEX:50000,OPEX:25000}},
  ut:[],
  dns:[{no:"ASP-MIDU-2026-0010",contractor:"Concrete Division",period:"2026-10",date:"2026-11-04",sub:837742.87,status:"Draft",paid:0,lines:[{type:"Utilities consumption (October 2026)",qty:1,unit:"lot",rate:837742.87}]},
       {no:"ASP-MIDU-2026-0011",contractor:"EMCO",period:"2026-10",date:"2026-11-04",sub:17793.92,status:"Draft",paid:0,lines:[{type:"Utilities consumption (October 2026)",qty:1,unit:"lot",rate:17793.92}]},
@@ -2491,9 +2492,9 @@ if(typeof LOCAL_COLLS!=="undefined"&&!LOCAL_COLLS.includes("pca"))LOCAL_COLLS.pu
 if(typeof XL_NAMES!=="undefined")XL_NAMES.pca="Petty cash custody";
 KEYS.pca=r=>r.no;D.pca=D.pca||[];
 const PCA_GIVERS=()=>[ES_BASEL,ES_NAJED,ES_OSAMA,WH_LM];
-const pcaSpent=a=>(a.exp||[]).reduce((t,e)=>t+(+e.amt||0),0);
+const pcaSpent=a=>(a.exp||[]).filter(e=>e.st!=="rej").reduce((t,e)=>t+(+e.amt||0),0);   /* rejected invoices do not count (Update 72) */
 const pcaBal=a=>Math.round(((+a.amount||0)-pcaSpent(a)-(+a.returned||0))*100)/100;
-const pcaStatus=a=>a.status==="Cleared"?"Cleared":esR(esK("pcc"),a)&&!esR(esK("pcc"),a).rej?"Submitted":"Open";
+const pcaStatus=a=>a.status==="Cleared"?"Cleared":(a.exp||[]).some(e=>!e.st&&a.rules2)?"Waiting check":esR(esK("pcc"),a)&&!esR(esK("pcc"),a).rej?"Submitted":"Open";
 const pcaPeople=()=>{const L=[PURCHASER,ES_BASEL,ES_NAJED,WH_LM];try{(LOCAL.users||[]).filter(u=>u.active!==false).forEach(u=>{if(!L.some(x=>whL(x)===whL(u.name)))L.push(u.name);});}catch(e){}return L;};
 ES_K.push({id:"pcc",coll:"pca",key:"es",scr:"pcash",area:"pr",label:"Petty cash clearance",title:o=>(o.holder||"")+" · "+money(+o.amount||0)+" SAR",issuerOf:o=>o.holder||"",
  applies:o=>!o.cancelled&&!!o.es,
@@ -2504,12 +2505,12 @@ function pcaDoc(a){const B="1px solid #000",E=a.exp||[],bal=pcaBal(a),th=t=>`<th
  const doc=`<div class="doc xl" style="font-family:Calibri,Arial,sans-serif;padding:8px 12px"><table style="width:100%;border-collapse:collapse"><tr><td style="background:#1F3864;color:#fff;font-weight:700;font-size:14pt;text-align:center;padding:6px">MIDU COMPANY LTD &nbsp;| &nbsp;<span dir="rtl">شركة مايدو المحدودة</span></td></tr>
  <tr><td style="text-align:center;font-weight:700;font-size:12pt;padding-top:4px">PETTY CASH CUSTODY – CLEARANCE STATEMENT &nbsp;|&nbsp; <span dir="rtl">تصفية العهدة النقدية</span></td></tr></table>
  <table style="width:100%;border-collapse:collapse;margin-top:10px">${[["Custody No.",`<b>${esc(a.no)}</b>`,"Date given",ppD(a.date)],["Custody holder",esc(a.holder),"Given by",esc(a.givenBy||"")],["Cost center",esc(a.cc||""),"Purpose",esc(a.purpose||"")]].map(r=>`<tr>${td("<b>"+r[0]+"</b>","width:16%;background:#F2F2F2")}${td(r[1],"width:34%")}${td("<b>"+r[2]+"</b>","width:16%;background:#F2F2F2")}${td(r[3])}</tr>`).join("")}</table>
- <table style="width:100%;border-collapse:collapse;margin-top:10px"><tr>${["#","Date","Shop / supplier","Invoice No.","Description","Class","Amount incl. VAT (SAR)"].map(th).join("")}</tr>
- ${E.map((e,i)=>`<tr>${td(i+1,"text-align:center")}${td(ppD(e.date))}${td(esc(e.shop||""))}${td(esc(e.inv||""))}${td(esc(e.desc||""))}${td(esc(e.cls||""))}${td(ppM(+e.amt||0),"text-align:right")}</tr>`).join("")||`<tr>${td("No invoices yet",'text-align:center;color:#888" colspan="7')}</tr>`}
- <tr>${td("<b>Cash given</b>",'text-align:right" colspan="6')}${td("<b>"+ppM(+a.amount||0)+"</b>","text-align:right")}</tr>
- <tr>${td("Total invoices",'text-align:right" colspan="6')}${td(ppM(pcaSpent(a)),"text-align:right")}</tr>
- <tr>${td("Cash returned",'text-align:right" colspan="6')}${td(ppM(+a.returned||0),"text-align:right")}</tr>
- <tr>${td("<b>"+(bal>0?"Balance still with the holder":bal<0?"To be reimbursed to the holder":"Balance")+"</b>",'text-align:right" colspan="6')}${td("<b>"+ppM(Math.abs(bal))+"</b>","text-align:right;"+(bal===0?"background:#E2F0D9":"background:#FCE4D6"))}</tr></table>
+ <table style="width:100%;border-collapse:collapse;margin-top:10px"><tr>${["#","Date","Shop / supplier","Invoice No.","Description","Class","Amount incl. VAT (SAR)","Check"].map(th).join("")}</tr>
+ ${E.map((e,i)=>`<tr>${td(i+1,"text-align:center")}${td(ppD(e.date))}${td(esc(e.shop||""))}${td(esc(e.inv||""))}${td(esc(e.desc||""))}${td(esc(e.cls||""))}${td(e.st==="rej"?"<s>"+ppM(+e.amt||0)+"</s>":ppM(+e.amt||0),"text-align:right")}${td(e.st==="ok"?"Accepted":e.st==="rej"?"Rejected – "+esc(e.rejWhy||""):a.rules2?"Waiting":"",e.st==="rej"?"color:#C00000":"")}</tr>`).join("")||`<tr>${td("No invoices yet",'text-align:center;color:#888" colspan="8')}</tr>`}
+ <tr>${td("<b>Cash given</b>",'text-align:right" colspan="7')}${td("<b>"+ppM(+a.amount||0)+"</b>","text-align:right")}</tr>
+ <tr>${td(a.rules2?"Invoices (rejected ones not counted)":"Total invoices",'text-align:right" colspan="7')}${td(ppM(pcaSpent(a)),"text-align:right")}</tr>
+ <tr>${td(a.rules2?"Cash returned to "+esc(a.givenBy||"the giver"):"Cash returned",'text-align:right" colspan="7')}${td(ppM(+a.returned||0),"text-align:right")}</tr>
+ <tr>${td("<b>"+(bal>0?"Balance still with the holder":bal<0?"To be reimbursed to the holder":"Balance")+"</b>",'text-align:right" colspan="7')}${td("<b>"+ppM(Math.abs(bal))+"</b>","text-align:right;"+(bal===0?"background:#E2F0D9":"background:#FCE4D6"))}</tr></table>
  <p style="font-size:8.5pt;margin:6px 0 0">Status: <b>${esc(pcaStatus(a))}</b>${a.clearedOn?" – cleared "+ppD(a.clearedOn)+" by "+esc(a.clearedBy||""):""}</p></div>`;
  return esInject(doc,esK("pcc"),a);}
 VIEWS.pcash=()=>{const L=(D.pca||[]).filter(a=>!a.cancelled),open=L.filter(a=>a.status!=="Cleared"),sel=$("#pcaSel")?.value;
@@ -2523,7 +2524,7 @@ VIEWS.pcash=()=>{const L=(D.pca||[]).filter(a=>!a.cancelled),open=L.filter(a=>a.
  <div class="f"><label>${tr("Given by","سلّمها")} *</label><select id="pcaG">${PCA_GIVERS().map(n=>`<option>${esc(n)}</option>`).join("")}</select></div>
  <div class="f"><label>${tr("Date","التاريخ")} *</label><input type="date" id="pcaD" value="${today()}"></div>
  <div class="f"><label>${tr("Amount (SAR)","المبلغ (ريال)")} *</label><input class="en" type="number" min="1" id="pcaA"></div>
- <div class="f"><label>${tr("Cost center","مركز التكلفة")}</label><select id="pcaC">${CC.map(c=>`<option>${esc(c)}</option>`).join("")}</select></div>
+ <div class="f"><label>${tr("Cost center","مركز التكلفة")}</label><select id="pcaC">${CC.map(c=>`<option value="${esc(c)}">${esc(ccLabel(c))}</option>`).join("")}</select></div>
  <div class="f w2"><label>${tr("Purpose","الغرض")} *</label><input id="pcaP" data-ar="1"></div></div>
  <div class="btns"><span style="flex:1"></span><button class="b a" id="pcaNew">💵 ${tr("Save – cash given","حفظ – تم تسليم النقد")}</button></div></div>
  <div class="card" id="pcaBox" style="display:none"></div>
@@ -2612,7 +2613,7 @@ VIEWS.costs=()=>{const R=costRows().filter(r=>r.month.startsWith(COST_Y)),REC=re
  <div class="f"><label>${tr("Type","النوع")} *</label><select id="ivT">${INV_TYPES.map(t=>`<option>${t}</option>`).join("")}</select></div>
  <div class="f"><label>${tr("PO (if any)","أمر الشراء (إن وجد)")}</label><select id="ivPo"><option value="">${tr("— no PO —","— بدون أمر شراء —")}</option>${pos.map(p=>`<option value="${esc(p.no)}">${esc(p.no)} — ${esc(p.sup)}</option>`).join("")}</select></div>
  <div class="f"><label>${tr("From (supplier / company)","من (المورد / الشركة)")} *</label><input class="en" id="ivS" list="ivSL"><datalist id="ivSL">${[...new Set(["MBL",...SUPS,...D.pos.map(p=>p.sup),...(D.cost||[]).map(c=>c.sup)].filter(Boolean))].map(n=>`<option>${esc(n)}</option>`).join("")}</datalist></div>
- <div class="f"><label>${tr("Cost center","مركز التكلفة")} *</label><select id="ivC">${CC.map(c=>`<option>${esc(c)}</option>`).join("")}</select></div>
+ <div class="f"><label>${tr("Cost center","مركز التكلفة")} *</label><select id="ivC">${CC.map(c=>`<option value="${esc(c)}">${esc(ccLabel(c))}</option>`).join("")}</select></div>
  <div class="f"><label>${tr("Month of the cost","شهر التكلفة")} *</label><input type="month" id="ivM" value="${month()}"></div>
  <div class="f"><label>${tr("Invoice No.","رقم الفاتورة")} *</label><input class="en" id="ivN"></div>
  <div class="f"><label>${tr("Invoice date","تاريخ الفاتورة")}</label><input type="date" id="ivD" value="${today()}"></div>
@@ -3466,6 +3467,62 @@ BIND.guide=()=>{document.querySelectorAll("[data-gd]").forEach(c=>c.onclick=asyn
    doc.save(`MIDU-Team Hub - ${GD.cat} guide (${lg.toUpperCase()}).pdf`);}catch(e){toast("✖ "+e.message);}};};
 {const N8=NAV;NAV=()=>{const n=N8();if(!n.some(x=>x[1]==="guide")){const i=n.findIndex(x=>x[1]==="forms");const it=[1,"guide","📘","#0E7490",tr("User guides","أدلة الاستخدام")];if(i>-1)n.splice(i+1,0,it);else n.push(it);}return n;};}
 {const C8=M365.can;M365.can=v=>v==="guide"?true:C8(v);}
+
+/* ===================== Update 72: petty cash custody rules (Azzam, 27 Nov 2026) =====================
+   Only the person who GAVE the cash (e.g. Basel Shamma) checks the invoices and closes the custody.
+   The holder adds each invoice with its PDF / photo. The giver checks them one by one: Accept, or Reject with a reason
+   (company rules). A rejected invoice does not count: its amount stays in the holder's balance, to be covered by another
+   invoice or paid back in cash – the cash given back is recorded by the giver himself. The giver closes the custody with
+   his PIN when nothing is waiting and the balance is zero. New custodies follow these rules (a.rules2). */
+const pcaMe=()=>whL(apMe());
+const pcaIsGiver=a=>!!a&&pcaMe()&&pcaMe()===whL(a.givenBy);
+const pcaIsHolder=a=>!!a&&pcaMe()&&pcaMe()===whL(a.holder);
+const pcaPend=a=>(a.exp||[]).filter(e=>!e.st);
+const pcaSum=(L)=>L.reduce((t,e)=>t+(+e.amt||0),0);
+const pcaWaitingForMe=()=>(D.pca||[]).filter(a=>!a.cancelled&&a.rules2&&a.status!=="Cleared"&&pcaIsGiver(a)&&pcaPend(a).length);
+{const B0=BIND.pcash;BIND.pcash=()=>{B0&&B0();const nb=$("#pcaNew");if(nb&&!nb._r2){const o=nb.onclick;nb._r2=1;nb.onclick=function(ev){const n0=(D.pca||[]).length;o&&o.call(this,ev);if((D.pca||[]).length>n0){const a=D.pca[D.pca.length-1];a.rules2=true;persist();}};}};}
+{const V0=VIEWS.pcash;VIEWS.pcash=()=>{let h=V0();const W=pcaWaitingForMe();
+ const ban=W.length?`<div class="banner" style="background:#FFF7ED;border-color:#F59E0B;color:#7C2D12">🧾 <b>${pcaSum(W.flatMap(pcaPend)).toFixed(2)} SAR</b> ${tr("in invoices waiting for your check:","فواتير بانتظار مراجعتك:")} ${W.map(a=>`<a href="#" data-pcaw="${esc(a.no)}" class="en"><b>${esc(a.no)}</b> (${esc(a.holder)}, ${pcaPend(a).length})</a>`).join(" · ")}</div>`:"";
+ const rules=`<div class="banner" style="background:#EEF6FF;border-color:#93C5FD;color:#1E3A5F"><span>ℹ ${tr("Rules: the holder adds every invoice with its PDF. <b>Only the person who gave the cash</b> checks each invoice (accept or reject with a reason), records any cash given back to him, and closes the custody. Rejected invoices do not count – the amount stays with the holder until covered by another invoice or paid back.","القواعد: المستلم يضيف كل فاتورة مع ملفها. <b>فقط من سلّم النقد</b> يراجع كل فاتورة (قبول أو رفض مع السبب)، ويسجّل النقد المُعاد إليه، ويغلق العهدة. الفواتير المرفوضة لا تُحتسب – يبقى مبلغها على المستلم حتى يغطيه بفاتورة أخرى أو يعيده نقداً.")}</span></div>`;
+ h=h.replace(esc?"he submits it for clearance: the person who gave the cash checks it and Finance clears it.":"","the person who gave the cash checks every invoice and closes the custody.").replace("وعندما تساوي الفواتير المبلغ يقدّمها للتصفية.","ومن سلّم النقد يراجع كل فاتورة ويغلق العهدة.");
+ const i=h.indexOf('<div class="card"><h2>');return i>-1?h.slice(0,i)+ban+rules+h.slice(i):h+ban;};}
+{const B0=BIND.pcash;BIND.pcash=()=>{B0&&B0();document.querySelectorAll("[data-pcaw]").forEach(x=>x.onclick=e=>{e.preventDefault();const a=D.pca.find(y=>y.no===x.dataset.pcaw);if(a)pcaOpen(a);});};}
+{const P0=pcaOpen;pcaOpen=function(a){if(!a.rules2)return P0(a);const box=$("#pcaBox");if(!box)return;box.style.display="block";
+ const cleared=a.status==="Cleared",G=pcaIsGiver(a),H=pcaIsHolder(a)||(whIsAdmin()&&!G),E=a.exp||[],ok=pcaSum(E.filter(e=>e.st==="ok")),pend=pcaSum(pcaPend(a)),rej=pcaSum(E.filter(e=>e.st==="rej")),ret=+a.returned||0,bal=Math.round(((+a.amount||0)-ok-pend-ret)*100)/100,canAdd=!cleared&&H;
+ const st=e=>e.st==="ok"?tag("✔ "+tr("Accepted","مقبولة"),"g")+`<div class="hint">${esc(e.chkBy||"")} · ${esc(String(e.chkAt||"").slice(0,10))}</div>`:e.st==="rej"?tag("✕ "+tr("Rejected","مرفوضة"),"r")+`<div class="hint" style="color:#B42318">${esc(e.rejWhy||"")}</div><div class="hint">${esc(e.chkBy||"")} · ${esc(String(e.chkAt||"").slice(0,10))}</div>`:tag(tr("Waiting check","بانتظار المراجعة"),"a");
+ box.innerHTML=`<h2>${esc(a.no)} · ${esc(a.holder)} · ${money(+a.amount||0)} SAR ${tag(tr(pcaStatus(a),pcaStatus(a)==="Cleared"?"مصفّاة":pcaStatus(a)==="Waiting check"?"بانتظار المراجعة":"مفتوحة"),cleared?"g":"a")}</h2>
+ <p class="hint">${tr("Given by","سلّمها")} <b>${esc(a.givenBy||"")}</b> · ${esc(a.date)} · ${esc(a.purpose||"")}${a.cc?" · "+esc(a.cc):""} — ${G?tr("You gave this cash: you check the invoices and close the custody.","أنت سلّمت هذا النقد: تراجع الفواتير وتغلق العهدة."):tr("Only","فقط")+" <b>"+esc(a.givenBy||"")+"</b> "+tr("checks the invoices and closes this custody.","يراجع الفواتير ويغلق هذه العهدة.")}</p>
+ <table class="t"><tr><th>#</th><th>${tr("Date","التاريخ")}</th><th>${tr("Shop / supplier","المحل")}</th><th>${tr("Invoice No.","رقم الفاتورة")}</th><th>${tr("Description","الوصف")}</th><th>CAPEX/OPEX</th><th class="num">${tr("Amount incl. VAT","المبلغ مع الضريبة")}</th><th>${tr("Invoice","الفاتورة")}</th><th>${tr("Check","المراجعة")}</th><th></th></tr>
+ ${E.map((e,i)=>`<tr${e.st==="rej"?' style="background:#FEF2F2"':""}><td>${i+1}</td><td>${esc(e.date)}</td><td class="en">${esc(e.shop)}</td><td class="en">${esc(e.inv||"")}</td><td>${esc(e.desc||"")}</td><td>${esc(e.cls)}</td><td class="num">${e.st==="rej"?"<s>"+money(+e.amt||0)+"</s>":money(+e.amt||0)}</td><td>${e.att?`<a href="#" data-pcaf="${i}">📎 ${tr("open","فتح")}</a>`:"—"}</td><td>${st(e)}</td>
+  <td style="white-space:nowrap">${!cleared&&G&&!e.st?`<button class="b g sm" data-pok="${i}">✔ ${tr("Accept","قبول")}</button> <button class="b r sm" data-prej="${i}">✕ ${tr("Reject","رفض")}</button>`:""}${!cleared&&H&&!e.st?`<button class="b r sm" data-pcax="${i}">✕</button>`:""}</td></tr>`).join("")}
+ ${canAdd?`<tr><td>+</td><td><input type="date" id="peD" value="${today()}"></td><td><input class="en" id="peS"></td><td><input class="en" id="peI" style="width:90px"></td><td><input id="peX" data-ar="1"></td><td><select id="peC"><option>OPEX</option><option>CAPEX</option></select></td><td><input class="en" type="number" id="peA" style="width:110px"></td><td colspan="2"><input type="file" id="peF" accept=".pdf,image/*" style="max-width:190px"></td><td><button class="b g sm" id="peAdd">${tr("Add","إضافة")}</button></td></tr>`:""}</table>
+ <table class="t" style="width:auto;margin-top:10px">
+ <tr><td>${tr("Cash given","المبلغ المسلّم")}</td><td class="num"><b>${money(+a.amount||0)}</b></td></tr>
+ <tr><td>${tr("Accepted invoices","فواتير مقبولة")}</td><td class="num">${money(ok)}</td></tr>
+ <tr><td>${tr("Waiting check","بانتظار المراجعة")}</td><td class="num">${money(pend)}</td></tr>
+ <tr><td style="color:#B42318">${tr("Rejected (not counted)","مرفوضة (لا تُحتسب)")}</td><td class="num" style="color:#B42318">${money(rej)}</td></tr>
+ <tr><td>${tr("Cash given back to","نقد أُعيد إلى")} ${esc(a.givenBy||"")}</td><td class="num">${money(ret)}</td></tr>
+ <tr><td><b>${bal>0?tr("Still with the holder – to cover or pay back","ما زال مع المستلم – يُغطّى أو يُعاد"):bal<0?tr("To reimburse the holder","يُعاد للمستلم"):tr("Balance","الرصيد")}</b></td><td class="num"><b style="color:${bal===0?"#15803D":"#B45309"}">${money(Math.abs(bal))}</b></td></tr></table>
+ ${(a.returns||[]).length?`<p class="hint">${(a.returns||[]).map(r=>`💵 ${money(r.amt)} SAR ${tr("received back by","استلمها")} ${esc(r.by)} · ${esc(String(r.at).slice(0,10))}`).join("<br>")}</p>`:""}
+ ${cleared?`<p class="hint">✔ ${tr("Closed by","أغلقها")} <b>${esc(a.clearedBy||"")}</b> · ${esc(a.clearedOn||"")}</p>`:""}
+ <div class="btns"><span style="flex:1"></span>${!cleared&&G?`<button class="b a" id="pcaRet">💵 ${tr("Record cash given back to me","تسجيل نقد أُعيد إليّ")}</button> <button class="b g" id="pcaCl" ${pend||bal>0?"disabled":""} title="${esc(pend?tr("Check every invoice first","راجع كل الفواتير أولاً"):bal>0?tr("The balance must be covered or paid back first","يجب تغطية الرصيد أو إعادته أولاً"):"")}">🔒 ${tr("Close custody","إغلاق العهدة")}</button>`:""} <button class="b l" id="pcaClose">${tr("Close","إغلاق")}</button></div>`;
+ const re=()=>{persist();render();setTimeout(()=>pcaOpen(D.pca.find(x=>x.no===a.no)||a),50);};
+ box.querySelectorAll("[data-pcaf]").forEach(x=>x.onclick=ev=>{ev.preventDefault();openAtt(a.exp[+x.dataset.pcaf].att);});
+ box.querySelectorAll("[data-pcax]").forEach(x=>x.onclick=()=>{const e=a.exp[+x.dataset.pcax];if(!e||e.st)return;a.exp.splice(+x.dataset.pcax,1);re();});
+ box.querySelectorAll("[data-pok]").forEach(x=>x.onclick=()=>{if(!pcaIsGiver(a))return;const e=a.exp[+x.dataset.pok];Object.assign(e,{st:"ok",chkBy:apMe(),chkAt:new Date().toISOString()});delete e.rejWhy;re();});
+ box.querySelectorAll("[data-prej]").forEach(x=>x.onclick=()=>{if(!pcaIsGiver(a))return;const e=a.exp[+x.dataset.prej];const why=prompt(tr("Reject this invoice – reason (company rules):","رفض هذه الفاتورة – السبب (حسب أنظمة الشركة):"));if(!why||!why.trim())return;Object.assign(e,{st:"rej",rejWhy:why.trim(),chkBy:apMe(),chkAt:new Date().toISOString()});re();});
+ $("#pcaClose").onclick=()=>{box.style.display="none";};
+ const ad=$("#peAdd");if(ad)ad.onclick=async()=>{const amt=+$("#peA").value,shop=$("#peS").value.trim(),fl=$("#peF").files[0];
+  if(!shop||!(amt>0))return msg("err",tr("Enter the shop and the amount.","أدخل المحل والمبلغ."));if(!fl)return msg("err",tr("Attach the invoice (PDF or photo).","أرفق الفاتورة (PDF أو صورة)."));
+  ad.disabled=true;let att;try{att=await saveAtt(fl,"03 Procurement/05 Petty cash/"+a.no,a.no,"Invoice "+(E.length+1)+" - "+qtSafe(shop));}catch(e){ad.disabled=false;return msg("err",esc(e.message));}
+  a.exp=[...E,{date:$("#peD").value,shop,inv:$("#peI").value.trim(),desc:$("#peX").value.trim(),cls:$("#peC").value,amt,att,by:apMe()}];re();toast("✔ "+tr("Invoice added – waiting for","أضيفت الفاتورة – بانتظار")+" "+(a.givenBy||""));};
+ const rb=$("#pcaRet");if(rb)rb.onclick=()=>{const v=+prompt(tr("Cash given back to you by ","النقد الذي أعاده لك ")+a.holder+" (SAR):",bal>0?bal.toFixed(2):"");if(!(v>0))return;if(v>bal+0.001&&!confirm(tr("This is more than the balance. Record anyway?","هذا أكثر من الرصيد. التسجيل على أي حال؟")))return;
+  a.returns=[...(a.returns||[]),{amt:Math.round(v*100)/100,by:apMe(),at:new Date().toISOString()}];a.returned=Math.round(((+a.returned||0)+v)*100)/100;re();};
+ const cb=$("#pcaCl");if(cb)cb.onclick=()=>{if(pcaPend(a).length||bal>0)return;
+  apPinDlg(tr("Close custody","إغلاق العهدة")+" – "+a.no,`<p style="margin:0">${esc(a.holder)} · ${tr("cash given","المبلغ")} ${money(+a.amount||0)} · ${tr("accepted invoices","فواتير مقبولة")} ${money(ok)} · ${tr("cash given back","نقد مُعاد")} ${money(ret)}${bal<0?` · <b>${tr("to reimburse the holder","يُعاد للمستلم")} ${money(-bal)} SAR</b>`:""}</p>`,false,sig=>{
+   Object.assign(a,{status:"Cleared",clearedBy:sig.by,clearedOn:today(),closeSig:sig});persist();render();toast("✔ "+a.no+" "+tr("closed","أُغلقت"));});};};}
+/* menu badge for the giver */
+{const N9=NAV;NAV=()=>{const n=N9();const w=(()=>{try{return pcaWaitingForMe().reduce((t,a)=>t+pcaPend(a).length,0);}catch(e){return 0;}})();if(w){const it=n.find(x=>x[1]==="pcash");if(it&&!/<b /.test(it[4]))it[4]=it[4]+` <b style="background:#D2463C;color:#fff;border-radius:9px;padding:0 6px;font-size:11px">${w}</b>`;}return n;};}
 </script>
 </body>
 </html>
