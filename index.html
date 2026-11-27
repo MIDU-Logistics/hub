@@ -156,8 +156,8 @@ const tr=(en,ar)=>L==="ar"?ar:en;
 const WH={MAIN:{name:"Main Warehouse",locs:["Laydown Yard","Container No-7","Porta Cabin Store"]},ASP:{name:"ASP Site Store",locs:["Container No-4","Container No-2","Batching Plant Store"]}};
 function YY(){return today().slice(2,4);}
 function poNextNo(){const pre="MIDU-PO-"+YY(),n=D.pos.filter(p=>p.kind==="PO"&&String(p.no).startsWith(pre)).map(p=>+String(p.no).slice(pre.length)).filter(x=>!isNaN(x)).reduce((m,x)=>Math.max(m,x),0)+1;return pre+String(n).padStart(4,"0");}
-const CC=["ASP-STL","ASP-CON","ASP-CONST","MED-STL","MED-CON","CEER-STL","CEER-CON","HO-GEN"];   /* same codes as the Asset Register / PR CostCenter choice (Update 72) */
-function ccLabel(c){const n={"ASP-STL":"MIDU Steel","ASP-CON":"Concrete Division","ASP-CONST":"MIDU (ASP construction)"}[c];return n?c+" – "+n:c;}
+const CC=["ASP-STL","ASP-CON","ASP-CONST","MED-STL","MED-CON","CEER-STL","CEER-CON","RUH-GEN","HO-GEN"];   /* RUH-GEN added 27 Nov 2026 (Riyadh Store), to be confirmed with Finance */   /* same codes as the Asset Register / PR CostCenter choice (Update 72) */
+function ccLabel(c){const n={"ASP-STL":"MIDU Steel","ASP-CON":"Concrete Division","ASP-CONST":"MIDU (ASP construction)","RUH-GEN":"Riyadh Store"}[c];return n?c+" – "+n:c;}
 const SUPS=["Al Imdad Est.","Systems Co.","Gulf Safety Supplies","Al Rajhi Building Materials","Tech Zone Trading","Jeddah Tools Center"];
 const CONTR=["Concrete Division","EMCO","MCC"];
 const UT0=M365_DEFAULT_RATES.map(u=>({...u}));
@@ -2603,7 +2603,7 @@ function costRows(){const out=[],po=no=>D.pos.find(p=>p.no===no)||{};
 const recRows=()=>(D.dns||[]).filter(d=>!d.cancelled).map(d=>({month:String(d.period||d.date||"").slice(0,7),proj:projOf(d.cc||"ASP"),excl:+d.sub||0,no:d.no,from:d.contractor}));
 let COST_Y=today().slice(0,4),COST_SEL=null;
 VIEWS.costs=()=>{const R=costRows().filter(r=>r.month.startsWith(COST_Y)),REC=recRows().filter(r=>r.month.startsWith(COST_Y));
- const projs=[...new Set(["ASP","MED","CEER","HO",...R.map(r=>r.proj)])];const mi=r=>+r.month.slice(5,7)-1;
+ const projs=[...new Set(["ASP","MED","CEER","RUH","HO",...R.map(r=>r.proj)])];const mi=r=>+r.month.slice(5,7)-1;
  const sum=(L,p,m)=>L.filter(r=>r.proj===p&&(m===null||mi(r)===m)).reduce((a,r)=>a+r.excl,0);
  const cell=(p,m)=>{const v=sum(R,p,m);return v?`<a href="#" data-cs="${p}|${m}">${money(v)}</a>`:`<span class="hint">–</span>`;};
  const years=[...new Set([COST_Y,...costRows().map(r=>r.month.slice(0,4)).filter(Boolean)])].sort();
@@ -3737,7 +3737,7 @@ if(typeof M365_ROLES!=="undefined"){const add=(r,v)=>{const x=M365_ROLES[r];if(A
  ["storekeeper","logistics","assets","finance"].forEach(r=>add(r,"rts"));["finance","logistics","assets","procurement"].forEach(r=>add(r,"rent"));}
 {const N0=NAV;NAV=()=>{const n=N0();let i=n.findIndex(x=>x[1]==="mrs");if(i>-1)n.splice(i+1,0,[1,"rts","↩","#B45309",tr("Return to supplier","إرجاع للمورد")]);
  i=n.findIndex(x=>x[1]==="capex");if(i>-1)n.splice(i+1,0,[1,"rent","🚗","#B45309",tr("Vehicles, equipment & property","المركبات والمعدات والعقارات")]);return n;};}
-const WH_PROJ={MAIN:"ASP",ASP:"ASP",MAD:"MED"};   /* Riyadh Store is its own store: no project suggested, the user picks the cost center */
+const WH_PROJ={MAIN:"ASP",ASP:"ASP",MAD:"MED",RUH:"RUH"};   /* Riyadh Store has its own cost center RUH-GEN (to be confirmed with Finance) */
 const ccOpts=v=>`<option value="">—</option>`+CC.map(c=>`<option value="${c}" ${c===v?"selected":""}>${esc(ccLabel(c))}</option>`).join("");
 const ccInProj=(proj,like)=>{const suf=String(like||"").split("-").slice(1).join("-");return CC.find(c=>c===proj+"-"+suf)||CC.find(c=>projOf(c)===proj)||"";};
 const r2x=v=>Math.round((+v||0)*100)/100;
@@ -3894,7 +3894,7 @@ function rentImport(rows){const pick=(o,res)=>{for(const re of res){const k=Obje
   const t=(desc+" "+pick(o,[/type|category|kind/])).toLowerCase(),kind=/prop|villa|flat|apart|accom|house|office|land|camp|room|building|warehouse/.test(t)?"Property":/equip|crane|forklift|generator|loader|excavat|roller|tower|light|manlift|boom|compressor|bobcat/.test(t)?"Equipment":"Vehicle";
   const ownTxt=String(pick(o,[/own/,/rent(ed)?\s*\//,/status/])).toLowerCase(),rent=num(pick(o,[/monthly/,/rent/,/rate/,/amount|price/])),value=num(pick(o,[/purchase|value|cost/]));
   const own=/own/.test(ownTxt)&&!/rent|hire|lease/.test(ownTxt)?"Owned":(!rent&&value?"Owned":"Rented");
-  const ccT=String(pick(o,[/cost ?cent/,/project/,/site|location/,/division|department/])).trim().toUpperCase();let cc=CC.find(c=>c===ccT)||"";if(!cc){const p=["ASP","MED","CEER","HO"].find(p=>ccT.includes(p)||(p==="MED"&&/MADIN/.test(ccT))||(p==="CEER"&&/RIYADH/.test(ccT)&&false));if(p){const PC=CC.filter(c=>projOf(c)===p),suf=/CONCRETE|-CON\b/.test(ccT)?"CON":/STEEL|STL/.test(ccT)?"STL":/CONST/.test(ccT)?"CONST":"";cc=PC.length===1?PC[0]:suf?(PC.find(c=>c===p+"-"+suf)||""):"";}}
+  const ccT=String(pick(o,[/cost ?cent/,/project/,/site|location/,/division|department/])).trim().toUpperCase();let cc=CC.find(c=>c===ccT)||"";if(!cc){const p=["ASP","MED","CEER","RUH","HO"].find(p=>ccT.includes(p)||(p==="MED"&&/MADIN/.test(ccT))||(p==="RUH"&&/RIYADH/.test(ccT))||(p==="CEER"&&/RIYADH/.test(ccT)&&false));if(p){const PC=CC.filter(c=>projOf(c)===p),suf=/CONCRETE|-CON\b/.test(ccT)?"CON":/STEEL|STL/.test(ccT)?"STL":/CONST/.test(ccT)?"CONST":"";cc=PC.length===1?PC[0]:suf?(PC.find(c=>c===p+"-"+suf)||""):"";}}
   const start=dt(pick(o,[/start/,/from/,/on.?hire/,/hire date|issue/,/date/]))||today(),end=dt(pick(o,[/end/,/^to\b|until/,/off.?hire/,/expir/]));
   const rec={kind,own,desc,ref,vendor:String(pick(o,[/vendor|supplier|lessor|company|owner/])).trim(),contract:String(pick(o,[/contract|agreement/])).trim(),start,end,rent:own==="Rented"?rent:0,value:own==="Owned"?value:0,cls:"OPEX",notes:"Imported "+today()};
   const ex=(D.rent||[]).find(r=>!r.cancelled&&(ref?String(r.ref||"").toUpperCase()===ref:(r.desc===desc&&r.vendor===rec.vendor)));

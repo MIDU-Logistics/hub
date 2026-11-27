@@ -11,7 +11,7 @@ Read this before starting a new category. Items are removed once they are built 
 ## Project cost – follow-up
 - Return to supplier, asset cost moves and the vehicles/equipment/property register are built (Update 78).
 - Owner to import the Power Apps rental lists (Excel) when they are activated, then check every item has a cost center.
-- Confirm the store → project mapping used to suggest the receiving project for asset transfers: ASP Store → ASP, Madina Store → MED (`WH_PROJ`). Riyadh Store is a separate store with no project: the user picks the cost center; ask the owner if Riyadh needs its own cost center.
+- Confirm the store → project mapping used to suggest the receiving project for asset transfers: ASP Store → ASP, Madina Store → MED (`WH_PROJ`). Riyadh Store → RUH-GEN (added 27 Nov 2026, temporary). Owner will confirm all cost centers with Finance – then update `CC` in index.html.
 
 ## Procurement – offered, not confirmed
 - Procurement user guide (EN/AR) in User guides.
