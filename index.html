@@ -309,7 +309,7 @@ function holdings(iqama){const h={};
  D.docs.filter(d=>!d.cancelled&&(d.type==="MDS"&&d.dtype!=="Transfer"||d.type==="MRS")&&d.iqama===iqama).forEach(d=>d.lines.forEach(l=>{const k=l.asset||l.code;h[k]=h[k]||{code:l.code,asset:l.asset||"",qty:0,doc:d.no,loan:""};h[k].qty+=d.type==="MDS"?l.qty:-l.qty;if(d.type==="MDS"){h[k].doc=d.no;h[k].loan=d.dtype==="Temporary loan"?d.returnBy:"";}}));
  return Object.values(h).filter(x=>x.qty>0);}
 const poTotal=p=>p.lines.reduce((a,l)=>a+l.qty*l.price,0);
-const poRecv=(p,l)=>{const i=p.lines.indexOf(l);const g=D.docs.filter(d=>d.type==="GRN"&&!d.cancelled&&d.po===p.no).reduce((a,d)=>a+d.lines.filter(x=>x.poLine!=null?x.poLine===i:(!!l.code&&x.code===l.code)).reduce((s,x)=>s+(+x.qty||0),0),0);return g+(l.rcv||[]).reduce((a,x)=>a+(+x.qty||0),0);};
+const poRecv=(p,l)=>{const i=p.lines.indexOf(l);const g=D.docs.filter(d=>d.type==="GRN"&&!d.cancelled&&d.po===p.no).reduce((a,d)=>a+d.lines.filter(x=>x.poLine!=null?x.poLine===i:(!!l.code&&x.code===l.code)).reduce((s,x)=>s+(+x.qty||0),0),0);return g+(l.rcv||[]).reduce((a,x)=>a+(+x.qty||0),0)-(typeof rtsQty==="function"?rtsQty(p,i,l):0);};
 const poLineDone=(p,l)=>!!l.closed||poRecv(p,l)>=l.qty;
 const poFull=p=>!!p&&(p.kind==="PC"||p.lines.every(l=>poLineDone(p,l)));
 const poPayable=p=>p.lines.reduce((a,l)=>a+(l.closed?Math.min(poRecv(p,l),l.qty):l.qty)*l.price,0)*1.15;
@@ -2641,7 +2641,7 @@ BIND.costs=()=>{const tot=()=>{const x=+$("#ivX").value||0,v=$("#ivV").value==="
   const vat=$("#ivV").value===""?Math.round(x*15)/100:+$("#ivV").value,po=$("#ivPo").value;
   if(po?(D.invs||[]).some(v=>v.po===po&&v.no===no):(D.cost||[]).some(v=>!v.cancelled&&whL(v.sup)===whL(sup)&&v.no===no))return msg("err",tr("This invoice number is already registered for this supplier.","رقم الفاتورة مسجل مسبقاً لهذا المورد."));
   const b=$("#ivSave");b.disabled=true;let att;try{att=await saveAtt(f,"03 Procurement/04 Invoices/"+m,qtSafe(sup)+" "+qtSafe(no),"invoice");}catch(e){b.disabled=false;return msg("err",esc(e.message));}
-  const base={no,date:$("#ivD").value,month:m,cc:$("#ivC").value,type:$("#ivT").value,sup,excl:x,vat,desc:$("#ivDs").value.trim(),rebill:$("#ivRb").value,att,by:apMe(),paid:"",cls:($("#ivCls")||{}).value||"OPEX"};
+  const base={no,date:$("#ivD").value,month:m,cc:$("#ivC").value,type:$("#ivT").value,sup,excl:x,vat,desc:$("#ivDs").value.trim(),rebill:$("#ivRb").value,att,by:apMe(),paid:"",cls:($("#ivCls")||{}).value||"OPEX",rent:($("#ivRent")||{}).value||""};
   if(po){D.invs.push(Object.assign({po,amt:Math.round((x+vat)*100)/100},base));}else{D.cost=[...(D.cost||[]),Object.assign({key:sup+"|"+no,total:Math.round((x+vat)*100)/100},base)];}
   persist();COST_Y=m.slice(0,4);COST_SEL=[projOf(base.cc),+m.slice(5,7)-1];render();toast("✔ "+tr("Invoice saved","حُفظت الفاتورة")+" – "+sup+" "+no);};
  $("#cyY").onchange=e=>{COST_Y=e.target.value;COST_SEL=null;render();};
@@ -3726,6 +3726,200 @@ document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.clos
 document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.closest("#oSave");if(!b)return;const d=($("#oPrev")||{})._d,dd=($("#oDd")||{}).value;if(!d||!d.p||!dd||!d.p.need||dd<=d.p.need)return;
  if(!confirm(tr(`The supplier's delivery date (${dd}) is after the date required on site in the PR (${d.p.need}). Issue the PO anyway?`,`تاريخ توريد المورد (${dd}) بعد التاريخ المطلوب في الموقع حسب الطلب (${d.p.need}). إصدار أمر الشراء على أي حال؟`))){ev.stopImmediatePropagation();ev.preventDefault();}},true);
 {const B=BIND.po;BIND.po=()=>{B&&B();const s=$("#oSave"),pr=$("#oPr");if(!s)return;const lab=()=>{const d=($("#oPrev")||{})._d;const big=d&&d.q&&+d.q.price>CEO_LIMIT;s.textContent=big?tr("Issue PO & send for approval (FM → PD → CEO)","إصدار وإرسال للاعتماد (المالية ← مدير المشروع ← الرئيس التنفيذي)"):tr("Issue PO & send for approval (FM → PD)","إصدار وإرسال للاعتماد (المالية ← مدير المشروع)");};if(pr)pr.addEventListener("change",()=>setTimeout(lab,0));lab();};}
+function closeModal(){$("#ov").classList.remove("on");}
+/* ===== Update 78: Return to supplier (RTS) · asset cost follows the asset to another project · register of rented / owned vehicles, equipment and property → project cost ===== */
+["rts","rent"].forEach(c=>{if(typeof LOCAL_COLLS!=="undefined"&&!LOCAL_COLLS.includes(c))LOCAL_COLLS.push(c);});
+if(typeof COLL_AREA!=="undefined"){COLL_AREA.rts="wh";COLL_AREA.rent="pr";}
+if(typeof VIEW_AREA!=="undefined"){VIEW_AREA.rts="wh";VIEW_AREA.rent="pr";}
+if(typeof XL_NAMES!=="undefined"){XL_NAMES.rts="Returns to supplier";XL_NAMES.rent="Vehicles equipment property";}
+KEYS.rts=r=>r.no;KEYS.rent=r=>r.no;D.rts=D.rts||[];D.rent=D.rent||[];
+if(typeof M365_ROLES!=="undefined"){const add=(r,v)=>{const x=M365_ROLES[r];if(Array.isArray(x)&&!x.includes(v))x.push(v);};
+ ["storekeeper","logistics","assets","finance"].forEach(r=>add(r,"rts"));["finance","logistics","assets","procurement"].forEach(r=>add(r,"rent"));}
+{const N0=NAV;NAV=()=>{const n=N0();let i=n.findIndex(x=>x[1]==="mrs");if(i>-1)n.splice(i+1,0,[1,"rts","↩","#B45309",tr("Return to supplier","إرجاع للمورد")]);
+ i=n.findIndex(x=>x[1]==="capex");if(i>-1)n.splice(i+1,0,[1,"rent","🚗","#B45309",tr("Vehicles, equipment & property","المركبات والمعدات والعقارات")]);return n;};}
+const WH_PROJ={MAIN:"ASP",ASP:"ASP",MAD:"MED",RUH:"HO"};
+const ccOpts=v=>`<option value="">—</option>`+CC.map(c=>`<option value="${c}" ${c===v?"selected":""}>${esc(ccLabel(c))}</option>`).join("");
+const ccInProj=(proj,like)=>{const suf=String(like||"").split("-").slice(1).join("-");return CC.find(c=>c===proj+"-"+suf)||CC.find(c=>projOf(c)===proj)||"";};
+const r2x=v=>Math.round((+v||0)*100)/100;
+/* small value catcher for inputs inside PIN dialogs */
+var DLGX={};document.addEventListener("input",e=>{const id=e.target&&e.target.id;if(id&&/^dx/.test(id))DLGX[id]=e.target.value;});document.addEventListener("change",e=>{const id=e.target&&e.target.id;if(id&&/^dx/.test(id))DLGX[id]=e.target.value;});
+
+/* ---------- 1. Return to supplier ---------- */
+const RTS_REASONS=[["Damaged","تالف"],["Wrong item","صنف خاطئ"],["Not as specification","غير مطابق للمواصفات"],["Excess quantity","كمية زائدة"],["Expired / defective","منتهي / معيب"],["Other","أخرى"]];
+function rtsQty(p,i,l){return (D.rts||[]).filter(r=>!r.cancelled&&r.po===p.no).reduce((a,r)=>a+(r.lines||[]).filter(x=>x.poLine!=null?x.poLine===i:(!!l.code&&x.code===l.code)).reduce((s,x)=>s+(+x.qty||0),0),0);}
+const rtsDone=(g,j)=>(D.rts||[]).filter(r=>!r.cancelled&&r.grn===g.no).reduce((a,r)=>a+(r.lines||[]).filter(x=>x.gl===j).reduce((s,x)=>s+(+x.qty||0),0),0);
+const rtsAssetsFree=l=>(l.assets||[]).filter(id=>{const a=D.assets.find(x=>x.id===id);return a&&a.status==="In Stock"&&!a.cust;});
+function rtsPoIdx(p,x){if(!p)return -1;if(x.poLine!=null)return x.poLine;return p.lines.findIndex(l=>l.code&&l.code===x.code);}
+function rtsDoc(r){const p=D.pos.find(x=>x.no===r.po),pr=x=>{const i=rtsPoIdx(p,x);return p&&i>-1?+p.lines[i].price||0:0;};const tot=(r.lines||[]).reduce((a,x)=>a+x.qty*pr(x),0);
+ const row=(a,b,c,d)=>`<tr>${ppL(a)}${ppV(b)}${ppL(c)}${ppV(d)}</tr>`;
+ return `<div style="font-family:Calibri,Arial,sans-serif;color:#111">${ppHead("RETURN TO SUPPLIER","إرجاع للمورد","Logistics Department","إدارة الخدمات اللوجستية")}
+ <table style="width:100%;border-collapse:collapse">${row("RTS No.",`<b>${esc(r.no)}</b>`,"Date",ppD(r.date))}${row("Supplier",esc(r.sup||""),"From GRN",esc(r.grn))}${row("PO",esc(r.po||"—"),"Store / location",esc((WH_NAMES[r.wh]||r.wh||"")+" · "+(r.loc||"")))}
+ ${row("Reason",esc(r.reason)+(r.note?" – "+esc(r.note):""),"After the return",r.out==="credit"?"<b>No replacement – PO reduced, supplier credit note required</b>":"Replacement expected from the supplier")}
+ ${row("Collected by",esc(r.coll||""),"Vehicle plate",esc(r.veh||""))}${r.cn?row("Credit note",esc(r.cn.no)+" · "+ppM(r.cn.amt)+" SAR incl. VAT","Recorded",ppD(r.cn.date)+" – "+esc(r.cn.by||"")):""}</table>
+ <table style="width:100%;border-collapse:collapse;margin-top:12px"><tr>${ppTh("#","",'5%')}${ppTh("Item code","رمز الصنف")}${ppTh("Description","الوصف")}${ppTh("Asset IDs","أرقام الأصول")}${ppTh("Qty returned","الكمية المرتجعة")}${ppTh("Unit price","سعر الوحدة")}${ppTh("Value excl. VAT","القيمة")}</tr>
+ ${(r.lines||[]).map((x,i)=>`<tr>${ppV(i+1,"text-align:center")}${ppV(esc(x.code||""))}${ppV(esc(x.desc||""))}${ppV(esc((x.assets||[]).join(", ")))}${ppV(x.qty,"text-align:center")}${ppV(pr(x)?ppM(pr(x)):"")}${ppV(pr(x)?ppM(x.qty*pr(x)):"")}</tr>`).join("")}
+ <tr><td colspan="6" style="text-align:right;font-size:8.5px;font-weight:700;padding:4px">Total excl. VAT</td>${ppV("<b>"+ppM(tot)+"</b>")}</tr></table>
+ ${r.cancelled?`<p style="color:#B91C1C;font-weight:700">CANCELLED ${esc(r.cancelled.at||"")} – ${esc(r.cancelled.reason||"")}</p>`:""}
+ <table style="width:100%;border-collapse:collapse;margin-top:22px"><tr><th style="border:${PP_B};width:14%"></th>${ppTh("Prepared by (Storekeeper)","أمين المستودع")}${ppTh("Logistics Manager","مدير اللوجستيات")}${ppTh("Received by (Supplier)","استلام المورد")}</tr>
+ <tr>${ppL("Name")}${ppV(esc(r.by||""))}${ppV("")}${ppV(esc(r.coll||""))}</tr><tr>${ppL("Date")}${ppV(ppD(r.date))}${ppV("")}${ppV("")}</tr><tr style="height:46px">${ppL("Signature")}${ppV(r.sig?"<i>e-signed "+esc(r.sig.at||"")+"</i>":"")}${ppV("")}${ppV("")}</tr></table></div>`;}
+VIEWS.rts=()=>{const G=D.docs.filter(d=>d.type==="GRN"&&!d.cancelled).slice().reverse(),R=(D.rts||[]).slice().reverse();
+ return head(tr("Return to supplier (RTS)","إرجاع للمورد (RTS)"),tr("Goods sent back to the supplier from a GRN. Stock goes down and the PO received quantity goes down. With a replacement, receive it later with a new GRN. Without a replacement, the PO line is closed, the project cost goes down and Finance records the supplier's credit note.","بضاعة تُعاد للمورد من استلام. ينقص المخزون والكمية المستلمة على أمر الشراء. مع بديل: استلمه لاحقاً باستلام جديد. بدون بديل: يُغلق سطر أمر الشراء وتنقص تكلفة المشروع وتسجل المالية إشعار الدائن من المورد."))+
+ `<div class="card"><h2>${tr("New return","إرجاع جديد")}</h2><div class="fg">
+ <div class="f w2"><label>${tr("From GRN","من الاستلام")} <span class="req">*</span></label><select id="rtG"><option value="">—</option>${G.map(d=>`<option value="${esc(d.no)}">${esc(d.no)} · ${esc(d.date)} · ${esc(d.party||"")}${d.po?" · "+esc(d.po):""}</option>`).join("")}</select></div>
+ <div class="f"><label>${tr("Date","التاريخ")} <span class="req">*</span></label><input id="rtD" type="date" value="${today()}"></div>
+ <div class="f"><label>${tr("Reason","السبب")} <span class="req">*</span></label><select id="rtR">${RTS_REASONS.map(([e,a])=>`<option value="${e}">${tr(e,a)}</option>`).join("")}</select></div>
+ <div class="f w2"><label>${tr("After the return","بعد الإرجاع")} <span class="req">*</span></label><select id="rtO"><option value="repl">${tr("Replacement expected from the supplier","المورد سيرسل بديلاً")}</option><option value="credit">${tr("No replacement – reduce the PO, supplier credit note","بدون بديل – تخفيض أمر الشراء وإشعار دائن من المورد")}</option></select></div>
+ <div class="f w2"><label>${tr("Details","التفاصيل")}</label><input id="rtN" class="en" autocomplete="off"></div>
+ <div class="f"><label>${tr("Collected by (supplier / driver)","استلمها (المورد / السائق)")}</label><input id="rtBy" class="en" autocomplete="off"></div>
+ <div class="f"><label>${tr("Vehicle plate","رقم اللوحة")}</label><input id="rtV" class="en" data-upper="1" autocomplete="off"></div></div>
+ <div id="rtL" style="margin-top:10px"></div><div class="btns"><span class="sp" style="flex:1"></span><button class="b g" id="rtSave">✔ ${tr("Save & sign the return","حفظ وتوقيع الإرجاع")}</button></div></div>
+ <div class="card"><h2>${tr("Returns","المرتجعات")} (${R.length})</h2>${R.length?`<table class="t"><tr><th>${tr("No.","الرقم")}</th><th>${tr("Date","التاريخ")}</th><th>GRN</th><th>PO</th><th>${tr("Supplier","المورد")}</th><th>${tr("Lines","الأسطر")}</th><th>${tr("After the return","بعد الإرجاع")}</th><th></th></tr>
+ ${R.map(r=>`<tr${r.cancelled?' style="opacity:.55"':""}><td class="en"><b>${esc(r.no)}</b></td><td>${esc(r.date)}</td><td class="en">${esc(r.grn)}</td><td class="en">${esc(r.po||"")}</td><td>${esc(r.sup||"")}</td><td>${(r.lines||[]).map(x=>esc(x.code)+" × "+x.qty).join("<br>")}</td>
+ <td>${r.cancelled?tag(tr("Cancelled","ملغى"),"r"):r.out==="credit"?(r.cn?tag(tr("Credit note","إشعار دائن")+" "+r.cn.no,"g"):tag(tr("Waiting credit note","بانتظار إشعار الدائن"),"a")):tag(tr("Replacement expected","بانتظار البديل"),"b")}</td>
+ <td style="white-space:nowrap"><button class="b l sm" data-rtp="${esc(r.no)}">${tr("Print","طباعة")}</button>${!r.cancelled&&r.out==="credit"&&r.po&&!r.cn&&M365.can("fin")?` <button class="b g sm" data-rtc="${esc(r.no)}">${tr("Credit note","إشعار دائن")}</button>`:""}${!r.cancelled&&!r.cn?` <button class="b r sm" data-rtx="${esc(r.no)}">✕ ${tr("Cancel","إلغاء")}</button>`:""}</td></tr>`).join("")}</table>`:`<p class="hint">${tr("No returns yet.","لا توجد مرتجعات بعد.")}</p>`}</div>`;};
+BIND.rts=()=>{const g=$("#rtG"),O=$("#rtO");
+ const draw=()=>{const d=D.docs.find(x=>x.no===g.value);if(!d){$("#rtL").innerHTML="";return;}if(!d.po){O.value="repl";O.querySelector("[value=credit]").disabled=true;}else O.querySelector("[value=credit]").disabled=false;
+  $("#rtL").innerHTML=`<table class="t"><tr><th>${tr("Item","الصنف")}</th><th class="num">${tr("Received","المستلم")}</th><th class="num">${tr("Already returned","أُرجع سابقاً")}</th><th class="num">${tr("Can return","يمكن إرجاعه")}</th><th>${tr("Return qty","كمية الإرجاع")}</th></tr>
+  ${(d.lines||[]).map((l,j)=>{const done=rtsDone(d,j),can=l.assets?Math.min(rtsAssetsFree(l).length,(+l.qty||0)-done):Math.max(0,Math.min((+l.qty||0)-done,stockQty(l.code,d.wh,d.loc)));const it=D.items.find(i=>i.code===l.code)||{};
+   return `<tr><td class="en"><b>${esc(l.code)}</b> ${esc(l.desc||it.desc||"")}${l.assets?`<div class="hint">${tr("Assets in stock","أصول في المخزن")}: ${esc(rtsAssetsFree(l).join(", "))}</div>`:""}</td><td class="num">${l.qty}</td><td class="num">${done}</td><td class="num">${can}</td><td><input type="number" min="0" max="${can}" data-rj="${j}" style="width:80px" ${can>0?"":"disabled"}></td></tr>`;}).join("")}</table>
+  ${d.po?"":`<p class="hint">${tr("This GRN has no PO – no cost change, only the stock goes down.","هذا الاستلام بدون أمر شراء – لا تغيير في التكلفة، ينقص المخزون فقط.")}</p>`}`;};
+ if(g){g.onchange=draw;draw();}
+ if($("#rtSave"))$("#rtSave").onclick=()=>{const d=D.docs.find(x=>x.no===g.value);if(!d)return msg("err",tr("Choose the GRN.","اختر الاستلام."));
+  const L=[];for(const inp of document.querySelectorAll("[data-rj]")){const q=+inp.value||0;if(!q)continue;const j=+inp.dataset.rj,l=d.lines[j],mx=+inp.max||0;
+   if(q<0||q>mx||(l.assets&&q!==Math.round(q)))return msg("err",tr("Return quantity for","كمية الإرجاع لـ")+" "+esc(l.code)+" "+tr("must be between 1 and","يجب أن تكون بين 1 و")+" "+mx+".");L.push({j,l,q});}
+  if(!L.length)return msg("err",tr("Enter the quantity to return on at least one line.","أدخل كمية الإرجاع في سطر واحد على الأقل."));
+  const out=O.value,p=d.po?D.pos.find(x=>x.no===d.po):null;
+  apPinDlg(tr("Return to supplier","إرجاع للمورد"),`<p style="margin:0">${esc(d.party||"")} · GRN ${esc(d.no)}${d.po?" · "+esc(d.po):""}<br>${L.map(x=>esc(x.l.code)+" × "+x.q).join(", ")}<br><b>${out==="credit"?tr("No replacement – the PO line is closed and the project cost goes down.","بدون بديل – يُغلق سطر أمر الشراء وتنقص تكلفة المشروع."):tr("Replacement expected.","بانتظار البديل.")}</b></p>`,false,sig=>{
+   const r={no:seqNo("RTS-"+YY()+"-",(D.rts||[]).map(x=>x.no)),date:$("#rtD").value||today(),grn:d.no,po:d.po||"",sup:d.party||(p&&p.sup)||"",wh:d.wh,loc:d.loc,reason:$("#rtR").value,note:$("#rtN").value.trim(),out,coll:$("#rtBy").value.trim(),veh:$("#rtV").value.trim(),by:sig.by,sig,lines:[]};
+   L.forEach(({j,l,q})=>{const x={gl:j,code:l.code,desc:l.desc||((D.items.find(i=>i.code===l.code)||{}).desc)||"",unit:l.unit||"",qty:q};if(l.poLine!=null)x.poLine=l.poLine;
+    if(l.assets){x.assets=rtsAssetsFree(l).slice(0,q);x.assets.forEach(id=>{const a=D.assets.find(z=>z.id===id);Object.assign(a,{status:"Returned to supplier",rts:r.no});});}else addStock(l.code,d.wh,d.loc,-q);
+    if(out==="credit"&&p){const i=rtsPoIdx(p,x);const pl=p.lines[i];if(pl&&!pl.closed){pl.closed=true;pl.closedBy=r.no;x.closedPo=true;}}
+    r.lines.push(x);});
+   D.rts=[...(D.rts||[]),r];persist();render();setTimeout(()=>openModal(r.no,rtsDoc(r),"Return to supplier "+r.no),80);toast("✔ "+r.no);});};
+ document.querySelectorAll("[data-rtp]").forEach(b=>b.onclick=()=>{const r=D.rts.find(x=>x.no===b.dataset.rtp);openModal(r.no,rtsDoc(r),"Return to supplier "+r.no);});
+ document.querySelectorAll("[data-rtx]").forEach(b=>b.onclick=()=>{const r=D.rts.find(x=>x.no===b.dataset.rtx);if(!r||r.cancelled||r.cn)return;
+  for(const x of r.lines)if(!x.assets&&false)return;
+  apPinDlg(tr("Cancel return","إلغاء الإرجاع")+" "+r.no,`<p style="margin:0">${tr("The goods come back into stock and the PO lines are re-opened.","تعود البضاعة للمخزون ويُعاد فتح أسطر أمر الشراء.")}</p>`,true,(sig,reason)=>{const p=D.pos.find(x=>x.no===r.po);
+   r.lines.forEach(x=>{if(x.assets)x.assets.forEach(id=>{const a=D.assets.find(z=>z.id===id);if(a&&a.rts===r.no){a.status="In Stock";delete a.rts;}});else addStock(x.code,r.wh,r.loc,+x.qty||0);
+    if(x.closedPo&&p){const pl=p.lines[rtsPoIdx(p,x)];if(pl&&pl.closedBy===r.no){pl.closed=false;delete pl.closedBy;}}});
+   r.cancelled={at:today(),by:sig.by,reason};persist();render();toast("✔ "+r.no+" "+tr("cancelled","أُلغي"));});});
+ document.querySelectorAll("[data-rtc]").forEach(b=>b.onclick=()=>{const r=D.rts.find(x=>x.no===b.dataset.rtc),p=D.pos.find(x=>x.no===r.po);if(!r||!p)return;
+  const sug=r2x(r.lines.reduce((a,x)=>{const i=rtsPoIdx(p,x);return a+(i>-1?x.qty*(+p.lines[i].price||0):0);},0)*1.15);DLGX={dxCn:"",dxCa:String(sug)};
+  apPinDlg(tr("Supplier credit note","إشعار دائن من المورد")+" – "+r.no,`<p style="margin:0">${esc(r.sup)} · ${esc(r.po)}</p><div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap"><label>${tr("Credit note No.","رقم الإشعار")}<br><input id="dxCn" class="en" data-upper="1"></label><label>${tr("Amount incl. VAT","المبلغ مع الضريبة")}<br><input id="dxCa" type="number" step="0.01" value="${sug}"></label></div>`,false,sig=>{
+   const no=String(DLGX.dxCn||"").trim().toUpperCase(),amt=r2x(DLGX.dxCa);if(!no||!(amt>0)){toast("✖ "+tr("Enter the credit note number and amount.","أدخل رقم الإشعار والمبلغ."));return;}
+   r.cn={no,amt,date:today(),by:sig.by};D.invs.push({po:r.po,no:"CN "+no,date:today(),amt:-amt,excl:-r2x(amt/1.15),credit:true,rts:r.no,sup:r.sup,paid:today(),payM:"Credit note",type:"Supplier credit note",desc:"Credit note for "+r.no});persist();render();toast("✔ "+tr("Credit note recorded","سُجّل إشعار الدائن"));});});};
+
+/* ---------- 2. Asset cost moves with the asset ---------- */
+function assetBase(a){if(a.grn){const g=D.docs.find(d=>d.no===a.grn&&d.type==="GRN");const p=g&&g.po&&D.pos.find(x=>x.no===g.po);if(p){const gl=(g.lines||[])[a.grnLine]||{},i=rtsPoIdx(p,gl);const pl=p.lines[i];if(pl)return {amt:+pl.price||0,cc:p.cc,src:p.no};}}
+ return {amt:+a.value||0,cc:a.cc0||"",src:a.value?"Asset register":""};}
+const assetCC=a=>{const m=(a.costMoves||[]);return m.length?m[m.length-1].to:assetBase(a).cc;};
+function assetMoveDlg(ids,doc,proj){const A=ids.map(id=>D.assets.find(x=>x.id===id)).filter(Boolean);if(!A.length)return;
+ openModal(tr("Move asset cost to the receiving project","نقل تكلفة الأصل للمشروع المستلم"),`<div style="padding:16px 20px;font-size:13px"><p style="margin:0 0 8px">${tr("The purchase value of each asset is taken off the project that holds it and charged to the receiving project (CAPEX), from today.","تُخصم قيمة شراء كل أصل من المشروع الحالي وتُحمّل على المشروع المستلم (CAPEX) من اليوم.")}${doc?" ("+esc(doc)+")":""}</p>
+ <table class="t"><tr><th>${tr("Asset","الأصل")}</th><th>${tr("Now charged to","محمّل حالياً على")}</th><th class="num">${tr("Value excl. VAT","القيمة")}</th><th>${tr("Move to","نقل إلى")}</th></tr>
+ ${A.map((a,i)=>{const b=assetBase(a),cur=assetCC(a);return `<tr><td class="en"><b>${esc(a.id)}</b> ${esc(a.desc||"")}</td><td><select data-amf="${i}" ${cur?"disabled":""}>${ccOpts(cur)}</select></td><td><input type="number" step="0.01" data-amv="${i}" value="${b.amt||""}" ${b.src&&b.src!=="Asset register"?"readonly":""} style="width:110px"></td><td><select data-amt="${i}">${ccOpts(proj?ccInProj(proj,cur):"")}</select></td></tr>`;}).join("")}</table>
+ <div style="margin-top:12px"><button class="b g" id="amGo">✔ ${tr("Move the cost","نقل التكلفة")}</button> <button class="b l" id="amNo">${tr("Not now","ليس الآن")}</button> <span id="amE" style="color:#D2463C"></span></div></div>`,"");
+ $("#amNo").onclick=()=>closeModal();if(proj)document.querySelectorAll("[data-amf]").forEach(f=>f.onchange=()=>{const t=document.querySelector(`[data-amt="${f.dataset.amf}"]`);const c=ccInProj(proj,f.value);if(t&&c)t.value=c;});
+ $("#amGo").onclick=()=>{const mv=[];for(let i=0;i<A.length;i++){const a=A[i],f=document.querySelector(`[data-amf="${i}"]`).value,t=document.querySelector(`[data-amt="${i}"]`).value,v=+document.querySelector(`[data-amv="${i}"]`).value||0;
+   if(!t)continue;if(!f||!(v>0)){$("#amE").textContent=tr("Fill the current cost center and the value for","أكمل مركز التكلفة الحالي والقيمة لـ")+" "+a.id;return;}if(f===t)continue;mv.push({a,f,t,v});}
+  mv.forEach(({a,f,t,v})=>{if(!a.costMoves||!a.costMoves.length){if(!assetBase(a).cc)a.cc0=f;if(!assetBase(a).amt||assetBase(a).src==="Asset register")a.value=v;}a.costMoves=[...(a.costMoves||[]),{date:today(),from:f,to:t,amt:v,doc:doc||"",by:apMe()}];});
+  closeModal();if(mv.length){persist();toast("✔ "+mv.length+" "+tr("asset cost(s) moved","تكلفة أصل نُقلت"));}};}
+/* after an MDS transfer with assets to a store of another project → offer the cost move */
+{const B=BIND.mds;BIND.mds=()=>{B&&B();const s=$("#mSave");if(!s||s._am)return;const o=s.onclick;if(!o)return;s._am=1;s.onclick=async function(ev){const n0=D.docs.filter(d=>d.type==="MDS").length;await o.call(this,ev);
+ const L=D.docs.filter(d=>d.type==="MDS");if(L.length<=n0)return;const d=L[L.length-1];if(d.dtype!=="Transfer")return;const ids=(d.lines||[]).map(l=>l.asset).filter(Boolean);if(!ids.length)return;
+ const tw=destWh(d.to),fp=WH_PROJ[realWh(d.wh,d.loc)]||WH_PROJ[d.wh],tp=WH_PROJ[tw];if(!tp||tp===fp)return;setTimeout(()=>assetMoveDlg(ids,d.no,tp),700);};};}
+{const R0=whReverse;whReverse=function(d,dry){const r=R0(d,dry);if(!dry&&!r&&d&&d.type==="MDS")D.assets.forEach(a=>{if((a.costMoves||[]).some(m=>m.doc===d.no))a.costMoves=a.costMoves.filter(m=>m.doc!==d.no);});return r;};}
+/* manual move from the asset register */
+{const V=VIEWS.assetReg;VIEWS.assetReg=()=>V()+`<div class="card"><h2>${tr("Move an asset's cost to another project","نقل تكلفة أصل لمشروع آخر")}</h2><div class="fg"><div class="f w2"><label>${tr("Asset ID(s), comma separated","رقم/أرقام الأصول مفصولة بفاصلة")}</label><input id="amIds" class="en" data-upper="1" placeholder="e.g. LAP-006, GEN-002"></div><div class="f"><label>${tr("Receiving project","المشروع المستلم")}</label><select id="amP"><option value="">—</option>${[...new Set(CC.map(projOf))].map(p=>`<option>${p}</option>`).join("")}</select></div></div><div class="btns"><button class="b" id="amOpen">${tr("Continue","متابعة")}</button></div>
+ ${(()=>{const M=D.assets.flatMap(a=>(a.costMoves||[]).map(m=>({a,m})));return M.length?`<table class="t" style="margin-top:10px"><tr><th>${tr("Date","التاريخ")}</th><th>${tr("Asset","الأصل")}</th><th>${tr("From","من")}</th><th>${tr("To","إلى")}</th><th class="num">${tr("Value","القيمة")}</th><th>${tr("Document","المستند")}</th></tr>${M.slice(-30).reverse().map(({a,m})=>`<tr><td>${esc(m.date)}</td><td class="en">${esc(a.id)}</td><td>${esc(m.from)}</td><td>${esc(m.to)}</td><td class="num">${money(m.amt)}</td><td class="en">${esc(m.doc||"")}</td></tr>`).join("")}</table>`:"";})()}</div>`;}
+{const B=BIND.assetReg;BIND.assetReg=()=>{B&&B();const b=$("#amOpen");if(b)b.onclick=()=>{const ids=$("#amIds").value.split(/[,;\s]+/).map(x=>x.trim().toUpperCase()).filter(Boolean),bad=ids.filter(id=>!D.assets.some(a=>a.id===id));
+ if(!ids.length||bad.length)return msg("err",tr("Unknown asset ID","رقم أصل غير معروف")+": "+esc(bad.join(", ")||"—"));assetMoveDlg(ids,"",$("#amP").value);};};}
+function assetMoveLines(){const out=[];D.assets.forEach(a=>(a.costMoves||[]).forEach(m=>{const d=`${a.id} ${a.desc||""}`,mo=String(m.date).slice(0,7);
+ out.push({cc:m.from,amt:-m.amt,m:mo,desc:d+" – "+tr("moved to","نُقل إلى")+" "+m.to,ref:m.doc},{cc:m.to,amt:+m.amt,m:mo,desc:d+" – "+tr("received from","استُلم من")+" "+m.from,ref:m.doc});}));return out;}
+
+/* ---------- 3. Vehicles, equipment & property – rented or owned ---------- */
+const RENT_KINDS=[["Vehicle","مركبة"],["Equipment","معدات"],["Property","عقار"]];
+const rentCcAt=(r,ds)=>{let c="";(r.ccs||[]).slice().sort((a,b)=>a.from<b.from?-1:1).forEach(x=>{if(x.from<=ds)c=x.cc;});return c||((r.ccs||[])[0]||{}).cc||"";};
+const isoAdd=(ds,n)=>{const d=new Date(ds+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
+function rentLines(){const out=[],now=today(),endOfMonth=m=>{const [y,mo]=m.split("-").map(Number);return new Date(Date.UTC(y,mo,0)).toISOString().slice(0,10);};
+ (D.rent||[]).filter(r=>!r.cancelled).forEach(r=>{const lab=`${tr(r.kind,"")||r.kind} ${r.ref||""} ${r.desc||""}`.trim();
+  if(r.own!=="Owned"&&+r.rent>0&&r.start){const last=[r.end||"9999-12-31",endOfMonth(now.slice(0,7))].sort()[0];let m=r.start.slice(0,7);
+   while(m<=last.slice(0,7)){const me=endOfMonth(m),dim=+me.slice(8),ms=m+"-01";const actual=(D.cost||[]).some(v=>!v.cancelled&&v.rent===r.no&&String(v.month||v.date||"").slice(0,7)===m);
+    if(!actual){const per={};for(let d=[r.start,ms].sort()[1];d<=me&&d<=last;d=isoAdd(d,1)){const c=rentCcAt(r,d);per[c]=(per[c]||0)+1;}
+     Object.entries(per).filter(([c])=>c).forEach(([c,n])=>out.push({cc:c,m,amt:r2x(+r.rent*n/dim),cls:r.cls||"OPEX",desc:lab+" – "+tr("monthly rent","إيجار شهري")+(n<dim?` (${n}/${dim} ${tr("days","يوم")})`:""),no:r.no,from:r.vendor||"",src:"rent"}));}
+    const [y,mo]=m.split("-").map(Number);m=mo===12?(y+1)+"-01":y+"-"+String(mo+1).padStart(2,"0");}}
+  if(r.own==="Owned"&&+r.value>0){const C=(r.ccs||[]).slice().sort((a,b)=>a.from<b.from?-1:1);if(!C.length)return;const v=+r.value,bd=r.buy||r.start||C[0].from;
+   if(!r.po)out.push({cc:C[0].cc,m:String(bd).slice(0,7),amt:v,cls:"CAPEX",desc:lab+" – "+tr("purchase","شراء"),no:r.no,from:r.vendor||"",src:"rent"});
+   for(let i=1;i<C.length;i++)if(C[i].cc!==C[i-1].cc){const mo=C[i].from.slice(0,7);out.push({cc:C[i-1].cc,m:mo,amt:-v,cls:"CAPEX",desc:lab+" – "+tr("moved to","نُقل إلى")+" "+C[i].cc,no:r.no,src:"rent"},{cc:C[i].cc,m:mo,amt:v,cls:"CAPEX",desc:lab+" – "+tr("received from","استُلم من")+" "+C[i-1].cc,no:r.no,src:"rent"});}}});
+ return out;}
+/* into the CAPEX / OPEX report, the monthly project cost and the budget */
+{const C=cxLines;cxLines=function(){const out=C();rentLines().forEach(x=>out.push({order:x.no,cc:x.cc,desc:x.desc,cls:x.cls,amt:x.amt,m:x.m,src:"rent"}));assetMoveLines().forEach(x=>out.push({order:x.ref||tr("Asset move","نقل أصل"),cc:x.cc,desc:x.desc,cls:"CAPEX",amt:x.amt,m:x.m,src:"amove"}));return out;};}
+{const C=costRows;costRows=function(){const out=C();rentLines().forEach(x=>out.push({src:"rent",cls:x.cls,month:x.m,cc:x.cc,proj:projOf(x.cc),type:x.amt<0||/moved|received|نُقل|استُلم/.test(x.desc)?"Owned vehicle / equipment move":(x.cls==="CAPEX"?"Owned vehicle / equipment":"Rental (accrued)"),from:x.from||"",no:x.no,desc:x.desc,excl:x.amt,total:x.cls==="CAPEX"?x.amt:r2x(x.amt*1.15),ref:""}));
+ assetMoveLines().forEach(x=>out.push({src:"amove",cls:"CAPEX",month:x.m,cc:x.cc,proj:projOf(x.cc),type:"Asset moved between projects",from:"",no:x.ref||"",desc:x.desc,excl:x.amt,total:x.amt,ref:""}));return out;};}
+{const B=budgetLeft;budgetLeft=function(cc,excl){const r=B(cc,excl);[...rentLines().map(x=>[x.cc,x.cls,x.amt]),...assetMoveLines().map(x=>[x.cc,"CAPEX",x.amt])].forEach(([c,k,v])=>{if(c===cc)r[k==="CAPEX"?"CAPEX":"OPEX"]-=v;});return r;};}
+/* invoice form: link a rent invoice to its vehicle / property (the actual invoice replaces the accrual for that month) */
+{const V=VIEWS.costs;if(V)VIEWS.costs=()=>{let h=V();const i=h.indexOf('<select id="ivT">');const R=(D.rent||[]).filter(r=>!r.cancelled&&r.own!=="Owned");if(i<0||!R.length)return h;const j=h.indexOf("</div>",i)+6;
+ return h.slice(0,j)+`<div class="f"><label>${tr("Rent of (vehicle / equipment / property)","إيجار (مركبة / معدات / عقار)")}</label><select id="ivRent"><option value="">—</option>${R.map(r=>`<option value="${esc(r.no)}">${esc(r.no)} · ${esc(r.ref||"")} ${esc(r.desc||"")}</option>`).join("")}</select></div>`+h.slice(j);};}
+{const B=BIND.costs;if(B)BIND.costs=()=>{B();const s=$("#ivRent");if(s)s.onchange=()=>{const r=(D.rent||[]).find(x=>x.no===s.value);if(!r)return;if($("#ivS")&&!$("#ivS").value)$("#ivS").value=r.vendor||"";if($("#ivT"))$("#ivT").value="Rental";if($("#ivCls"))$("#ivCls").value=r.cls||"OPEX";const c=rentCcAt(r,($("#ivD")||{}).value||today());if(c&&$("#ivC"))$("#ivC").value=c;};};}
+let RENT_EDIT=null,RENT_F="";
+VIEWS.rent=()=>{const R=(D.rent||[]).filter(r=>!r.cancelled),e=RENT_EDIT?(D.rent||[]).find(r=>r.no===RENT_EDIT)||{}:{},m=today().slice(0,7),L=rentLines().filter(x=>x.m===m&&x.cls!=="CAPEX"&&x.amt>0),NOCC=R.filter(r=>!rentCcAt(r,today()));
+ const byP={};L.forEach(x=>{const p=projOf(x.cc);byP[p]=(byP[p]||0)+x.amt;});const F=RENT_F?R.filter(r=>JSON.stringify(r).toLowerCase().includes(RENT_F.toLowerCase())):R;
+ const opt=(arr,v)=>arr.map(([a,b])=>`<option value="${a}" ${a===v?"selected":""}>${tr(a,b)}</option>`).join("");
+ return head(tr("Vehicles, equipment & property","المركبات والمعدات والعقارات"),tr("Every rented or owned vehicle, piece of equipment and property, with its project. Rent is charged to the project every month (OPEX) until the end date; owned items are charged once (CAPEX) and their value follows them when they move to another project.","كل مركبة أو معدة أو عقار مستأجر أو مملوك مع مشروعه. يُحمّل الإيجار على المشروع كل شهر (OPEX) حتى تاريخ الانتهاء؛ المملوك يُحمّل مرة واحدة (CAPEX) وتنتقل قيمته معه عند نقله لمشروع آخر."))+
+ `<div class="card"><h2>${tr("This month","هذا الشهر")} (${m})</h2><p>${tr("Rented","مستأجر")}: <b>${R.filter(r=>r.own!=="Owned").length}</b> · ${tr("Owned","مملوك")}: <b>${R.filter(r=>r.own==="Owned").length}</b> · ${tr("Rent charged this month","الإيجار المحمّل هذا الشهر")}: ${Object.entries(byP).map(([p,v])=>`<b>${esc(p)}</b> ${money(v)}`).join(" · ")||"—"} SAR</p>${NOCC.length?`<p style="color:#B45309;margin:6px 0 0">⚠ ${NOCC.length} ${tr("item(s) have no cost center and are not charged to any project – use “Move project” to set it:","بدون مركز تكلفة ولا تُحمّل على أي مشروع – استخدم «نقل لمشروع» لتحديده:")} ${NOCC.map(r=>esc(r.no)).join(", ")}</p>`:""}</div>
+ <div class="card"><h2>${RENT_EDIT?tr("Edit","تعديل")+" "+esc(RENT_EDIT):tr("Add","إضافة")}</h2><div class="fg">
+ <div class="f"><label>${tr("Type","النوع")} *</label><select id="rnK">${opt(RENT_KINDS,e.kind||"Vehicle")}</select></div>
+ <div class="f"><label>${tr("Rented / owned","مستأجر / مملوك")} *</label><select id="rnO">${opt([["Rented","مستأجر"],["Owned","مملوك"]],e.own||"Rented")}</select></div>
+ <div class="f w2"><label>${tr("Description","الوصف")} *</label><input id="rnD" class="en" value="${esc(e.desc||"")}" placeholder="e.g. Toyota Hilux 2024 / Labour camp villa"></div>
+ <div class="f"><label>${tr("Plate / reference","اللوحة / المرجع")}</label><input id="rnR" class="en" data-upper="1" value="${esc(e.ref||"")}"></div>
+ <div class="f"><label>${tr("Vendor / owner","المؤجر / المالك")}</label><input id="rnV" class="en" value="${esc(e.vendor||"")}"></div>
+ <div class="f"><label>${tr("Contract No.","رقم العقد")}</label><input id="rnC" class="en" value="${esc(e.contract||"")}"></div>
+ <div class="f"><label>${tr("Cost center","مركز التكلفة")} *</label><select id="rnCc" ${RENT_EDIT?"disabled":""}>${ccOpts(RENT_EDIT?rentCcAt(e,today()):"")}</select></div>
+ <div class="f"><label>${tr("Start date","تاريخ البداية")} *</label><input id="rnS" type="date" value="${esc(e.start||"")}"></div>
+ <div class="f"><label>${tr("End date (empty = open)","تاريخ الانتهاء (فارغ = مفتوح)")}</label><input id="rnE" type="date" value="${esc(e.end||"")}"></div>
+ <div class="f rnRent"><label>${tr("Monthly rent excl. VAT","الإيجار الشهري قبل الضريبة")} *</label><input id="rnM" type="number" step="0.01" value="${esc(e.rent||"")}"></div>
+ <div class="f rnRent"><label>CAPEX / OPEX</label><select id="rnX">${opt([["OPEX","OPEX"],["CAPEX","CAPEX"]],e.cls||"OPEX")}</select></div>
+ <div class="f rnOwn"><label>${tr("Purchase value excl. VAT","قيمة الشراء قبل الضريبة")}</label><input id="rnP" type="number" step="0.01" value="${esc(e.value||"")}"></div>
+ <div class="f rnOwn"><label>${tr("Bought with PO (already in cost)","اشتُري بأمر شراء (محسوب في التكلفة)")}</label><input id="rnPo" class="en" data-upper="1" value="${esc(e.po||"")}" placeholder="MIDU-PO-…"></div>
+ <div class="f w2"><label>${tr("Notes","ملاحظات")}</label><input id="rnN" class="en" value="${esc(e.notes||"")}"></div></div>
+ <div class="btns">${RENT_EDIT?`<button class="b l" id="rnCx">${tr("Cancel edit","إلغاء التعديل")}</button>`:`<label class="b l" style="cursor:pointer">⬆ ${tr("Import from Excel (Power Apps export)","استيراد من Excel (تصدير Power Apps)")}<input type="file" id="rnImp" accept=".xlsx,.xls,.csv" style="display:none"></label>`}<span style="flex:1"></span><button class="b g" id="rnSave">✔ ${tr("Save","حفظ")}</button></div></div>
+ <div class="card"><h2>${tr("Register","السجل")} (${R.length})</h2><input id="rnF" class="en" placeholder="${tr("Search…","بحث…")}" value="${esc(RENT_F)}" style="max-width:280px;margin-bottom:8px">
+ ${F.length?`<table class="t"><tr><th>No.</th><th>${tr("Type","النوع")}</th><th>${tr("Description","الوصف")}</th><th>${tr("Vendor","المؤجر")}</th><th>${tr("Project now","المشروع الآن")}</th><th>${tr("Period","الفترة")}</th><th class="num">${tr("Monthly rent / value","الإيجار / القيمة")}</th><th></th></tr>
+ ${F.map(r=>`<tr><td class="en"><b>${esc(r.no)}</b></td><td>${tag(tr(r.kind,(RENT_KINDS.find(k=>k[0]===r.kind)||[])[1]||r.kind),"b")} ${r.own==="Owned"?tag(tr("Owned","مملوك"),"g"):tag(tr("Rented","مستأجر"),"a")}</td><td>${esc(r.ref||"")} ${esc(r.desc||"")}</td><td>${esc(r.vendor||"")}</td><td>${esc(rentCcAt(r,today())||"⚠ "+tr("no cost center","بدون مركز تكلفة"))}</td><td>${esc(r.start||"")} → ${r.end?esc(r.end):tr("open","مفتوح")}</td><td class="num">${r.own==="Owned"?money(r.value):money(r.rent)}</td>
+ <td style="white-space:nowrap"><button class="b l sm" data-rne="${esc(r.no)}">${tr("Edit","تعديل")}</button> <button class="b sm" data-rnm="${esc(r.no)}">⇄ ${tr("Move project","نقل لمشروع")}</button> ${r.own!=="Owned"&&!r.end?`<button class="b r sm" data-rnx="${esc(r.no)}">${tr("End contract","إنهاء العقد")}</button>`:""} <button class="b r sm" data-rnd="${esc(r.no)}">✕</button></td></tr>`).join("")}</table>`:`<p class="hint">${tr("Nothing yet. Add items one by one, or import the Power Apps list exported to Excel.","لا يوجد شيء بعد. أضف واحداً تلو الآخر أو استورد قائمة Power Apps المصدّرة إلى Excel.")}</p>`}</div>`;};
+function rentImport(rows){const pick=(o,res)=>{for(const re of res){const k=Object.keys(o).find(h=>re.test(h.toLowerCase().trim()));if(k!=null&&o[k]!==""&&o[k]!=null)return o[k];}return "";};
+ const dt=v=>{if(!v)return "";if(v instanceof Date)return isNaN(v)?"":new Date(v.getTime()-v.getTimezoneOffset()*6e4).toISOString().slice(0,10);if(typeof v==="number")return new Date(Date.UTC(1899,11,30)+v*864e5).toISOString().slice(0,10);
+  const s=String(v).trim();let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return m[1]+"-"+m[2].padStart(2,"0")+"-"+m[3].padStart(2,"0");m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);if(m)return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");const d=new Date(s);return isNaN(d)?"":d.toISOString().slice(0,10);};
+ const num=v=>+String(v).replace(/[^0-9.\-]/g,"")||0;let add=0,upd=0,noCc=0;
+ rows.forEach(o=>{const desc=String(pick(o,[/^desc/,/description/,/^name|title/,/vehicle|model|make|property|equipment/])).trim(),ref=String(pick(o,[/plate/,/registration|reg\.? ?no/,/serial|chassis/,/ref/,/unit/])).trim().toUpperCase();if(!desc&&!ref)return;
+  const t=(desc+" "+pick(o,[/type|category|kind/])).toLowerCase(),kind=/prop|villa|flat|apart|accom|house|office|land|camp|room|building|warehouse/.test(t)?"Property":/equip|crane|forklift|generator|loader|excavat|roller|tower|light|manlift|boom|compressor|bobcat/.test(t)?"Equipment":"Vehicle";
+  const ownTxt=String(pick(o,[/own/,/rent(ed)?\s*\//,/status/])).toLowerCase(),rent=num(pick(o,[/monthly/,/rent/,/rate/,/amount|price/])),value=num(pick(o,[/purchase|value|cost/]));
+  const own=/own/.test(ownTxt)&&!/rent|hire|lease/.test(ownTxt)?"Owned":(!rent&&value?"Owned":"Rented");
+  const ccT=String(pick(o,[/cost ?cent/,/project/,/site|location/,/division|department/])).trim().toUpperCase();let cc=CC.find(c=>c===ccT)||"";if(!cc){const p=["ASP","MED","CEER","HO"].find(p=>ccT.includes(p)||(p==="MED"&&/MADIN/.test(ccT))||(p==="CEER"&&/RIYADH/.test(ccT)&&false));if(p){const PC=CC.filter(c=>projOf(c)===p),suf=/CONCRETE|-CON\b/.test(ccT)?"CON":/STEEL|STL/.test(ccT)?"STL":/CONST/.test(ccT)?"CONST":"";cc=PC.length===1?PC[0]:suf?(PC.find(c=>c===p+"-"+suf)||""):"";}}
+  const start=dt(pick(o,[/start/,/from/,/on.?hire/,/hire date|issue/,/date/]))||today(),end=dt(pick(o,[/end/,/^to\b|until/,/off.?hire/,/expir/]));
+  const rec={kind,own,desc,ref,vendor:String(pick(o,[/vendor|supplier|lessor|company|owner/])).trim(),contract:String(pick(o,[/contract|agreement/])).trim(),start,end,rent:own==="Rented"?rent:0,value:own==="Owned"?value:0,cls:"OPEX",notes:"Imported "+today()};
+  const ex=(D.rent||[]).find(r=>!r.cancelled&&(ref?String(r.ref||"").toUpperCase()===ref:(r.desc===desc&&r.vendor===rec.vendor)));
+  if(!cc)noCc++;
+  if(ex){Object.keys(rec).forEach(k=>{if(rec[k]!==""&&rec[k]!==0)ex[k]=rec[k];});if(cc&&rentCcAt(ex,today())!==cc)ex.ccs=[...(ex.ccs||[]),{from:(ex.ccs||[]).length?today():start,cc}];upd++;}
+  else{D.rent=[...(D.rent||[]),Object.assign({no:seqNo("VEP-",(D.rent||[]).map(x=>x.no)),ccs:cc?[{from:start,cc}]:[]},rec)];add++;}});
+ return {add,upd,noCc};}
+BIND.rent=()=>{const show=()=>{const o=$("#rnO").value==="Owned";document.querySelectorAll(".rnRent").forEach(x=>x.style.display=o?"none":"");document.querySelectorAll(".rnOwn").forEach(x=>x.style.display=o?"":"none");};$("#rnO").onchange=show;show();
+ const f=$("#rnF");if(f)f.oninput=()=>{RENT_F=f.value;clearTimeout(f._t);f._t=setTimeout(()=>{render();const g=$("#rnF");if(g){g.focus();g.setSelectionRange(g.value.length,g.value.length);}},350);};
+ if($("#rnCx"))$("#rnCx").onclick=()=>{RENT_EDIT=null;render();};
+ $("#rnSave").onclick=()=>{const own=$("#rnO").value,v={kind:$("#rnK").value,own,desc:$("#rnD").value.trim(),ref:$("#rnR").value.trim(),vendor:$("#rnV").value.trim(),contract:$("#rnC").value.trim(),start:$("#rnS").value,end:$("#rnE").value,rent:own==="Rented"?+$("#rnM").value||0:0,cls:$("#rnX").value,value:own==="Owned"?+$("#rnP").value||0:0,po:own==="Owned"?$("#rnPo").value.trim():"",notes:$("#rnN").value.trim()};
+  if(!v.desc||!v.start)return msg("err",ERR.req());if(own==="Rented"&&!(v.rent>0))return msg("err",tr("Enter the monthly rent.","أدخل الإيجار الشهري."));if(v.end&&v.end<v.start)return msg("err",tr("The end date is before the start date.","تاريخ الانتهاء قبل البداية."));
+  if(RENT_EDIT){const r=D.rent.find(x=>x.no===RENT_EDIT);Object.assign(r,v);if((r.ccs||[]).length&&r.ccs[0].from>v.start)r.ccs[0].from=v.start;RENT_EDIT=null;}
+  else{const cc=$("#rnCc").value;if(!cc)return msg("err",tr("Choose the cost center.","اختر مركز التكلفة."));D.rent=[...(D.rent||[]),Object.assign({no:seqNo("VEP-",(D.rent||[]).map(x=>x.no)),ccs:[{from:v.start,cc}],by:apMe(),at:today()},v)];}
+  persist();render();toast("✔ "+tr("Saved","حُفظ"));};
+ const imp=$("#rnImp");if(imp)imp.onchange=async()=>{const fl=imp.files[0];if(!fl)return;try{const wb=XLSX.read(await fl.arrayBuffer(),{type:"array",cellDates:true});let rows=[];wb.SheetNames.forEach(n=>{rows=rows.concat(XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:""}));});
+  if(!rows.length)return msg("err",tr("No rows found in the file.","لا توجد صفوف في الملف."));if(!confirm(tr(`Import ${rows.length} row(s) from ${fl.name}?`,`استيراد ${rows.length} صف من ${fl.name}؟`)))return;const r=rentImport(rows);persist();render();
+  msg(r.noCc?"err":"ok",`✔ ${tr("Added","أضيف")} ${r.add}, ${tr("updated","حُدّث")} ${r.upd}.`+(r.noCc?` ⚠ ${r.noCc} ${tr("without a cost center – open each and use “Move project” to set it, otherwise they are not charged.","بدون مركز تكلفة – افتح كل واحد واستخدم «نقل لمشروع» لتحديده، وإلا لن يُحمّل.")}`:""));}catch(e){msg("err",esc(e.message));}};
+ document.querySelectorAll("[data-rne]").forEach(b=>b.onclick=()=>{RENT_EDIT=b.dataset.rne;render();$("#main").scrollTop=0;});
+ document.querySelectorAll("[data-rnd]").forEach(b=>b.onclick=()=>{const r=D.rent.find(x=>x.no===b.dataset.rnd);if(!r)return;if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent=tr("Delete?","حذف؟");return;}r.cancelled={at:today(),by:apMe()};persist();render();toast("✔ "+r.no+" "+tr("deleted – no longer charged","حُذف – لم يعد يُحمّل"));});
+ document.querySelectorAll("[data-rnx]").forEach(b=>b.onclick=()=>{const r=D.rent.find(x=>x.no===b.dataset.rnx);const d=prompt(tr("Last day of the contract (yyyy-mm-dd). Rent stops after this day.","آخر يوم في العقد (yyyy-mm-dd). يتوقف الإيجار بعده."),today());if(!d)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(d)||d<r.start)return msg("err",tr("Invalid date.","تاريخ غير صحيح."));r.end=d;persist();render();toast("✔ "+r.no);});
+ document.querySelectorAll("[data-rnm]").forEach(b=>b.onclick=()=>{const r=D.rent.find(x=>x.no===b.dataset.rnm);const cur=rentCcAt(r,today());
+  openModal(tr("Move to another project","نقل لمشروع آخر")+" – "+r.no,`<div style="padding:16px 20px;font-size:13px"><p style="margin:0 0 8px">${esc(r.ref||"")} ${esc(r.desc||"")} · ${tr("now","حالياً")}: <b>${esc(cur||"—")}</b></p><div class="fg"><div class="f"><label>${tr("New cost center","مركز التكلفة الجديد")}</label><select id="rmC">${ccOpts("")}</select></div><div class="f"><label>${tr("From date","من تاريخ")}</label><input id="rmD" type="date" value="${today()}"></div></div>
+  <p class="hint">${r.own==="Owned"?tr("The purchase value moves from the old project to the new one on this date (CAPEX).","تنتقل قيمة الشراء من المشروع القديم للجديد في هذا التاريخ (CAPEX)."):tr("From this date the rent is charged to the new project; days before stay with the old one.","من هذا التاريخ يُحمّل الإيجار على المشروع الجديد؛ الأيام السابقة تبقى على القديم.")}</p><button class="b g" id="rmGo">✔ ${tr("Move","نقل")}</button></div>`,"");
+  $("#rmGo").onclick=()=>{const c=$("#rmC").value,d=$("#rmD").value;if(!c||!d)return;if(c===cur)return closeModal();r.ccs=[...(r.ccs||[]).filter(x=>x.from!==d),{from:(r.ccs||[]).length?d:[d,r.start].sort()[0],cc:c}];closeModal();persist();render();toast("✔ "+r.no+" → "+c);};});};
 </script>
 </body>
 </html>

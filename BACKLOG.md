@@ -8,10 +8,10 @@ Read this before starting a new category. Items are removed once they are built 
 - Show how each employee is paid: **bank transfer** or **cash**.
 - Today `emps` only has `no, iqama, name, dept, site`. Still needed: cost center / project, staff type (MIDU / Rental + agency), monthly cost or salary, payment method (bank / cash), start/end dates and moves between projects.
 
-## Project cost (CAPEX / OPEX) – waiting for owner decisions
-- **Return to supplier**: new document that reduces stock, the PO received quantity and the project cost; Finance waits for the supplier credit note.
-- **Asset moved to another project**: decide whether the receiving project is charged (purchase price, or monthly charge while there).
-- **Rental vehicles and rental property** (Power Apps lists): owner to export the lists; then a rentals register with project, monthly rent and start/end dates, so the cost goes to the project every month, follows moves and stops at contract end or cancellation.
+## Project cost – follow-up
+- Return to supplier, asset cost moves and the vehicles/equipment/property register are built (Update 78).
+- Owner to import the Power Apps rental lists (Excel) when they are activated, then check every item has a cost center.
+- Confirm the store → project mapping used to suggest the receiving project for asset transfers: ASP Store → ASP, Madina Store → MED, Riyadh Store → HO (`WH_PROJ`).
 
 ## Procurement – offered, not confirmed
 - Procurement user guide (EN/AR) in User guides.
