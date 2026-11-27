@@ -72,10 +72,26 @@ async function checkFolder(dir) {
 LOCAL.init = async function () {
   if (!LOCAL.supported) return false;
   const h = await savedHandle(); if (!h) return false;
-  try { if ((await h.queryPermission({ mode: "readwrite" })) !== "granted") { LOCAL.pending = h; return false; } await checkFolder(h); }
+  try { if ((await h.queryPermission({ mode: "readwrite" })) !== "granted") { LOCAL.pending = h; return await LOCAL.reconnectBox(h); } await checkFolder(h); }
   catch (e) { return false; }
   LOCAL.dir = h; LOCAL.connected = true; LOCAL.user = LOCAL.userName() || "Hub user";
   await LOCAL.signIn(); await LOCAL.offerMigration(); await LOCAL.weeklyInit().catch(() => {}); return true;
+};
+/* (27 Nov 2026) The browser forgets the folder permission when the Hub is closed. Instead of falling back to the Demo
+   (where nothing is saved), ask for one click to reconnect to the folder that was used before. */
+LOCAL.reconnectBox = function (h) {
+  return new Promise(res => {
+    const o = lockBox(`<h3 style="margin:0 0 6px">MIDU-Team Hub</h3>
+      <p style="color:#333;margin:0 0 10px">${T("For security, the browser asks again to let the Hub use the folder", "لأسباب أمنية يطلب المتصفح مرة أخرى السماح للمنصة باستخدام المجلد")} <b>${String(h.name || "MIDU Hub Data").replace(/</g, "&lt;")}</b>.</p>
+      <p style="color:#555;margin:0 0 14px;font-size:13px">${T("Click Reconnect. In the small browser box choose “Allow on every visit” (or “Edit files” / “Allow”). Your data stays in the shared folder – nothing is lost.", "اضغط إعادة الاتصال. في نافذة المتصفح الصغيرة اختر «السماح في كل زيارة» (أو «تعديل الملفات» / «سماح»). بياناتك في المجلد المشترك – لا يضيع شيء.")}</p>
+      <button id="lrGo" style="${lockBtn}">🔄 ${T("Reconnect to the MIDU Hub Data folder", "إعادة الاتصال بمجلد MIDU Hub Data")}</button>
+      <div id="lrE" style="color:#B42318;min-height:18px;margin-top:8px;font-size:13px"></div>`);
+    o.querySelector("#lrGo").onclick = async () => {
+      const e = o.querySelector("#lrE"); e.textContent = "";
+      try { await LOCAL.connect(); res(true); }
+      catch (x) { e.textContent = (x && x.message) || String(x); LOCAL.pending = h; }
+    };
+  });
 };
 /** Button: pick the folder (or re-allow the one picked before). Needs a click. */
 LOCAL.connect = async function () {
