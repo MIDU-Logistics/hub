@@ -508,7 +508,7 @@ async function saveAtt(file,folder,docNo,tag){if(!file)return null;const ext=(fi
  if(typeof LOCAL!=="undefined"&&LOCAL.connected){await LOCAL.uploadDoc(folder,name,file);return {name,path:folder+"/"+name,at:today(),by:LOCAL.user};}
  if(M365.signedIn){const url=await M365.uploadDoc(folder,name,file);return {name,path:folder+"/"+name,url,at:today()};}
  return {name,path:"(demo – not saved)",at:today()};}
-async function openAtt(a){if(!a)return;if(a.url)return window.open(a.url,"_blank");if(typeof LOCAL!=="undefined"&&LOCAL.connected&&LOCAL.readDoc){try{const b=await LOCAL.readDoc(a.path);window.open(URL.createObjectURL(b),"_blank");}catch(e){toast("✖ "+e.message);}}}
+async function openAtt(a){if(!a)return;if(a.url)return window.open(a.url,"_blank");if(!(typeof LOCAL!=="undefined"&&LOCAL.connected)||/demo/i.test(a.path||"")){return toast("ℹ "+tr("This file was attached in Demo mode and was not saved. Open the MIDU Hub Data folder, then attach it again.","أُرفق هذا الملف في الوضع التجريبي ولم يُحفظ. افتح مجلد MIDU Hub Data ثم أرفقه مرة أخرى."));}if(typeof LOCAL!=="undefined"&&LOCAL.connected&&LOCAL.readDoc){try{const b=await LOCAL.readDoc(a.path);window.open(URL.createObjectURL(b),"_blank");}catch(e){toast("✖ "+e.message);}}}
 const ATT_DIR={GRN:"01 Warehouse & Assets/01 Signed GRN",MDS:"01 Warehouse & Assets/02 Signed MDS",MRS:"01 Warehouse & Assets/03 Signed MRS"};
 /* signed scans go into a month folder of the document date (update 33) */
 function attDir(type,date){return ATT_DIR[type]+"/"+String(date||today()).slice(0,7);}
@@ -3523,6 +3523,16 @@ const pcaWaitingForMe=()=>(D.pca||[]).filter(a=>!a.cancelled&&a.rules2&&a.status
    Object.assign(a,{status:"Cleared",clearedBy:sig.by,clearedOn:today(),closeSig:sig});persist();render();toast("✔ "+a.no+" "+tr("closed","أُغلقت"));});};};}
 /* menu badge for the giver */
 {const N9=NAV;NAV=()=>{const n=N9();const w=(()=>{try{return pcaWaitingForMe().reduce((t,a)=>t+pcaPend(a).length,0);}catch(e){return 0;}})();if(w){const it=n.find(x=>x[1]==="pcash");if(it&&!/<b /.test(it[4]))it[4]=it[4]+` <b style="background:#D2463C;color:#fff;border-radius:9px;padding:0 6px;font-size:11px">${w}</b>`;}return n;};}
+
+/* ===================== Update 73: "Petty cash holder" role (Azzam, 27 Nov 2026) =====================
+   An employee who receives petty cash gets his own Hub user with this role: he sees only Petty cash custody (and Home,
+   User guides), only HIS custodies, and can add his invoices with the PDF. He cannot give cash, check, accept or close. */
+if(typeof M365_ROLES!=="undefined")M365_ROLES.pettycash=["home","pcash","guide"];
+if(typeof HUB_ROLES!=="undefined"&&!HUB_ROLES.some(r=>r[0]==="pettycash"))HUB_ROLES.splice(HUB_ROLES.length-1,0,["pettycash","Petty cash holder – only his own custodies: adds the invoices (PDF)"]);
+const pcaOnlyHolder=()=>{try{const R=(LOCAL&&LOCAL.roles)||[];return R.length>0&&R.every(r=>r==="pettycash"||r==="viewer");}catch(e){return false;}};
+{const V0=VIEWS.pcash;VIEWS.pcash=()=>{if(!pcaOnlyHolder())return V0();const all=D.pca;D.pca=(all||[]).filter(a=>whL(a.holder)===pcaMe());let h;try{h=V0();}finally{D.pca=all;}
+ const i=h.indexOf('<div class="card"><h2>'+tr("Give cash (new custody)","تسليم عهدة جديدة")),j=i>-1?h.indexOf('<div class="card" id="pcaBox"',i):-1;if(i>-1&&j>-1)h=h.slice(0,i)+h.slice(j);
+ return h.replace('<div class="card"><h2>'+tr("Custodies","العهد"),`<div class="banner" style="background:#EEF6FF;border-color:#93C5FD;color:#1E3A5F"><span>${tr("Your petty cash. Open a custody, add each invoice with its PDF, and","عهدتك النقدية. افتح العهدة وأضف كل فاتورة مع ملفها، و")} <b>${tr("the person who gave you the cash","من سلّمك النقد")}</b> ${tr("checks them and closes it.","يراجعها ويغلقها.")}</span></div><div class="card"><h2>`+tr("Custodies","العهد"));};}
 </script>
 </body>
 </html>
