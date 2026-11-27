@@ -3533,6 +3533,36 @@ const pcaOnlyHolder=()=>{try{const R=(LOCAL&&LOCAL.roles)||[];return R.length>0&
 {const V0=VIEWS.pcash;VIEWS.pcash=()=>{if(!pcaOnlyHolder())return V0();const all=D.pca;D.pca=(all||[]).filter(a=>whL(a.holder)===pcaMe());let h;try{h=V0();}finally{D.pca=all;}
  const i=h.indexOf('<div class="card"><h2>'+tr("Give cash (new custody)","تسليم عهدة جديدة")),j=i>-1?h.indexOf('<div class="card" id="pcaBox"',i):-1;if(i>-1&&j>-1)h=h.slice(0,i)+h.slice(j);
  return h.replace('<div class="card"><h2>'+tr("Custodies","العهد"),`<div class="banner" style="background:#EEF6FF;border-color:#93C5FD;color:#1E3A5F"><span>${tr("Your petty cash. Open a custody, add each invoice with its PDF, and","عهدتك النقدية. افتح العهدة وأضف كل فاتورة مع ملفها، و")} <b>${tr("the person who gave you the cash","من سلّمك النقد")}</b> ${tr("checks them and closes it.","يراجعها ويغلقها.")}</span></div><div class="card"><h2>`+tr("Custodies","العهد"));};}
+
+/* ===================== Update 74: petty cash alerts and reminders (Azzam, 27 Nov 2026) =====================
+   In the Hub: a banner on every screen and a red count on the menu, for the holder (custody still to cover) and for the
+   giver (invoices to check, custodies still open). By e-mail (same outbox as the approval e-mails, one message per event):
+   cash given → holder · invoice added → giver · invoice rejected → holder · custody closed → holder ·
+   and every PCA_REMIND_DAYS days while open: a reminder to the holder and to the giver. */
+const PCA_REMIND_DAYS=7;
+const pcaOpenL=()=>(D.pca||[]).filter(a=>!a.cancelled&&a.rules2&&a.status!=="Cleared");
+const pcaNums=a=>{const E=a.exp||[],ok=pcaSum(E.filter(e=>e.st==="ok")),pend=pcaSum(pcaPend(a)),bal=Math.round(((+a.amount||0)-ok-pend-(+a.returned||0))*100)/100;return {ok,pend,bal,rej:E.filter(e=>e.st==="rej").length};};
+const pcaMineHolder=()=>pcaOpenL().filter(a=>pcaIsHolder(a));
+const pcaMineGiver=()=>pcaOpenL().filter(a=>pcaIsGiver(a));
+function pcaMailScan(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.readOnly||typeof mailSend!=="function")return;const me=whL(apMe());
+ (D.pca||[]).filter(a=>!a.cancelled&&a.rules2).forEach(a=>{a.mailed=a.mailed||{};const once=(k,to,subj,lines)=>{if(a.mailed[k]||!to||whL(to)===me&&!/^rem/.test(k))return;a.mailed[k]=new Date().toISOString();mailSend(to,subj,lines,"pcash");};
+  const N=pcaNums(a),amt=money(+a.amount||0);
+  once("new",a.holder,`Petty cash given to you: ${a.no} – ${amt} SAR`,[`<b>${esc(a.givenBy)}</b> gave you <b>${amt} SAR</b> petty cash on ${esc(a.date)} (${esc(a.no)}${a.purpose?" – "+esc(a.purpose):""}).`,`The custody stays <b>open</b> until invoices (with their PDF) cover the full amount, or the rest is paid back to ${esc(a.givenBy)}.`,`Open <b>Petty cash custody</b> in the Hub and add each invoice with its PDF.`]);
+  (a.exp||[]).forEach((e,i)=>{once("inv|"+i+"|"+(e.date||"")+"|"+e.amt,a.givenBy,`Invoice to check: ${a.no} – ${money(+e.amt||0)} SAR`,[`<b>${esc(a.holder)}</b> added an invoice to petty cash <b>${esc(a.no)}</b>: ${esc(e.shop||"")} ${e.inv?"#"+esc(e.inv):""} – <b>${money(+e.amt||0)} SAR</b>.`,`Please check it in <b>Petty cash custody</b>: accept, or reject with the reason.`]);
+   if(e.st==="rej")once("rej|"+i+"|"+(e.chkAt||""),a.holder,`Invoice rejected: ${a.no} – ${money(+e.amt||0)} SAR`,[`<b>${esc(a.givenBy)}</b> rejected your invoice ${esc(e.shop||"")} ${e.inv?"#"+esc(e.inv):""} (${money(+e.amt||0)} SAR) on petty cash <b>${esc(a.no)}</b>.`,`Reason: <i>${esc(e.rejWhy||"")}</i>`,`The amount stays in your balance: cover it with another invoice or pay it back to ${esc(a.givenBy)}.`]);});
+  if(a.status==="Cleared")once("closed",a.holder,`Petty cash closed: ${a.no}`,[`Your petty cash custody <b>${esc(a.no)}</b> (${amt} SAR) was <b>closed</b> by ${esc(a.clearedBy||a.givenBy)} on ${esc(a.clearedOn||"")}.`]);
+  else{const days=Math.floor((new Date(today())-new Date(a.date))/864e5);if(days>=PCA_REMIND_DAYS){const w="rem"+Math.floor(days/PCA_REMIND_DAYS);
+   if(N.bal>0)once(w+"|h",a.holder,`Reminder – petty cash still open: ${a.no}`,[`Petty cash <b>${esc(a.no)}</b> from ${esc(a.givenBy)} (${amt} SAR, given ${esc(a.date)}) is still open.`,`<b>${money(N.bal)} SAR</b> is still not covered by invoices. Add the invoices with their PDF, or pay the rest back to ${esc(a.givenBy)}.`]);
+   once(w+"|g",a.givenBy,`Reminder – petty cash you gave is still open: ${a.no}`,[`Petty cash <b>${esc(a.no)}</b> given to <b>${esc(a.holder)}</b> on ${esc(a.date)} (${amt} SAR) is still open.`,`Accepted ${money(N.ok)} · waiting your check ${money(N.pend)} · still not covered <b>${money(Math.max(0,N.bal))}</b> SAR.`]);}}});}
+{const P0=persist;persist=function(...x){try{pcaMailScan();}catch(e){console.warn(e);}return P0.apply(this,x);};}
+/* banner on every screen */
+{const R0=render;render=function(k){R0(k);try{if(view==="pcash"||typeof LOCAL==="undefined"||!LOCAL.connected||$("#pcaBan"))return;const H=pcaMineHolder().filter(a=>{const N=pcaNums(a);return N.bal>0||N.rej;}),G=pcaMineGiver();if(!H.length&&!G.length)return;
+ const parts=[];H.forEach(a=>{const N=pcaNums(a);parts.push(`💵 ${tr("Petty cash","العهدة")} <b class="en">${esc(a.no)}</b> ${tr("from","من")} ${esc(a.givenBy)}: <b>${money(Math.max(0,N.bal))} SAR</b> ${tr("still to cover with invoices","لم تُغطَّ بفواتير بعد")}`);});
+ const pend=G.reduce((t,a)=>t+pcaPend(a).length,0);if(pend)parts.push(`🧾 <b>${pend}</b> ${tr("petty cash invoice(s) waiting for your check","فاتورة عهدة بانتظار مراجعتك")}`);
+ const openG=G.filter(a=>!pcaPend(a).length);if(openG.length)parts.push(`⏳ ${openG.length} ${tr("petty cash custody(ies) you gave still open","عهدة سلّمتها ما زالت مفتوحة")}: ${openG.map(a=>`<span class="en">${esc(a.no)} (${esc(a.holder)})</span>`).join(", ")}`);
+ const m=$("#main"),b=document.createElement("div");b.id="pcaBan";b.className="banner";b.style.cssText="cursor:pointer;background:#FFF7E6;border-color:#D9961A;color:#7A4B00";b.innerHTML=`<span>${parts.join("<br>")} – <u>${tr("open Petty cash custody","فتح العهد النقدية")}</u></span>`;b.onclick=()=>go("pcash");m.prepend(b);}catch(e){console.warn(e);}};}
+/* menu count also for the holder */
+{const N10=NAV;NAV=()=>{const n=N10();try{const it=n.find(x=>x[1]==="pcash");if(it&&!/<b /.test(it[4])){const c=pcaMineHolder().filter(a=>{const N=pcaNums(a);return N.bal>0||N.rej;}).length;if(c)it[4]=it[4]+` <b style="background:#D9961A;color:#fff;border-radius:9px;padding:0 6px;font-size:11px">${c}</b>`;}}catch(e){}return n;};}
 </script>
 </body>
 </html>
