@@ -2598,7 +2598,7 @@ function costRows(){const out=[],po=no=>D.pos.find(p=>p.no===no)||{};
  (D.invs||[]).forEach(v=>{const p=po(v.po),cc=v.cc||p.cc;out.push({src:"inv",month:(v.month||v.date||"").slice(0,7),cc,proj:projOf(cc),type:v.type||"Supplier invoice",from:v.sup||p.sup||"",no:v.no,desc:v.desc||("PO "+v.po),excl:ivEx(v),total:+v.amt||0,att:v.att,ref:v.po,paid:v.paid,rec:v});});
  (D.cost||[]).filter(v=>!v.cancelled).forEach(v=>out.push({src:"cost",month:(v.month||v.date||"").slice(0,7),cc:v.cc,proj:projOf(v.cc),type:v.type,from:v.sup,no:v.no,desc:v.desc||"",excl:+v.excl||0,total:+v.total||0,att:v.att,ref:v.rebill?("re-billed to "+v.rebill):"",paid:v.paid,rec:v}));
  D.pos.filter(p=>p.kind==="PC"&&!p.cancelled).forEach(p=>{const t=poTotal(p);out.push({src:"pc",month:(p.date||"").slice(0,7),cc:p.cc,proj:projOf(p.cc),type:"Petty cash voucher",from:p.sup,no:p.no,desc:(p.lines||[]).map(l=>l.desc).join(", "),excl:t,total:t*1.15,ref:p.buyer||""});});
- (D.pca||[]).filter(a=>!a.cancelled).forEach(a=>(a.exp||[]).forEach(e=>out.push({src:"pca",month:(e.date||"").slice(0,7),cc:a.cc,proj:projOf(a.cc),type:"Petty cash custody",from:e.shop,no:e.inv||a.no,desc:e.desc||a.purpose||"",excl:Math.round((+e.amt||0)/1.15*100)/100,total:+e.amt||0,att:e.att,ref:a.no+" · "+a.holder})));
+ (D.pca||[]).filter(a=>!a.cancelled).forEach(a=>(a.exp||[]).filter(e=>e.st!=="rej").forEach(e=>out.push({src:"pca",cls:e.cls,month:(e.date||"").slice(0,7),cc:a.cc,proj:projOf(a.cc),type:"Petty cash custody",from:e.shop,no:e.inv||a.no,desc:e.desc||a.purpose||"",excl:Math.round((+e.amt||0)/1.15*100)/100,total:+e.amt||0,att:e.att,ref:a.no+" · "+a.holder})));
  return out;}
 const recRows=()=>(D.dns||[]).filter(d=>!d.cancelled).map(d=>({month:String(d.period||d.date||"").slice(0,7),proj:projOf(d.cc||"ASP"),excl:+d.sub||0,no:d.no,from:d.contractor}));
 let COST_Y=today().slice(0,4),COST_SEL=null;
@@ -2641,7 +2641,7 @@ BIND.costs=()=>{const tot=()=>{const x=+$("#ivX").value||0,v=$("#ivV").value==="
   const vat=$("#ivV").value===""?Math.round(x*15)/100:+$("#ivV").value,po=$("#ivPo").value;
   if(po?(D.invs||[]).some(v=>v.po===po&&v.no===no):(D.cost||[]).some(v=>!v.cancelled&&whL(v.sup)===whL(sup)&&v.no===no))return msg("err",tr("This invoice number is already registered for this supplier.","رقم الفاتورة مسجل مسبقاً لهذا المورد."));
   const b=$("#ivSave");b.disabled=true;let att;try{att=await saveAtt(f,"03 Procurement/04 Invoices/"+m,qtSafe(sup)+" "+qtSafe(no),"invoice");}catch(e){b.disabled=false;return msg("err",esc(e.message));}
-  const base={no,date:$("#ivD").value,month:m,cc:$("#ivC").value,type:$("#ivT").value,sup,excl:x,vat,desc:$("#ivDs").value.trim(),rebill:$("#ivRb").value,att,by:apMe(),paid:""};
+  const base={no,date:$("#ivD").value,month:m,cc:$("#ivC").value,type:$("#ivT").value,sup,excl:x,vat,desc:$("#ivDs").value.trim(),rebill:$("#ivRb").value,att,by:apMe(),paid:"",cls:($("#ivCls")||{}).value||"OPEX"};
   if(po){D.invs.push(Object.assign({po,amt:Math.round((x+vat)*100)/100},base));}else{D.cost=[...(D.cost||[]),Object.assign({key:sup+"|"+no,total:Math.round((x+vat)*100)/100},base)];}
   persist();COST_Y=m.slice(0,4);COST_SEL=[projOf(base.cc),+m.slice(5,7)-1];render();toast("✔ "+tr("Invoice saved","حُفظت الفاتورة")+" – "+sup+" "+no);};
  $("#cyY").onchange=e=>{COST_Y=e.target.value;COST_SEL=null;render();};
@@ -2900,7 +2900,7 @@ function utxLines(){const out=[];utMonths().slice().sort().forEach(m=>{const by=
    month from the generator rental records (rental + transport), not with its full PO value. Other POs count in the PO month. */
 const GR_PO="MIDU-PO-260452";let CX_M="";
 function cxLines(){const out=[],gp=(D.pos||[]).find(p=>p.no===GR_PO);
- (D.pos||[]).filter(p=>!p.cancelled&&p.no!==GR_PO).forEach(p=>(p.lines||[]).forEach(l=>out.push({order:p.no,cc:p.cc,desc:l.desc,cls:l.cls||"OPEX",amt:(+l.qty||0)*(+l.price||0),m:String(p.date||"").slice(0,7),src:"po"})));
+ (D.pos||[]).filter(p=>!p.cancelled&&!p.rej&&p.no!==GR_PO).forEach(p=>(p.lines||[]).forEach(l=>out.push({order:p.no,cc:p.cc,desc:l.desc+(l.closed?" ("+tr("closed short","أُغلق بنقص")+")":""),cls:l.cls||"OPEX",amt:(l.closed?Math.min(poRecv(p,l),+l.qty||0):(+l.qty||0))*(+l.price||0),m:String(p.date||"").slice(0,7),src:"po"})));
  const gcc=(gp&&gp.cc)||UTX_CC();
  grAll().forEach(g=>{g.ls.forEach(l=>out.push({order:GR_PO,cc:gcc,desc:grName(g,l)+` (${rcQ(l.qty)} gen-months × ${money(l.rate)})`,cls:"OPEX",amt:l.amt,m:g.m,src:"gr",inv:typeof invOf==="function"?invOf(g.m,"Byrne"):[]}));
   if(+g.trips&&+g.tripRate)out.push({order:GR_PO,cc:gcc,desc:tr("Generator transport / delivery","نقل وتوصيل المولدات")+" – "+monthName(g.m)+` (${g.trips} × ${money(+g.tripRate)})`,cls:"OPEX",amt:r2(g.trips*g.tripRate),m:g.m,src:"gr"});});
@@ -3584,7 +3584,9 @@ const PR_DEPTS=["Safety (HSE)","Construction","Civil","Electrical","Mechanical /
 const prOf=c=>D.prs.find(p=>p.no===(c.pr||c.prCancelled))||{};
 /* ---------- budget shown to approvers ---------- */
 function budgetLeft(cc,excl){const B=(D.budget||{})[cc]||{},used={CAPEX:0,OPEX:0};
- (D.pos||[]).filter(p=>p.cc===cc&&!p.cancelled&&!p.rej&&p!==excl).forEach(p=>(p.lines||[]).forEach(l=>{used[l.cls==="CAPEX"?"CAPEX":"OPEX"]+=(+l.qty||0)*(+l.price||0);}));
+ (D.pos||[]).filter(p=>p.cc===cc&&!p.cancelled&&!p.rej&&p!==excl).forEach(p=>(p.lines||[]).forEach(l=>{used[l.cls==="CAPEX"?"CAPEX":"OPEX"]+=(l.closed?Math.min(poRecv(p,l),+l.qty||0):(+l.qty||0))*(+l.price||0);}));
+ (D.cost||[]).filter(v=>!v.cancelled&&v.cc===cc).forEach(v=>{used[v.cls==="CAPEX"?"CAPEX":"OPEX"]+=+v.excl||0;});
+ (D.pca||[]).filter(a=>!a.cancelled&&a.cc===cc).forEach(a=>(a.exp||[]).filter(e=>e.st!=="rej").forEach(e=>{used[e.cls==="CAPEX"?"CAPEX":"OPEX"]+=(+e.amt||0)/1.15;}));
  return {CAPEX:(+B.CAPEX||0)-used.CAPEX,OPEX:(+B.OPEX||0)-used.OPEX,has:(+B.CAPEX||0)+(+B.OPEX||0)>0};}
 function apBudgetHtml(k,d){try{const pr=k==="pr"?d:prOf(d),cc=d.cc||pr.cc;if(!cc)return "";const val={CAPEX:0,OPEX:0};
  if(k==="po")(d.lines||[]).forEach(l=>val[l.cls==="CAPEX"?"CAPEX":"OPEX"]+=l.qty*l.price);
@@ -3684,6 +3686,46 @@ function enforce(el){if(el.dataset.ar)return;let v=el.value,b=v;v=v.replace(/[٠
  if(el.dataset.upper||el.dataset.enonly){const had=AR_RE.test(v);AR_RE.lastIndex=0;if(had){v=v.replace(AR_RE,"");showTip(el,tr("English letters and numbers only in this field (code / number)","هذا الحقل بالأحرف الإنجليزية والأرقام فقط (رمز / رقم)"));}}
  if(el.dataset.upper)v=v.toUpperCase();if(v!==b){el.value=v;}}
 {const st=document.createElement("style");st.textContent="input.en,textarea.en{unicode-bidi:plaintext}";document.head.appendChild(st);}
+/* ===== Update 77: CAPEX/OPEX everywhere (petty cash custody, invoices without PO), invoice checks, payment method, PR split warning, PO date check ===== */
+/* petty cash custody invoices (not rejected) in the CAPEX / OPEX report */
+{const C=cxLines;cxLines=function(){const out=C();(D.pca||[]).filter(a=>!a.cancelled).forEach(a=>(a.exp||[]).filter(e=>e.st!=="rej").forEach(e=>out.push({order:a.no+(e.inv?" · "+e.inv:""),cc:a.cc,desc:[e.shop,e.desc].filter(Boolean).join(" – ")+" ("+tr("petty cash","عهدة نثرية")+" – "+(a.holder||"")+")",cls:e.cls==="CAPEX"?"CAPEX":"OPEX",amt:Math.round((+e.amt||0)/1.15*100)/100,m:String(e.date||"").slice(0,7),src:"pca"})));return out;};}
+/* invoice without PO: choose CAPEX / OPEX */
+{const V=VIEWS.costs;if(V)VIEWS.costs=()=>{let h=V();const i=h.indexOf('<select id="ivT">');if(i<0)return h;const j=h.indexOf("</div>",i)+6;
+ return h.slice(0,j)+`<div class="f"><label>CAPEX / OPEX *</label><select id="ivCls"><option>OPEX</option><option>CAPEX</option></select></div>`+h.slice(j);};}
+/* supplier invoice against a PO: PO approved, not cancelled, number not repeated, total not above the PO */
+function invPoCheck(po,no,amt){const p=D.pos.find(x=>x.no===po);if(!p)return tr("Choose the PO.","اختر أمر الشراء.");
+ if(p.cancelled)return tr("This PO is cancelled.","أمر الشراء هذا ملغى.");if(p.kind==="PO"&&!poSigned(p))return tr("This PO is not fully approved yet – the invoice cannot be registered.","أمر الشراء غير معتمد بالكامل بعد – لا يمكن تسجيل الفاتورة.");
+ const k=x=>String(x||"").trim().toUpperCase();if((D.invs||[]).some(v=>k(v.no)===k(no)&&(v.po===po||(D.pos.find(x=>x.no===v.po)||{}).sup===p.sup)))return tr("This invoice number is already registered for this supplier.","رقم الفاتورة مسجل مسبقاً لهذا المورد.");
+ const max=poTotal(p)*1.15,done=(D.invs||[]).filter(v=>v.po===po).reduce((a,v)=>a+(+v.amt||0),0);
+ if(done+amt>max+1)return tr(`Invoices would exceed the PO: PO ${money(max)} SAR incl. VAT, already invoiced ${money(done)}, this invoice ${money(amt)}.`,`الفواتير ستتجاوز أمر الشراء: الأمر ${money(max)} ريال مع الضريبة، المفوتر ${money(done)}، هذه الفاتورة ${money(amt)}.`);return "";}
+document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.closest("#iSave,#ivSave");if(!b)return;let e="";
+ if(b.id==="iSave"){const no=$("#iNo").value.trim();if(!no)return;e=invPoCheck($("#iPo").value,no,+$("#iAmt").value||0);}
+ else{const po=($("#ivPo")||{}).value;if(!po)return;const no=$("#ivN").value.trim(),x=+$("#ivX").value||0;if(!no||!(x>0))return;const vat=$("#ivV").value===""?Math.round(x*15)/100:+$("#ivV").value;e=invPoCheck(po,no,x+vat);}
+ if(e){ev.stopImmediatePropagation();ev.preventDefault();msg("err",e);}},true);
+/* Finance screen: only approved, open POs in the list */
+{const V=VIEWS.fin;VIEWS.fin=()=>{let h=V();return h.replace(/(<select id="iPo"[^>]*>)([\s\S]*?)(<\/select>)/,(m,a,b,c)=>a+b.replace(/<option value="([^"]*)"[^>]*>[^<]*<\/option>/g,(o,no)=>{const p=D.pos.find(x=>x.no===no.replace(/&amp;/g,"&"));return p&&!p.cancelled&&poSigned(p)?o:"";})+c);};}
+/* payment: how it was paid (bank transfer / cash / cheque) and the reference */
+var PAY_M=["Bank transfer","Cash","Cheque"],PAY_AR={"Bank transfer":"تحويل بنكي","Cash":"نقداً","Cheque":"شيك"},PAYX={m:"Bank transfer",ref:""};
+document.addEventListener("input",e=>{if(e.target.id==="payRef")PAYX.ref=e.target.value.trim();});
+document.addEventListener("change",e=>{if(e.target.id==="payM")PAYX.m=e.target.value;});
+function payDo(v,after){if(!M365.can("fin"))return toast("✖ "+tr("Only Finance records payments.","المالية فقط تسجل السداد."));const g=payGate(v);if(g)return msg("err",g);PAYX={m:"Bank transfer",ref:""};
+ apPinDlg(tr("Record payment","تسجيل السداد")+" – "+(v.no||""),`<p style="margin:0">${esc(v.po||v.sup||"")} · ${money(+v.amt||+v.total||+v.excl||0)} SAR</p>
+ <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap"><label>${tr("Paid by","طريقة السداد")}<br><select id="payM">${PAY_M.map(m=>`<option value="${m}">${tr(m,PAY_AR[m])}</option>`).join("")}</select></label>
+ <label>${tr("Transfer / cheque / receipt reference","مرجع التحويل / الشيك / الإيصال")}<br><input id="payRef" class="en" style="width:240px" autocomplete="off"></label></div>`,false,sig=>{
+  if(PAYX.m!=="Cash"&&!PAYX.ref){toast("✖ "+tr("Enter the bank transfer or cheque reference.","أدخل مرجع التحويل البنكي أو الشيك."));return;}
+  Object.assign(v,{paid:today(),paidBy:sig.by,paidSig:sig,payM:PAYX.m,payRef:PAYX.ref});persist();render();toast("✔ "+tr("Payment recorded","تم تسجيل السداد")+" – "+tr(PAYX.m,PAY_AR[PAYX.m]));after&&after();});}
+{const V=VIEWS.fin;VIEWS.fin=()=>{let h=V();(D.invs||[]).forEach(v=>{if(v.paid&&v.payM)h=h.split(`${tr("Paid","مدفوع")} ${v.paid}</span>`).join(`${tr("Paid","مدفوع")} ${v.paid}</span><div class="hint" style="font-size:11px">${esc(tr(v.payM,PAY_AR[v.payM]||v.payM))}${v.payRef?" · "+esc(v.payRef):""}</div>`);});return h;};}
+/* PR: warn when it looks like one purchase split into smaller PRs to stay under the 3-quotation limit */
+function prSplitHit(){const tb=$("#pLines"),cc=($("#pCc")||{}).value;if(!tb||!cc)return null;const cur=[...tb.querySelectorAll("tr")].map(r=>{const it=r.querySelector("[data-k=item]");if(!it||!it.value.trim())return null;const q=r.querySelector("[data-k=qty]"),e=r.querySelector("[data-k=est]");return {code:it.value.split("|")[0].trim().toUpperCase(),v:(+(q||{}).value||0)*(+(e||{}).value||0)};}).filter(Boolean);
+ const tot=cur.reduce((a,x)=>a+x.v,0);if(!cur.length||tot>QT3_LIMIT)return null;const lim=new Date(Date.now()-30*864e5).toISOString().slice(0,10);
+ const others=D.prs.filter(p=>p.no!==PR_EDIT&&p.cc===cc&&!["Deleted","Rejected"].includes(p.status)&&String(p.date||"")>=lim&&(p.lines||[]).some(l=>cur.some(x=>x.code&&String(l.code||"").toUpperCase()===x.code)));
+ const sum=tot+others.reduce((a,p)=>a+prEst(p),0);return others.length&&sum>QT3_LIMIT?{others,sum}:null;}
+document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.closest("#pSave");if(!b)return;const h=prSplitHit();if(!h)return;
+ if(!confirm(tr(`The same item(s) were requested for this cost center in the last 30 days (${h.others.map(p=>p.no).join(", ")}). Together it is ${money(h.sum)} SAR – above ${money(QT3_LIMIT)}, which needs 3 quotations. Splitting a purchase to avoid the limit is not allowed. Save anyway?`,`نفس الصنف طُلب لمركز التكلفة هذا خلال آخر 30 يوماً (${h.others.map(p=>p.no).join("، ")}). المجموع ${money(h.sum)} ريال – فوق ${money(QT3_LIMIT)} ويحتاج 3 عروض. تجزئة الشراء لتجنب الحد غير مسموحة. حفظ على أي حال؟`))){ev.stopImmediatePropagation();ev.preventDefault();}},true);
+/* PO: delivery date later than the PR required date → confirm; button label follows the CEO limit */
+document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.closest("#oSave");if(!b)return;const d=($("#oPrev")||{})._d,dd=($("#oDd")||{}).value;if(!d||!d.p||!dd||!d.p.need||dd<=d.p.need)return;
+ if(!confirm(tr(`The supplier's delivery date (${dd}) is after the date required on site in the PR (${d.p.need}). Issue the PO anyway?`,`تاريخ توريد المورد (${dd}) بعد التاريخ المطلوب في الموقع حسب الطلب (${d.p.need}). إصدار أمر الشراء على أي حال؟`))){ev.stopImmediatePropagation();ev.preventDefault();}},true);
+{const B=BIND.po;BIND.po=()=>{B&&B();const s=$("#oSave"),pr=$("#oPr");if(!s)return;const lab=()=>{const d=($("#oPrev")||{})._d;const big=d&&d.q&&+d.q.price>CEO_LIMIT;s.textContent=big?tr("Issue PO & send for approval (FM → PD → CEO)","إصدار وإرسال للاعتماد (المالية ← مدير المشروع ← الرئيس التنفيذي)"):tr("Issue PO & send for approval (FM → PD)","إصدار وإرسال للاعتماد (المالية ← مدير المشروع)");};if(pr)pr.addEventListener("change",()=>setTimeout(lab,0));lab();};}
 </script>
 </body>
 </html>
