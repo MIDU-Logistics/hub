@@ -3737,7 +3737,7 @@ if(typeof M365_ROLES!=="undefined"){const add=(r,v)=>{const x=M365_ROLES[r];if(A
  ["storekeeper","logistics","assets","finance"].forEach(r=>add(r,"rts"));["finance","logistics","assets","procurement"].forEach(r=>add(r,"rent"));}
 {const N0=NAV;NAV=()=>{const n=N0();let i=n.findIndex(x=>x[1]==="mrs");if(i>-1)n.splice(i+1,0,[1,"rts","↩","#B45309",tr("Return to supplier","إرجاع للمورد")]);
  i=n.findIndex(x=>x[1]==="capex");if(i>-1)n.splice(i+1,0,[1,"rent","🚗","#B45309",tr("Vehicles, equipment & property","المركبات والمعدات والعقارات")]);return n;};}
-const WH_PROJ={MAIN:"ASP",ASP:"ASP",MAD:"MED",RUH:"HO"};
+const WH_PROJ={MAIN:"ASP",ASP:"ASP",MAD:"MED"};   /* Riyadh Store is its own store: no project suggested, the user picks the cost center */
 const ccOpts=v=>`<option value="">—</option>`+CC.map(c=>`<option value="${c}" ${c===v?"selected":""}>${esc(ccLabel(c))}</option>`).join("");
 const ccInProj=(proj,like)=>{const suf=String(like||"").split("-").slice(1).join("-");return CC.find(c=>c===proj+"-"+suf)||CC.find(c=>projOf(c)===proj)||"";};
 const r2x=v=>Math.round((+v||0)*100)/100;
@@ -3826,7 +3826,7 @@ function assetMoveDlg(ids,doc,proj){const A=ids.map(id=>D.assets.find(x=>x.id===
 /* after an MDS transfer with assets to a store of another project → offer the cost move */
 {const B=BIND.mds;BIND.mds=()=>{B&&B();const s=$("#mSave");if(!s||s._am)return;const o=s.onclick;if(!o)return;s._am=1;s.onclick=async function(ev){const n0=D.docs.filter(d=>d.type==="MDS").length;await o.call(this,ev);
  const L=D.docs.filter(d=>d.type==="MDS");if(L.length<=n0)return;const d=L[L.length-1];if(d.dtype!=="Transfer")return;const ids=(d.lines||[]).map(l=>l.asset).filter(Boolean);if(!ids.length)return;
- const tw=destWh(d.to),fp=WH_PROJ[realWh(d.wh,d.loc)]||WH_PROJ[d.wh],tp=WH_PROJ[tw];if(!tp||tp===fp)return;setTimeout(()=>assetMoveDlg(ids,d.no,tp),700);};};}
+ const tw=destWh(d.to),fw=realWh(d.wh,d.loc),fp=WH_PROJ[fw]||WH_PROJ[d.wh],tp=WH_PROJ[tw];if(!tw||tw===fw||(tp&&tp===fp))return;setTimeout(()=>assetMoveDlg(ids,d.no,tp||null),700);};};}
 {const R0=whReverse;whReverse=function(d,dry){const r=R0(d,dry);if(!dry&&!r&&d&&d.type==="MDS")D.assets.forEach(a=>{if((a.costMoves||[]).some(m=>m.doc===d.no))a.costMoves=a.costMoves.filter(m=>m.doc!==d.no);});return r;};}
 /* manual move from the asset register */
 {const V=VIEWS.assetReg;VIEWS.assetReg=()=>V()+`<div class="card"><h2>${tr("Move an asset's cost to another project","نقل تكلفة أصل لمشروع آخر")}</h2><div class="fg"><div class="f w2"><label>${tr("Asset ID(s), comma separated","رقم/أرقام الأصول مفصولة بفاصلة")}</label><input id="amIds" class="en" data-upper="1" placeholder="e.g. LAP-006, GEN-002"></div><div class="f"><label>${tr("Receiving project","المشروع المستلم")}</label><select id="amP"><option value="">—</option>${[...new Set(CC.map(projOf))].map(p=>`<option>${p}</option>`).join("")}</select></div></div><div class="btns"><button class="b" id="amOpen">${tr("Continue","متابعة")}</button></div>
