@@ -154,6 +154,8 @@ const tr=(en,ar)=>L==="ar"?ar:en;
 
 /* ============================ DATA ============================ */
 const WH={MAIN:{name:"Main Warehouse",locs:["Laydown Yard","Container No-7","Porta Cabin Store"]},ASP:{name:"ASP Site Store",locs:["Container No-4","Container No-2","Batching Plant Store"]}};
+function YY(){return today().slice(2,4);}
+function poNextNo(){const pre="MIDU-PO-"+YY(),n=D.pos.filter(p=>p.kind==="PO"&&String(p.no).startsWith(pre)).map(p=>+String(p.no).slice(pre.length)).filter(x=>!isNaN(x)).reduce((m,x)=>Math.max(m,x),0)+1;return pre+String(n).padStart(4,"0");}
 const CC=["ASP-STL","ASP-CON","ASP-CONST","MED-STL","MED-CON","CEER-STL","CEER-CON","HO-GEN"];   /* same codes as the Asset Register / PR CostCenter choice (Update 72) */
 function ccLabel(c){const n={"ASP-STL":"MIDU Steel","ASP-CON":"Concrete Division","ASP-CONST":"MIDU (ASP construction)"}[c];return n?c+" – "+n:c;}
 const SUPS=["Al Imdad Est.","Systems Co.","Gulf Safety Supplies","Al Rajhi Building Materials","Tech Zone Trading","Jeddah Tools Center"];
@@ -893,7 +895,7 @@ const prStage=p=>{if(p.status==="Deleted")return -1;if(p.status==="Draft")return
 const STG=()=>({"-1":[tr("Deleted","محذوف"),"r"],0:[tr("Draft — can be edited","مسودة — قابلة للتعديل"),""],0.5:[tr("Not approved by PD — returned to you","غير معتمد من مدير المشروع — أُعيد إليك"),"r"],1.5:[tr("PD approved — send to Procurement","اعتمده مدير المشروع — أرسله للمشتريات"),"g"],1:[tr("Submitted — awaiting PD","مُرسل — بانتظار مدير المشروع"),""],2:[tr("PD approved — get quotations","اعتمده مدير المشروع — اطلب عروض"),"b"],2.5:[tr("CQS in progress","المقارنة قيد التنفيذ"),"a"],3:[tr("CQS approved — prepare PO","اعتُمدت المقارنة — جهّز أمر الشراء"),"b"],4:[tr("PO issued — awaiting delivery","صدر أمر الشراء — بانتظار التوريد"),"a"],4.5:[tr("Fully received","استُلم بالكامل"),"g"],5:[tr("Invoiced","مفوتر"),"p"],6:[tr("Paid","مدفوع"),"g"]});
 const prFlow=k=>`<div class="flow">${[["pr","PR"],["cqs","CQS"],["po",tr("PO / petty cash","أمر شراء / نثرية")],["grn","GRN"],["fin",tr("Invoice & payment","الفاتورة والسداد")]].map(([v,l],i)=>`${i?"<em>→</em>":""}<span class="${v===k?"on":""}">${l}</span>`).join("")}</div>`;
 VIEWS.pr=()=>head(tr("Purchase requests (PR)","طلبات الشراء (PR)"),tr("Logistics raises the PR; the Project Director approves; Procurement takes it from there.","اللوجستيات ترفع الطلب، ومدير المشروع يعتمده، ثم تتولاه المشتريات."))+prFlow("pr")+msgBox+
- `<div class="card"><h2>${tr("New purchase request","طلب شراء جديد")}</h2><div class="fg">${fld("pNo",tr("PR No.","رقم الطلب"),{ro:true,val:seqNo("PR-26-",D.prs.map(p=>p.no))})}${fld("pDate",tr("Date","التاريخ"),{type:"date",val:today(),req:true})}${sel("pCc",tr("Cost center","مركز التكلفة"),CC,{req:true})}${fld("pNeed",tr("Required date (on site)","تاريخ الاحتياج (في الموقع)"),{type:"date",req:true})}
+ `<div class="card"><h2>${tr("New purchase request","طلب شراء جديد")}</h2><div class="fg">${fld("pNo",tr("PR No.","رقم الطلب"),{ro:true,val:seqNo(("PR-"+YY()+"-"),D.prs.map(p=>p.no))})}${fld("pDate",tr("Date","التاريخ"),{type:"date",val:today(),req:true})}${sel("pCc",tr("Cost center","مركز التكلفة"),CC,{req:true})}${fld("pNeed",tr("Required date (on site)","تاريخ الاحتياج (في الموقع)"),{type:"date",req:true})}
  ${fld("pReq",tr("Requested by","مقدّم الطلب"),{val:"Azzam El Masri",req:true})}${fld("pJust",tr("Purpose","دواعي الشراء"),{req:true,w:"w2"})}${sel("pPrio",tr("Priority","الأولوية"),["Normal","Urgent"])}</div>
  <table class="t" id="pLines" style="margin-top:14px"><tr><th style="width:44%">${tr("Item (code or free text)","الصنف (كود أو وصف)")}</th><th style="width:10%">${tr("Qty","الكمية")}</th><th style="width:14%">${tr("Est. unit price","السعر التقديري")}</th><th style="width:14%">CAPEX / OPEX</th><th></th></tr></table>
  <div class="btns"><button class="b l" id="pAdd">${tr("+ Add line","+ إضافة سطر")}</button><span style="flex:1"></span><button class="b" style="background:#7C3AED" id="pSave">${tr("Submit PR","إرسال الطلب")}</button></div></div>
@@ -905,12 +907,12 @@ BIND.pr=()=>{const tb=$("#pLines");tb.appendChild(pRow());$("#pAdd").onclick=()=
  document.querySelectorAll("[data-pd]").forEach(b=>b.onclick=()=>{D.prs.find(p=>p.no===b.dataset.pd).pd=true;persist();render();toast("✔");});
  $("#pSave").onclick=()=>{if(!checkReq($("#main").querySelector(".card")))return msg("err",ERR.req());const lines=[];
   for(const r of [...tb.querySelectorAll("tr")].slice(1)){const v=r.querySelector("[data-k=item]").value.trim();if(!v)continue;const q=+r.querySelector("[data-k=qty]").value;if(!(q>0))return msg("err",ERR.qty());const i=parseItem(v);lines.push({code:i?i.code:"",desc:i?i.desc:v,qty:q,est:+r.querySelector("[data-k=est]").value||0,cls:r.querySelector("[data-k=cls]").value});}
-  if(!lines.length)return msg("err",ERR.lines());const p={no:seqNo("PR-26-",D.prs.map(p=>p.no)),date:$("#pDate").value,cc:$("#pCc").value,req:$("#pReq").value.trim(),need:$("#pNeed").value,just:$("#pJust").value.trim(),prio:$("#pPrio").value,status:"Draft",pd:false,lines};
+  if(!lines.length)return msg("err",ERR.lines());const p={no:seqNo(("PR-"+YY()+"-"),D.prs.map(p=>p.no)),date:$("#pDate").value,cc:$("#pCc").value,req:$("#pReq").value.trim(),need:$("#pNeed").value,just:$("#pJust").value.trim(),prio:$("#pPrio").value,status:"Draft",pd:false,lines};
   D.prs.push(p);persist();delete KEEP.pr;render();saved(p.no,prDoc(p));};};
 
 VIEWS.cqs=()=>{const ready=D.prs.filter(p=>p.pd&&p.status!=="Draft"&&p.status!=="Deleted"&&p.status!=="PD"&&p.status!=="Rejected"&&!D.cqs.some(c=>c.pr===p.no)&&!D.pos.some(o=>o.pr===p.no));
  return head(tr("Comparative quotations (CQS)","مقارنة عروض الأسعار (CQS)"),tr("Enter up to 3 quotations. The system checks compliance and recommends the lowest compliant offer.","أدخل حتى 3 عروض. يفحص النظام المطابقة ويوصي بأقل عرض مطابق."))+prFlow("cqs")+msgBox+
- `<div class="card"><h2>${tr("New CQS","مقارنة جديدة")}</h2><div class="fg">${fld("qNo",tr("CQS No.","رقم المقارنة"),{ro:true,val:seqNo("CQS-26-",D.cqs.map(c=>c.no))})}${sel("qPr",tr("Purchase request","طلب الشراء"),ready.length?ready.map(p=>[p.no,`${p.no} — ${p.cc}`]):[["",tr("No approved PR waiting","لا يوجد طلب معتمد بالانتظار")]],{req:true,w:"w2"})}</div>
+ `<div class="card"><h2>${tr("New CQS","مقارنة جديدة")}</h2><div class="fg">${fld("qNo",tr("CQS No.","رقم المقارنة"),{ro:true,val:seqNo(("CQS-"+YY()+"-"),D.cqs.map(c=>c.no))})}${sel("qPr",tr("Purchase request","طلب الشراء"),ready.length?ready.map(p=>[p.no,`${p.no} — ${p.cc}`]):[["",tr("No approved PR waiting","لا يوجد طلب معتمد بالانتظار")]],{req:true,w:"w2"})}</div>
  <table class="t" id="qTab" style="margin-top:14px"><tr><th>${tr("Supplier","المورد")}</th><th>${tr("Total price (SAR, excl. VAT)","السعر الإجمالي (قبل الضريبة)")}</th><th>${tr("Delivery (days)","التوريد (أيام)")}</th><th>${tr("Warranty (months)","الضمان (أشهر)")}</th><th>${tr("Meets spec?","مطابق للمواصفات؟")}</th><th>${tr("Valid quote?","عرض ساري؟")}</th></tr>
  ${[0,1,2].map(i=>`<tr><td><input class="en" list="supL" data-q="sup"></td><td><input class="en" type="number" data-q="price"></td><td><input class="en" type="number" data-q="days"></td><td><input class="en" type="number" data-q="war" value="12"></td><td><select data-q="spec"><option value="1">Yes</option><option value="0">No</option></select></td><td><select data-q="valid"><option value="1">Yes</option><option value="0">No</option></select></td></tr>`).join("")}</table>
  <div class="btns"><span id="qRec" class="hint"></span><span style="flex:1"></span><button class="b l" id="qEval">${tr("Evaluate","تقييم")}</button><button class="b" style="background:#7C3AED" id="qSave">${tr("Save & approve CQS","حفظ واعتماد المقارنة")}</button></div></div>
@@ -919,14 +921,14 @@ BIND.cqs=()=>{bindDocBtns();const read=()=>[...$("#qTab").querySelectorAll("tr")
  const evalQ=()=>{const qs=read();const ok=qs.filter(q=>q.spec&&q.valid).sort((a,b)=>a.price-b.price);$("#qRec").innerHTML=ok.length?`${tr("Recommended (lowest compliant)","الموصى به (أقل عرض مطابق)")}: <b class="en">${esc(ok[0].sup)}</b> — ${money(ok[0].price)} SAR`:tr("No compliant quotation yet.","لا يوجد عرض مطابق بعد.");return ok[0];};
  $("#qEval").onclick=evalQ;
  $("#qSave").onclick=()=>{if(!$("#qPr").value)return msg("err",ERR.req());const best=evalQ();if(!best)return msg("err",tr("Enter at least one compliant quotation.","أدخل عرضاً مطابقاً واحداً على الأقل."));
-  const c={no:seqNo("CQS-26-",D.cqs.map(c=>c.no)),pr:$("#qPr").value,date:today(),quotes:read(),sel:best.sup,approved:true};D.cqs.push(c);persist();delete KEEP.cqs;render();saved(c.no,cqsDoc(c));};};
+  const c={no:seqNo(("CQS-"+YY()+"-"),D.cqs.map(c=>c.no)),pr:$("#qPr").value,date:today(),quotes:read(),sel:best.sup,approved:true};D.cqs.push(c);persist();delete KEEP.cqs;render();saved(c.no,cqsDoc(c));};};
 
 VIEWS.po=()=>{const ready=D.prs.filter(p=>D.cqs.some(c=>c.pr===p.no&&c.approved)&&!D.pos.some(o=>o.pr===p.no));
  return head(tr("Purchase order & petty cash","أمر الشراء والعهدة النثرية"),tr("PO header fills itself from the approved CQS. Small purchases up to SAR 5,000 go through petty cash.","بيانات أمر الشراء تُملأ تلقائياً من المقارنة المعتمدة. المشتريات الصغيرة حتى 5,000 ريال تتم بالعهدة النثرية."))+prFlow("po")+msgBox+
  `<div class="tabs"><button class="on" data-tab="po">${tr("Purchase order","أمر شراء")}</button><button data-tab="pc">${tr("Petty cash","عهدة نثرية")}</button></div>
- <div class="card" id="tabpo"><div class="fg">${fld("oNo",tr("PO No.","رقم أمر الشراء"),{ro:true,val:seqNo("MIDU-PO-26",D.pos.filter(p=>p.kind==="PO").map(p=>p.no.replace("MIDU-PO-26","X-"))).replace(/^MIDU-PO-26/,"MIDU-PO-26")})}${sel("oPr",tr("PR with approved CQS","طلب بمقارنة معتمدة"),ready.length?ready.map(p=>[p.no,p.no+" — "+p.cc]):[["",tr("None waiting","لا يوجد بالانتظار")]],{w:"w2"})}${fld("oDate",tr("Date","التاريخ"),{type:"date",val:today()})}</div><div id="oPrev" style="margin-top:14px"></div>
+ <div class="card" id="tabpo"><div class="fg">${fld("oNo",tr("PO No.","رقم أمر الشراء"),{ro:true,val:poNextNo()})}${sel("oPr",tr("PR with approved CQS","طلب بمقارنة معتمدة"),ready.length?ready.map(p=>[p.no,p.no+" — "+p.cc]):[["",tr("None waiting","لا يوجد بالانتظار")]],{w:"w2"})}${fld("oDate",tr("Date","التاريخ"),{type:"date",val:today()})}</div><div id="oPrev" style="margin-top:14px"></div>
  <div class="btns"><span style="flex:1"></span><button class="b" style="background:#7C3AED" id="oSave">${tr("Issue PO","إصدار أمر الشراء")}</button></div></div>
- <div class="card" id="tabpc" style="display:none"><div class="fg">${fld("cNo2",tr("Petty cash No.","رقم النثرية"),{ro:true,val:seqNo("PC-26-",D.pos.filter(p=>p.kind==="PC").map(p=>p.no))})}${fld("cSup",tr("Shop / supplier","المحل / المورد"),{req:true})}${sel("cCc",tr("Cost center","مركز التكلفة"),CC)}${fld("cDesc",tr("Description","الوصف"),{req:true})}${fld("cQty",tr("Qty","الكمية"),{type:"number",val:1,req:true})}${fld("cPrice",tr("Unit price (SAR)","سعر الوحدة (ريال)"),{type:"number",req:true})}${sel("cCls","CAPEX / OPEX",["OPEX","CAPEX"],{req:true})}${fld("cTot",tr("Total (SAR)","الإجمالي (ريال)"),{ro:true})}</div>
+ <div class="card" id="tabpc" style="display:none"><div class="fg">${fld("cNo2",tr("Petty cash No.","رقم النثرية"),{ro:true,val:seqNo(("PC-"+YY()+"-"),D.pos.filter(p=>p.kind==="PC").map(p=>p.no))})}${fld("cSup",tr("Shop / supplier","المحل / المورد"),{req:true})}${sel("cCc",tr("Cost center","مركز التكلفة"),CC)}${fld("cDesc",tr("Description","الوصف"),{req:true})}${fld("cQty",tr("Qty","الكمية"),{type:"number",val:1,req:true})}${fld("cPrice",tr("Unit price (SAR)","سعر الوحدة (ريال)"),{type:"number",req:true})}${sel("cCls","CAPEX / OPEX",["OPEX","CAPEX"],{req:true})}${fld("cTot",tr("Total (SAR)","الإجمالي (ريال)"),{ro:true})}</div>
  <div class="btns"><span class="hint">${tr("Limit SAR 5,000 per petty cash voucher.","الحد 5,000 ريال لكل سند نثرية.")}</span><span style="flex:1"></span><button class="b a" id="cSave">${tr("Save petty cash","حفظ النثرية")}</button></div></div>
  <div class="card"><h2>${tr("Orders","الأوامر")}</h2><table class="t"><tr><th>${tr("No.","الرقم")}</th><th>${tr("Type","النوع")}</th><th>${tr("Supplier","المورد")}</th><th>${tr("Cost center","مركز التكلفة")}</th><th class="num">${tr("Total incl. VAT","الإجمالي مع الضريبة")}</th><th>${tr("Delivery","التوريد")}</th><th></th></tr>
  ${D.pos.slice().reverse().map(p=>`<tr><td class="en"><b>${p.no}</b></td><td>${tag(p.kind==="PC"?tr("Petty cash","نثرية"):"PO",p.kind==="PC"?"a":"p")}</td><td class="en">${esc(p.sup)}</td><td class="en">${p.cc}</td><td class="num">${money(poTotal(p)*1.15)}</td><td>${p.kind==="PC"?(p.fin==="Approved"?tag(tr("Finance approved","اعتمدته المالية"),"g"):tag(tr("Pending Finance","بانتظار المالية"),"a"))+" "+pcTag(p):poFull(p)?tag(p.lines.some(l=>l.closed)?tr("Complete (closed short)","مكتمل (أُغلق بنقص)"):tr("Fully received","مستلم بالكامل"),"g"):tag(tr("Awaiting","بالانتظار"),"a")}</td><td><button class="b l sm" data-doc="${p.no}">${tr("Print","طباعة")}</button></td></tr>`).join("")}</table></div>${poRcvCard()}`;};
@@ -947,11 +949,10 @@ BIND.po=()=>{bindDocBtns();const rp=$("#rPo");if(rp){rp.onchange=poRcvDraw;poRcv
  const prev=()=>{const p=D.prs.find(x=>x.no===$("#oPr").value);if(!p){$("#oPrev").innerHTML="";return;}const c=D.cqs.find(x=>x.pr===p.no);const q=c.quotes.find(x=>x.sup===c.sel);const tot=p.lines.reduce((a,l)=>a+l.qty*l.est,0);const f=q.price/(tot||q.price);
   $("#oPrev").innerHTML=`<table class="t"><tr><th>${tr("Supplier (from CQS)","المورد (من المقارنة)")}</th><th>CQS</th><th>${tr("Cost center (from PR)","مركز التكلفة (من الطلب)")}</th><th class="num">${tr("Amount excl. VAT","المبلغ قبل الضريبة")}</th><th class="num">VAT 15%</th><th class="num">${tr("Total","الإجمالي")}</th></tr><tr><td class="en"><b>${esc(c.sel)}</b></td><td class="en">${c.no}</td><td class="en">${p.cc}</td><td class="num">${money(q.price)}</td><td class="num">${money(q.price*.15)}</td><td class="num"><b>${money(q.price*1.15)}</b></td></tr></table>`;$("#oPrev")._d={p,c,q,f};};
  $("#oPr").onchange=prev;prev();
- $("#oSave").onclick=()=>{const d=$("#oPrev")._d;if(!d)return msg("err",ERR.req());const n=D.pos.filter(p=>p.kind==="PO").map(p=>+p.no.replace("MIDU-PO-26","")).reduce((m,x)=>Math.max(m,x),0)+1;
-  const po={no:"MIDU-PO-26"+String(n).padStart(4,"0"),kind:"PO",date:$("#oDate").value,pr:d.p.no,cqs:d.c.no,sup:d.c.sel,cc:d.p.cc,lines:d.p.lines.map(l=>({code:l.code,desc:l.desc,qty:l.qty,price:Math.round(l.est*d.f*100)/100,cls:l.cls}))};D.pos.push(po);persist();render();saved(po.no,poDoc(po));};
+ $("#oSave").onclick=()=>{const d=$("#oPrev")._d;if(!d)return msg("err",ERR.req());const po={no:poNextNo(),kind:"PO",date:$("#oDate").value,pr:d.p.no,cqs:d.c.no,sup:d.c.sel,cc:d.p.cc,lines:d.p.lines.map(l=>({code:l.code,desc:l.desc,qty:l.qty,price:Math.round(l.est*d.f*100)/100,cls:l.cls}))};D.pos.push(po);persist();render();saved(po.no,poDoc(po));};
  const ct=()=>{$("#cTot").value=money((+$("#cQty").value||0)*(+$("#cPrice").value||0));};$("#cQty").addEventListener("input",ct);$("#cPrice").addEventListener("input",ct);
  $("#cSave").onclick=()=>{if(!checkReq($("#tabpc")))return msg("err",ERR.req());const tot=(+$("#cQty").value)*(+$("#cPrice").value);if(!(tot>0))return msg("err",ERR.qty());if(tot*1.15>5000)return msg("err",tr("Above the SAR 5,000 petty cash limit — raise a PR instead.","يتجاوز حد النثرية 5,000 ريال — ارفع طلب شراء بدلاً من ذلك."));
-  const pc={no:seqNo("PC-26-",D.pos.filter(p=>p.kind==="PC").map(p=>p.no)),kind:"PC",date:today(),pr:"",cqs:"",sup:$("#cSup").value.trim(),cc:$("#cCc").value,fin:"Pending",lines:[{code:"",desc:$("#cDesc").value.trim(),qty:+$("#cQty").value,price:+$("#cPrice").value,cls:$("#cCls").value}]};D.pos.push(pc);persist();render();saved(pc.no,poDoc(pc),"a");};};
+  const pc={no:seqNo(("PC-"+YY()+"-"),D.pos.filter(p=>p.kind==="PC").map(p=>p.no)),kind:"PC",date:today(),pr:"",cqs:"",sup:$("#cSup").value.trim(),cc:$("#cCc").value,fin:"Pending",lines:[{code:"",desc:$("#cDesc").value.trim(),qty:+$("#cQty").value,price:+$("#cPrice").value,cls:$("#cCls").value}]};D.pos.push(pc);persist();render();saved(pc.no,poDoc(pc),"a");};};
 
 VIEWS.fin=()=>head(tr("Finance — invoices & payment","المالية — الفواتير والسداد"),tr("3-way match: PO · warehouse receipt (GRN) · supplier invoice. Payment is allowed only when the PO is fully received.","المطابقة الثلاثية: أمر الشراء · الاستلام (GRN) · فاتورة المورد. السداد مسموح فقط عند اكتمال الاستلام."))+prFlow("fin")+msgBox+
  `<div class="card"><h2>${tr("Register supplier invoice","تسجيل فاتورة مورد")}</h2><div class="fg">${sel("iPo",tr("PO","أمر الشراء"),D.pos.filter(p=>p.kind==="PO"&&!p.cancelled).map(p=>[p.no,`${p.no} — ${p.sup}`]),{req:true,w:"w2"})}${fld("iNo",tr("Invoice No.","رقم الفاتورة"),{req:true,upper:true})}${fld("iAmt",tr("Invoice total incl. VAT","إجمالي الفاتورة مع الضريبة"),{type:"number",req:true})}</div><div class="btns"><span style="flex:1"></span><button class="b" style="background:#7C3AED" id="iSave">${tr("Save invoice","حفظ الفاتورة")}</button></div></div>
@@ -990,7 +991,7 @@ function prDoc(p){const L=p.lines||[],tot=L.reduce((a,l)=>a+l.qty*l.est,0),band=
  <tr><td></td>${ppL("Value band / quotations")}${ppC(band)}<td colspan="2"></td><td colspan="2" style="font-size:8.5px;font-weight:700;color:${PP_N};padding:3px">Est. Total excl. VAT</td>${ppC("<b>"+ppM(tot)+"</b>","right")}</tr>
  <tr><td></td>${ppL("Linked CQS / PO")}${ppC(esc([c&&c.no,o&&o.no].filter(Boolean).join(" / ")))}<td colspan="5"></td></tr><tr><td></td><td></td>${ppC("")}<td colspan="5"></td></tr></table>
  <table style="width:100%;border-collapse:collapse;margin-top:22px"><tr><th style="background:${PP_N};border:${PP_B};width:12%"></th>${ppTh("Prepared by (Logistics)","مقدم الطلب")}${ppTh("Direct Manager - Project Director","المدير المباشر - مدير المشروع")}${ppTh("Received by Procurement","استلام المشتريات")}</tr>
- <tr>${ppL("Name","الاسم")}${ppC(esc(p.req||"Azzam El Masri"))}${ppC("Najed Fakhreddine")}${ppC("Raghad Ahmad Altowirgi")}</tr>
+ <tr>${ppL("Name","الاسم")}${ppC(esc(p.req||"Azzam El Masri"))}${ppC("Najed Fakhreddine")}${ppC("Raghad Altowirgi")}</tr>
  <tr>${ppL("Decision","القرار")}${ppC("")}${ppC(pdDec)}${ppC("☐ Received")}</tr>
  <tr>${ppL("Date","التاريخ")}${ppC(ppD(p.date))}${ppC("")}${ppC("")}</tr>
  <tr style="height:46px">${ppL("Signature","التوقيع")}${ppC("")}${ppC("")}${ppC("")}</tr></table>
@@ -1839,7 +1840,7 @@ BIND.pr=()=>{PR_OLD_BIND();[...new Set(D.prs.flatMap(p=>[p.req,p.pdBy]).concat([
  document.querySelectorAll("[data-prej]").forEach(b=>b.onclick=()=>prRejDlg(D.prs.find(x=>x.no===b.dataset.prej)));
  document.querySelectorAll("[data-pback]").forEach(b=>b.onclick=()=>{const p=D.prs.find(x=>x.no===b.dataset.pback);if(p.status==="Rejected"){(p.history=p.history||[]).push({rejDate:p.rejDate,rejBy:p.rejBy,rejReason:p.rejReason});delete p.rejSigned;p.prepSigned=false;}p.status="Draft";persist();render();toast("✔ "+p.no+" "+tr("is a draft again","أصبح مسودة مجدداً"));});
  if(!PR_EDIT){const card0=$("#main").querySelector(".card");$("#pSave").onclick=()=>{if(!checkReq(card0))return msg("err",ERR.req());const lines=prLinesFromTable(tb);if(!lines)return;
-  const p={no:seqNo("PR-26-",D.prs.map(p=>p.no)),date:$("#pDate").value,cc:$("#pCc").value,req:$("#pReq").value.trim(),need:$("#pNeed").value,just:$("#pJust").value.trim(),prio:$("#pPrio").value,status:"Draft",pd:false,lines};
+  const p={no:seqNo(("PR-"+YY()+"-"),D.prs.map(p=>p.no)),date:$("#pDate").value,cc:$("#pCc").value,req:$("#pReq").value.trim(),need:$("#pNeed").value,just:$("#pJust").value.trim(),prio:$("#pPrio").value,status:"Draft",pd:false,lines};
   D.prs.push(p);persist();delete KEEP.pr;render();saved(p.no,prDoc(p));};return;}
  const p=D.prs.find(x=>x.no===PR_EDIT);if(!p||p.status!=="Draft"){PR_EDIT=null;return;}
  $("#pNo").value=p.no;$("#pDate").value=p.date||"";$("#pCc").value=p.cc||"";$("#pNeed").value=p.need||"";$("#pReq").value=p.req||"";$("#pJust").value=p.just||"";if($("#pPrio"))$("#pPrio").value=p.prio||"Normal";
@@ -1880,7 +1881,7 @@ function prDoc(p){const L=p.lines||[],tot=L.reduce((a,l)=>a+l.qty*l.est,0),c=D.c
 </table>
  <table style="width:100%;border-collapse:collapse;table-layout:fixed;${F}"><colgroup><col style="width:10%"><col style="width:30%"><col style="width:30%"><col style="width:30%"></colgroup>
  <tr style="height:40px"><td style="border:${B}"></td>${sh("Prepared by (Logistics)","مقدم الطلب")}${sh("Direct Manager - Project Director","المدير المباشر - مدير المشروع")}${sh("Received by Procurement","استلام المشتريات")}</tr>
- <tr>${sl("Name","الاسم")}${td(esc(p.req||"Azzam El Masri"))}${td("Najed Fakhreddine",'')}${td(esc(p.rcvName||"Raghad Ahmad Altowirgi"),'')}</tr>
+ <tr>${sl("Name","الاسم")}${td(esc(p.req||"Azzam El Masri"))}${td("Najed Fakhreddine",'')}${td(esc(p.rcvName||"Raghad Altowirgi"),'')}</tr>
  <tr>${sl("Status","الحالة")}${td(sent?"Submitted":"Draft")}${td(rej?"<b style='color:#C00000'>Not approved</b>":p.pd?"Approved":"",'')}${td(prRcvOk(p)?"Received":(p.rcvEs&&!p.cancelled?(p.rcvEs.rej?"<b style='color:#C00000'>Returned</b>":"<span style='color:#8A94A6'>Pending e-signature</span>"):""),'')}</tr>
  <tr>${sl("Date","التاريخ")}${td(ppD(p.date))}${td(ppD(rej?p.rejDate:(p.pdDate||"")),'')}${td(prRcvOk(p)?ppD(p.rcvDate||""):"",'')}</tr>
  <tr style="height:60px">${sl("Signature","التوقيع")}${td(p.prepSigned?sigImg(p.req):"","padding:1px")}${td(rej?(p.rejSigned?sigImg(p.rejBy):""):p.pdSigned?sigImg(p.pdBy):"",'padding:1px')}${td(prRcvOk(p)?sigImg(p.rcvBy||"Raghad Altowirgi"):"",'padding:1px')}</tr>
@@ -1925,7 +1926,7 @@ const RENDER0=render;render=function(k){RENDER0(k);try{histLinks();weeklyBanner(
    A signature is never placed by hand: it appears only when the approver clicks Approve and re-enters his own PIN.
    Each approval stores a fingerprint of the document; any change afterwards cancels it ("re-approval needed"). */
 const APPR={PD:"Najed Fakhreddine",FM:"Osama Al Saggaf",CEO:"Marwan Telmesani"};
-const AP_ROLE={PD:"Project Director",FM:"Finance Manager",CEO:"CEO"};
+const AP_ROLE={PD:"Project Director",FM:"Finance Manager",CEO:"CEO",TECH:"Technical evaluation"};
 const CHAIN={pr:["PD"],cqs:["FM","PD"],po:["FM","PD","CEO"]};
 const AP_COLL={pr:"prs",cqs:"cqs",po:"pos"};
 function apFp(k,d){const x=k==="pr"?[d.no,d.cc,d.just,d.need,(d.lines||[]).map(l=>[l.code,l.desc,l.qty,l.est,l.cls])]:k==="cqs"?[d.no,d.pr||d.prCancelled,d.sel,(d.quotes||[]).map(q=>[q.sup,q.price,q.days,q.war,q.spec,q.valid])]:[d.no,d.sup,d.cc,d.pr||d.prCancelled,d.cqs,(d.lines||[]).map(l=>[l.code,l.desc,l.qty,l.price,l.cls])];
@@ -1934,17 +1935,17 @@ const apGet=(d,r)=>(d.ap||[]).filter(a=>a.role===r).pop();
 const apOk=(k,d,r)=>{const a=apGet(d,r);return !!a&&a.fp===apFp(k,d);};
 const apStale=(k,d)=>(d.ap||[]).some(a=>a.fp!==apFp(k,d));
 const apUsed=(k,d)=>k==="pr"?!!d.ap:d.ap!==undefined;
-const apNext=(k,d)=>{if(d.rej||d.cancelled||d.status==="Deleted")return null;if(k!=="pr"&&(d.ap===undefined||d.legacy))return null;if(k==="pr"&&(d.status!=="PD"||d.pd))return null;for(const r of CHAIN[k])if(!apOk(k,d,r))return r;return null;};
-const apDone=(k,d)=>CHAIN[k].every(r=>apOk(k,d,r));
+const apNext=(k,d)=>{if(d.rej||d.cancelled||d.status==="Deleted")return null;if(k!=="pr"&&(d.ap===undefined||d.legacy))return null;if(k==="pr"&&(d.status!=="PD"||d.pd))return null;for(const r of apChain(k,d))if(!apOk(k,d,r))return r;return null;};
+const apDone=(k,d)=>apChain(k,d).every(r=>apOk(k,d,r));
 const apMe=()=>(typeof LOCAL!=="undefined"&&LOCAL.user)||"";
 const apMyRoles=()=>Object.keys(APPR).filter(r=>APPR[r].toLowerCase()===apMe().trim().toLowerCase());
 function apSync(){D.cqs.forEach(c=>{if(c.ap!==undefined)c.approved=!c.cancelled&&!c.rej&&apDone("cqs",c);});
  D.pos.forEach(p=>{if(p.ap!==undefined){p.sig={fm:apOk("po",p,"FM")?apGet(p,"FM").by:"",pd:apOk("po",p,"PD")?apGet(p,"PD").by:"",ceo:apOk("po",p,"CEO")?apGet(p,"CEO").by:""};}});}
 const poSigned=p=>!p||p.kind==="PC"||(p.ap===undefined?!!(p.sig&&p.sig.pd&&p.sig.fm&&p.sig.ceo):apDone("po",p));
-function apWaiting(){const R=apMyRoles(),out=[];if(!R.length)return out;
+function apWaiting(){const R=apMyRoles(),out=[];
  D.prs.forEach(p=>{if(p.status==="PD"&&!p.pd&&R.includes("PD"))out.push(["pr",p,"PD"]);});
- D.cqs.forEach(c=>{const r=apNext("cqs",c);if(r&&R.includes(r))out.push(["cqs",c,r]);});
- D.pos.filter(p=>p.kind==="PO").forEach(p=>{const r=apNext("po",p);if(r&&R.includes(r))out.push(["po",p,r]);});return out;}
+ D.cqs.forEach(c=>{const r=apNext("cqs",c);if(r&&apCan("cqs",c,r))out.push(["cqs",c,r]);});
+ D.pos.filter(p=>p.kind==="PO").forEach(p=>{const r=apNext("po",p);if(r&&apCan("po",p,r))out.push(["po",p,r]);});return out;}
 const apDt=iso=>iso?new Date(iso).toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}):"";
 /* print cells: decision + date, and the signature image only for a valid approval */
 function apCell(k,d,r){const a=apGet(d,r);if(d.rej&&d.rej.role===r)return `<b style="color:#C00000">Not approved</b><br><span style="font-size:7.5px">${esc(ppD(d.rej.at.slice(0,10)))}</span>`;if(!a)return "";
@@ -1968,12 +1969,12 @@ function apAct(k,d,r,reject){const lbl=k==="pr"?"PR":k==="cqs"?"CQS":"PO",val=k=
   if(reject){d.rej={role:r,by:sig.by,at:sig.at,reason};if(k==="pr"){Object.assign(d,{status:"Rejected",pd:false,rejDate:today(),rejBy:sig.by,rejReason:reason,rejSigned:true});}}
   else{const rec={role:r,...sig,fp:apFp(k,d)};d.ap=[...(d.ap||[]).filter(a=>a.role!==r),rec];
    if(k==="pr"){Object.assign(d,{pd:true,pdDate:today(),pdBy:sig.by,pdSigned:true,status:"Sent",sentOn:today(),sentBy:"Auto – after PD approval"});}}
-  apSync();persist();render();toast("✔ "+d.no+" "+(reject?tr("returned with your reason","أُعيد مع السبب"):apNext(k,d)?tr("approved – sent to","اعتُمد – أُرسل إلى")+" "+APPR[apNext(k,d)]:tr("fully approved","اعتُمد بالكامل")));});
+  apSync();persist();render();toast("✔ "+d.no+" "+(reject?tr("returned with your reason","أُعيد مع السبب"):apNext(k,d)?tr("approved – sent to","اعتُمد – أُرسل إلى")+" "+apWho(k,d,apNext(k,d)):tr("fully approved","اعتُمد بالكامل")));});
  const v=$("#apView");if(v)v.onclick=()=>openDoc(k==="pr"?prDoc(d):k==="cqs"?cqsDoc(d):poDoc(d));}
-function apBtns(k,d){const r=k==="pr"?(d.status==="PD"&&!d.pd?"PD":null):apNext(k,d);if(!r||!apMyRoles().includes(r))return "";
+function apBtns(k,d){const r=k==="pr"?(d.status==="PD"&&!d.pd?"PD":null):apNext(k,d);if(!r||!apCan(k,d,r))return "";
  return `<button class="b g sm" data-apok="${k}|${d.no}|${r}">✔ ${tr("Approve","اعتماد")} (${r})</button> <button class="b r sm" data-aprej="${k}|${d.no}|${r}">✕ ${tr("Not approve","عدم اعتماد")}</button>`;}
 function apStatus(k,d){if(d.cancelled)return tag(tr("Cancelled","ملغى"),"r");if(d.rej)return tag(tr("Not approved by","غير معتمد من")+" "+d.rej.role,"r");if(!apUsed(k,d))return "";
- if(apStale(k,d)&&!apDone(k,d))return tag(tr("Changed – re-approval needed","تغيّر – يلزم إعادة الاعتماد"),"r");const n=apNext(k,d);return n?tag(tr("Waiting","بانتظار")+" "+n+" – "+APPR[n],"a"):tag(tr("Fully approved","معتمد بالكامل"),"g");}
+ if(apStale(k,d)&&!apDone(k,d))return tag(tr("Changed – re-approval needed","تغيّر – يلزم إعادة الاعتماد"),"r");const n=apNext(k,d);return n?tag(tr("Waiting","بانتظار")+" "+(n==="TECH"?tr("technical review","المراجعة الفنية"):n)+" – "+apWho(k,d,n),"a"):tag(tr("Fully approved","معتمد بالكامل"),"g");}
 function apBind(){Object.values(APPR).forEach(n=>sigLoad(n));
  document.querySelectorAll("[data-apok],[data-aprej]").forEach(b=>b.onclick=()=>{const [k,no,r]=(b.dataset.apok||b.dataset.aprej).split("|");const d=D[AP_COLL[k]].find(x=>x.no===no);if(d)apAct(k,d,r,!!b.dataset.aprej);});
  document.querySelectorAll("[data-apcx]").forEach(b=>b.onclick=()=>{const [k,no]=b.dataset.apcx.split("|");const d=D[AP_COLL[k]].find(x=>x.no===no);if(!d)return;if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent=tr("Click again to cancel","اضغط مرة أخرى للإلغاء");return;}
@@ -2259,7 +2260,7 @@ function mailScan(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.readO
  /* procurement */
  const pend=[];D.prs.forEach(p=>{if(p.status==="PD"&&!p.pd&&!p.cancelled)pend.push(["pr",p,"PD"]);});
  D.cqs.filter(c=>c.ap!==undefined).forEach(c=>{const r=apNext("cqs",c);if(r)pend.push(["cqs",c,r]);});D.pos.filter(p=>p.kind==="PO"&&p.ap!==undefined).forEach(p=>{const r=apNext("po",p);if(r)pend.push(["po",p,r]);});
- pend.forEach(([k,d,r])=>{const who=APPR[r];if(!who||whL(who)===me)return;once(d,"p"+r+"|"+(d.ap||[]).length,()=>mailQueue(who,`Approval required: ${d.no}`,[`Your approval as <b>${AP_ROLE[r]}</b> is required on <b>${esc(d.no)}</b> – ${TYPE_NAME[k]}.`,k==="po"?`Supplier: ${esc(d.sup||"")} · ${money(poTotal(d))} SAR excl. VAT`:k==="cqs"?`Selected supplier: ${esc(d.sel||"")}`:`Cost center: ${esc(d.cc||"")} · Requested by ${esc(d.req||"")}`,`Open <b>My approvals</b>.`],"appr"));}); Object.entries(Q).forEach(([to,L])=>{if(L.length===1)return mailSend(to,L[0].subj,L[0].lines,L[0].scr);
+ pend.forEach(([k,d,r])=>{const who=apWho(k,d,r);if(!who||whL(who)===me)return;once(d,"p"+r+"|"+(d.ap||[]).length,()=>mailQueue(who,`Approval required: ${d.no}`,[`Your approval as <b>${AP_ROLE[r]}</b> is required on <b>${esc(d.no)}</b> – ${TYPE_NAME[k]}.`,k==="po"?`Supplier: ${esc(d.sup||"")} · ${money(poTotal(d))} SAR excl. VAT`:k==="cqs"?`Selected supplier: ${esc(d.sel||"")}`:`Cost center: ${esc(d.cc||"")} · Requested by ${esc(d.req||"")}`,`Open <b>My approvals</b>.`],"appr"));}); Object.entries(Q).forEach(([to,L])=>{if(L.length===1)return mailSend(to,L[0].subj,L[0].lines,L[0].scr);
   mailSend(to,`${L.length} documents need your signature / approval`,[`The following documents are waiting for you in MIDU-Team Hub:`,"<ul>"+L.map(x=>`<li><b>${esc(x.subj)}</b></li>`).join("")+"</ul>"],L[0].scr);});}
 {const P0=persist;persist=function(...a){try{mailScan();}catch(e){console.warn(e);}return P0.apply(this,a);};}
 
@@ -2386,7 +2387,7 @@ ES_K.push(
   fields:o=>[o.no,o.sup,o.cc,(o.lines||[]).map(l=>[l.desc,l.qty,l.price,l.cls])],steps:iss=>[["PREP","Purchaser / prepared by",iss],["FM","Approved by (Finance Manager)",ES_OSAMA]],doc:o=>pcDoc(o)},
  {id:"pv",coll:"invs",key:"es",scr:"fin",area:"pr",label:"Payment voucher",title:o=>(o.po||"")+" · "+money(+o.amt||0)+" SAR",issuerOf:o=>o.by||"",
   applies:o=>!!o&&!!o.no,
-  fields:o=>[o.no,o.po,+o.amt||0],steps:iss=>[["PREP","Prepared by (Finance)",iss],["FM","Finance Manager",ES_OSAMA],["PD","Project Director",ES_NAJED],["CEO","CEO",ES_MARWAN]],doc:o=>invDoc(o)});
+  fields:o=>[o.no,o.po,+o.amt||0],steps:(iss,o)=>[["PREP","Prepared by (Finance)",iss],["FM","Finance Manager",ES_OSAMA],["PD","Project Director",ES_NAJED],...(((+(o&&o.amt)||0)/1.15>CEO_LIMIT)?[["CEO","CEO",ES_MARWAN]]:[])],doc:o=>invDoc(o)});
 /* results written back on the record */
 {const A0=esAfter;esAfter=function(k,o,reject,sig,reason){A0(k,o,reject,sig,reason);
  if(k.id==="prr"&&!reject){Object.assign(o,{rcvSigned:true,rcvBy:sig.by,rcvDate:today()});if(whL(sig.by)!==whL(ES_RAGHAD))o.rcvName=sig.by;}
@@ -2394,7 +2395,7 @@ ES_K.push(
  if(k.id==="pcv"&&esDone(k,o))o.fin="Approved";
  if(k.id==="sc"&&esDone(k,o)&&o.party==="Pending approval")o.party="Approved";};}
 const prRcvOk=p=>p.rcvEs?esOk(esK("prr"),p,"RCV"):!!p.rcvSigned;
-const cqsPrepName=c=>c.prepEs?esName(esK("cqsp"),c,"PREP"):(c.preparedBy||"Raghad Ahmad Altowirgi");
+const cqsPrepName=c=>c.prepEs?esName(esK("cqsp"),c,"PREP"):(c.preparedBy||"Raghad Altowirgi");
 function cqsPrepCell(c){const k=esK("cqsp");if(!c.prepEs)return "";const a=esGet(k,c,"PREP");if(!a)return `<span style="color:#8A94A6">Pending e-signature</span>`;
  return esOk(k,c,"PREP")?`Prepared<br><span style="font-size:7.5px">${esc(apDt(a.at))} · ref ${a.fp}</span>`:`<span style="color:#C00000">Changed after signing – re-sign needed</span>`;}
 const cqsPrepSig=c=>{const k=esK("cqsp");return c.prepEs&&esOk(k,c,"PREP")?sigImg(esGet(k,c,"PREP").by):"";};
@@ -2426,7 +2427,7 @@ document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.clos
    Files are saved in 03 Procurement/02 Quotations/<PR No.>/. PO cannot be issued unless all CQS quotations are attached. */
 const QT_DIR=pr=>"03 Procurement/02 Quotations/"+String(pr||"no PR").replace(/[\\/:*?"<>|]/g,"-");
 const prEst=p=>(p&&p.lines||[]).reduce((a,l)=>a+l.qty*l.est,0);
-const qtNeed=prNo=>prEst(D.prs.find(p=>p.no===prNo))>=5000?3:1;
+const qtNeed=(prNo,lowQ)=>Math.max(prEst(D.prs.find(p=>p.no===prNo)),+lowQ||0)>QT3_LIMIT?3:1;   /* Update 75: 3 quotations above 10,000 SAR */
 const cqsAttOk=c=>!!c&&(c.quotes||[]).length>0&&(c.quotes||[]).every(q=>q.att&&q.att.path);
 const qtSafe=x=>String(x||"").replace(/[\\/:*?"<>|]/g,"-").slice(0,60);
 function qtLinks(c){return (c.quotes||[]).map((q,i)=>q.att?`<a href="#" data-qatt="${esc(c.no)}|${i}" title="${esc(q.att.name)}">📎 ${esc(q.sup)}</a>`:`<span style="color:#C0392B">✕ ${esc(q.sup)}</span>`).join(" &nbsp;");}
@@ -2452,8 +2453,8 @@ function qtAddDlg(c){openModal(tr("Attach quotations","إرفاق العروض")
   const rows=[...$("#qTab").querySelectorAll("tr")].slice(1).filter(r=>r.querySelector("[data-q=sup]").value.trim()&&+r.querySelector("[data-q=price]").value>0);
   const miss=rows.filter(r=>!(r.querySelector("[data-q=file]")||{}).files||!r.querySelector("[data-q=file]").files[0]).map(r=>r.querySelector("[data-q=sup]").value.trim());
   if(miss.length)return msg("err",tr("Attach the quotation file for: ","أرفق ملف العرض لـ: ")+`<b class="en">${miss.map(esc).join(", ")}</b>`);
-  const n=qtNeed($("#qPr").value);if(rows.length<n)return msg("err",tr(`This PR is ${money(prEst(D.prs.find(p=>p.no===$("#qPr").value)))} SAR – ${n} quotations are required (you entered ${rows.length}).`,`هذا الطلب يحتاج ${n} عروض (أدخلت ${rows.length}).`));
-  const files=rows.map(r=>({sup:r.querySelector("[data-q=sup]").value.trim(),f:r.querySelector("[data-q=file]").files[0]}));const prNo=$("#qPr").value,cno=seqNo("CQS-26-",D.cqs.map(c=>c.no));
+  const lowQ=Math.min(...rows.map(r=>+r.querySelector("[data-q=price]").value));const n=qtNeed($("#qPr").value,lowQ);if(rows.length<n&&!(($("#qSS")||{}).value||"").trim())return msg("err",tr(`Above ${money(QT3_LIMIT)} SAR – ${n} quotations are required (you entered ${rows.length}). Add the others, or write the single-source reason.`,`فوق ${money(QT3_LIMIT)} ريال – مطلوب ${n} عروض (أدخلت ${rows.length}). أضف الباقي أو اكتب سبب المورد الوحيد.`));
+  const files=rows.map(r=>({sup:r.querySelector("[data-q=sup]").value.trim(),f:r.querySelector("[data-q=file]").files[0]}));const prNo=$("#qPr").value,cno=seqNo(("CQS-"+YY()+"-"),D.cqs.map(c=>c.no));
   s.disabled=true;let att=[];try{for(let i=0;i<files.length;i++)att.push({sup:files[i].sup,a:await saveAtt(files[i].f,QT_DIR(prNo),cno,"Quotation "+(i+1)+" - "+qtSafe(files[i].sup))});}catch(e){s.disabled=false;return msg("err",tr("The quotation could not be saved: ","تعذر حفظ العرض: ")+esc(e.message));}
   const before=D.cqs.length;orig.call(s);s.disabled=false;if(D.cqs.length>before){const c=D.cqs[D.cqs.length-1];(c.quotes||[]).forEach(q=>{const x=att.find(a=>a.sup===q.sup&&!a.used);if(x){q.att=x.a;x.used=1;}});persist();render();}};};}
 /* PO: blocked until every quotation in the CQS is attached */
@@ -2519,7 +2520,7 @@ VIEWS.pcash=()=>{const L=(D.pca||[]).filter(a=>!a.cancelled),open=L.filter(a=>a.
  return head(tr("Petty cash custody","العهد النقدية"),tr("Cash given to a person (Project Manager, Project Director, purchaser …). He adds every invoice he paid; when the invoices (plus any cash returned) equal the cash he took, he submits it for clearance: the person who gave the cash checks it and Finance clears it.","نقد يُسلَّم لشخص؛ يضيف كل فاتورة دفعها، وعندما تساوي الفواتير المبلغ يقدّمها للتصفية."))+prFlow("")+msgBox+
  (Object.keys(byHolder).length?`<div class="banner">${tr("Cash still out:","نقد لم يُصفَّ بعد:")} ${Object.entries(byHolder).map(([h,v])=>`<b class="en">${esc(h)}</b> ${money(v)} SAR`).join(" · ")}</div>`:"")+
  `<div class="card"><h2>${tr("Give cash (new custody)","تسليم عهدة جديدة")}</h2><div class="fg">
- <div class="f"><label>${tr("Custody No.","رقم العهدة")}</label><input class="en" readonly value="${seqNo("PCA-26-",(D.pca||[]).map(a=>a.no))}"></div>
+ <div class="f"><label>${tr("Custody No.","رقم العهدة")}</label><input class="en" readonly value="${seqNo(("PCA-"+YY()+"-"),(D.pca||[]).map(a=>a.no))}"></div>
  <div class="f"><label>${tr("Custody holder","مستلم العهدة")} *</label><input class="en" id="pcaH" list="pcaHL"><datalist id="pcaHL">${pcaPeople().map(n=>`<option>${esc(n)}</option>`).join("")}</datalist></div>
  <div class="f"><label>${tr("Given by","سلّمها")} *</label><select id="pcaG">${PCA_GIVERS().map(n=>`<option>${esc(n)}</option>`).join("")}</select></div>
  <div class="f"><label>${tr("Date","التاريخ")} *</label><input type="date" id="pcaD" value="${today()}"></div>
@@ -2551,7 +2552,7 @@ function pcaOpen(a){const box=$("#pcaBox");if(!box)return;box.style.display="blo
   if(b2>0)return msg("err",tr(`${money(b2)} SAR is still not covered by invoices. Add the missing invoices or enter the cash returned.`,`${money(b2)} ريال غير مغطى بفواتير. أضف الفواتير أو أدخل النقد المُعاد.`));
   const k=esK("pcc");esStart(k,a,apMe());a.status="Submitted";a.submittedOn=today();persist();render();const n=esNext(k,a);if(n&&whL(esName(k,a,n))===whL(apMe()))esSign(k,a,n,false);else toast("✔ "+tr("Sent to","أُرسل إلى")+" "+esName(k,a,n));};}
 BIND.pcash=()=>{const nb=$("#pcaNew");if(nb)nb.onclick=()=>{const h=$("#pcaH").value.trim(),amt=+$("#pcaA").value,p=$("#pcaP").value.trim();if(!h||!(amt>0)||!p)return msg("err",ERR.req());
-  const a={no:seqNo("PCA-26-",(D.pca||[]).map(x=>x.no)),date:$("#pcaD").value,holder:h,givenBy:$("#pcaG").value,amount:amt,cc:$("#pcaC").value,purpose:p,exp:[],returned:0,status:"Open",by:apMe()};
+  const a={no:seqNo(("PCA-"+YY()+"-"),(D.pca||[]).map(x=>x.no)),date:$("#pcaD").value,holder:h,givenBy:$("#pcaG").value,amount:amt,cc:$("#pcaC").value,purpose:p,exp:[],returned:0,status:"Open",by:apMe()};
   D.pca=[...(D.pca||[]),a];persist();render();toast("✔ "+a.no+" – "+money(amt)+" SAR "+tr("given to","سُلّمت إلى")+" "+h);};
  document.querySelectorAll("[data-pcao]").forEach(b=>b.onclick=()=>{const a=D.pca.find(x=>x.no===b.dataset.pcao);if(a)pcaOpen(a);});
  document.querySelectorAll("[data-pcap]").forEach(b=>b.onclick=()=>{const a=D.pca.find(x=>x.no===b.dataset.pcap);if(a){[a.holder,a.givenBy,ES_OSAMA].forEach(n=>{try{sigLoad(n);}catch(e){}});openModal(a.no,pcaDoc(a),a.no);}});};
@@ -3563,6 +3564,121 @@ function pcaMailScan(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.re
  const m=$("#main"),b=document.createElement("div");b.id="pcaBan";b.className="banner";b.style.cssText="cursor:pointer;background:#FFF7E6;border-color:#D9961A;color:#7A4B00";b.innerHTML=`<span>${parts.join("<br>")} – <u>${tr("open Petty cash custody","فتح العهد النقدية")}</u></span>`;b.onclick=()=>go("pcash");m.prepend(b);}catch(e){console.warn(e);}};}
 /* menu count also for the holder */
 {const N10=NAV;NAV=()=>{const n=N10();try{const it=n.find(x=>x[1]==="pcash");if(it&&!/<b /.test(it[4])){const c=pcaMineHolder().filter(a=>{const N=pcaNums(a);return N.bal>0||N.rej;}).length;if(c)it[4]=it[4]+` <b style="background:#D9961A;color:#fff;border-radius:9px;padding:0 6px;font-size:11px">${c}</b>`;}}catch(e){}return n;};}
+
+/* ===================== Update 75: procurement cycle (Azzam, 27 Nov 2026) =====================
+   PR: real requester + department (Logistics raises the PR for them).
+   CQS: 3 quotations only above 10,000 SAR (estimate or lowest offer), otherwise 1; fewer = written single-source reason;
+        more than 3 quotations allowed; TECHNICAL REVIEW by the PR's sender (checked with the real requester) BEFORE FM → PD:
+        each supplier Technically acceptable / Not acceptable with comment; only accepted suppliers can be selected; a
+        supplier that is not the cheapest accepted one needs a written reason.
+   PO: FM → PD, CEO only above 50,000 SAR (excl. VAT) – also on payment vouchers; delivery date, payment terms, delivery
+        place, quotation reference, supplier VAT / CR on the PO; late deliveries listed; an approved PO with nothing
+        received or invoiced can be cancelled by the PD with his PIN and a reason (the PR returns to the PO list).
+   GRN: only against a fully approved PO.  Payment: only when the payment voucher is fully signed; recorded with PIN.
+   Approvers see the cost-center budget left. Procurement dashboard figures no longer depend on the CAPEX month filter. */
+var QT3_LIMIT=10000,CEO_LIMIT=50000;
+function apChain(k,d){if(k==="cqs")return d&&d.techBy?["TECH","FM","PD"]:CHAIN.cqs;if(k==="po")return d&&poTotal(d)<=CEO_LIMIT?["FM","PD"]:CHAIN.po;return CHAIN[k];}
+function apWho(k,d,r){return r==="TECH"?((d&&d.techBy)||""):APPR[r];}
+function apCan(k,d,r){const me=whL(apMe());return !!me&&whL(apWho(k,d,r))===me;}
+const PR_DEPTS=["Safety (HSE)","Construction","Civil","Electrical","Mechanical / MEP","Concrete","Steel","Logistics","Admin / HR","IT","Survey","QA / QC","Other"];
+const prOf=c=>D.prs.find(p=>p.no===(c.pr||c.prCancelled))||{};
+/* ---------- budget shown to approvers ---------- */
+function budgetLeft(cc,excl){const B=(D.budget||{})[cc]||{},used={CAPEX:0,OPEX:0};
+ (D.pos||[]).filter(p=>p.cc===cc&&!p.cancelled&&!p.rej&&p!==excl).forEach(p=>(p.lines||[]).forEach(l=>{used[l.cls==="CAPEX"?"CAPEX":"OPEX"]+=(+l.qty||0)*(+l.price||0);}));
+ return {CAPEX:(+B.CAPEX||0)-used.CAPEX,OPEX:(+B.OPEX||0)-used.OPEX,has:(+B.CAPEX||0)+(+B.OPEX||0)>0};}
+function apBudgetHtml(k,d){try{const pr=k==="pr"?d:prOf(d),cc=d.cc||pr.cc;if(!cc)return "";const val={CAPEX:0,OPEX:0};
+ if(k==="po")(d.lines||[]).forEach(l=>val[l.cls==="CAPEX"?"CAPEX":"OPEX"]+=l.qty*l.price);
+ else{const est=prEst(pr)||1,amt=k==="cqs"?(((d.quotes||[]).find(q=>q.sup===d.sel)||{}).price||est):est;(pr.lines||[]).forEach(l=>val[l.cls==="CAPEX"?"CAPEX":"OPEX"]+=l.qty*l.est*amt/est);}
+ const L=budgetLeft(cc,k==="po"?d:null);if(!L.has)return `<p style="margin:8px 0 0;color:#B45309">⚠ ${tr("No budget is set for","لا توجد ميزانية لـ")} <b>${esc(cc)}</b>.</p>`;
+ return `<p style="margin:8px 0 0;font-size:13px">${tr("Budget left on","المتبقي من ميزانية")} <b>${esc(cc)}</b>: ${["CAPEX","OPEX"].filter(c=>val[c]>0).map(c=>{const over=val[c]>L[c];return `${c} ${money(L[c])} SAR – ${tr("this document","هذا المستند")} ${money(val[c])}${over?` <b style="color:#B42318">⚠ ${tr("over budget by","يتجاوز الميزانية بـ")} ${money(val[c]-L[c])}</b>`:" ✔"}`;}).join(" · ")}</p>`;}catch(e){return "";}}
+let AP_EXTRA="";
+{const D0=apPinDlg;apPinDlg=function(title,info,danger,onOk){const x=AP_EXTRA;AP_EXTRA="";return D0(title,info+x,danger,onOk);};}
+{const A0=apAct;apAct=function(k,d,r,reject){if(r==="TECH"&&!reject)return techDlg(d);AP_EXTRA=apBudgetHtml(k,d);return A0(k,d,r,reject);};}
+/* ---------- technical review ---------- */
+function techDlg(c){const pr=prOf(c),Q=c.quotes||[];
+ openModal(tr("Technical review","المراجعة الفنية")+" – "+c.no,`<div style="padding:18px 22px;font-size:14px;line-height:1.5">
+ <p style="margin:0 0 8px">${tr("PR","الطلب")} <b>${esc(pr.no||"")}</b> · ${esc(pr.just||"")}<br>${tr("Real requester","مقدم الطلب الفعلي")}: <b>${esc(pr.endUser||"—")}</b>${pr.dept?" ("+esc(pr.dept)+")":""}</p>
+ <p class="hint" style="margin:0 0 10px">${tr("Check each quotation with the real requester: does the offered item match what was requested (type, size, brand, standard)? Only accepted suppliers can be selected.","راجع كل عرض مع مقدم الطلب الفعلي: هل الصنف المعروض مطابق للمطلوب (النوع والمقاس والعلامة والمواصفة)؟ لا يمكن اختيار إلا المورد المقبول فنياً.")}</p>
+ <table class="t"><tr><th>${tr("Supplier","المورد")}</th><th class="num">${tr("Price excl. VAT","السعر قبل الضريبة")}</th><th>${tr("Quotation","العرض")}</th><th>${tr("Technically","فنياً")}</th><th>${tr("Comment","ملاحظة")}</th></tr>
+ ${Q.map((q,i)=>`<tr><td class="en"><b>${esc(q.sup)}</b>${q.valid?"":" "+tag(tr("quote not valid","عرض غير ساري"),"r")}</td><td class="num">${money(q.price)}</td><td>${q.att?`<a href="#" data-tqf="${i}">📎 ${tr("open","فتح")}</a>`:"—"}</td><td><select data-tok="${i}"><option value="">${tr("— choose —","— اختر —")}</option><option value="1">✔ ${tr("Acceptable","مقبول")}</option><option value="0">✕ ${tr("Not acceptable","غير مقبول")}</option></select></td><td><input data-tcm="${i}" data-ar="1" style="width:220px"></td></tr>`).join("")}</table>
+ <div class="fg" style="margin-top:10px"><div class="f w2"><label>${tr("Checked with (real requester)","تمت المراجعة مع (مقدم الطلب الفعلي)")} *</label><input id="tWith" class="en" value="${esc(pr.endUser?(pr.endUser+(pr.dept?" ("+pr.dept+")":"")):"")}"></div>
+ <div class="f"><label>${tr("Selected supplier","المورد المختار")}</label><select id="tSel"></select></div><div class="f w2" id="tWhyF" style="display:none"><label>${tr("Reason – not the cheapest accepted offer","السبب – ليس أقل عرض مقبول")} *</label><input id="tWhy" data-ar="1"></div></div>
+ <div style="margin-top:12px"><button class="b g" id="tGo">✍ ${tr("Confirm and sign","تأكيد وتوقيع")}</button> <span id="tE" style="color:#D2463C;font-size:13px"></span></div></div>`,"");
+ const box=$("#ov")||document;box.querySelectorAll("[data-tqf]").forEach(a=>a.onclick=e=>{e.preventDefault();openAtt(Q[+a.dataset.tqf].att);});
+ const acc=()=>Q.map((q,i)=>({q,i,ok:box.querySelector(`[data-tok="${i}"]`).value})).filter(x=>x.ok==="1"&&x.q.valid).sort((a,b)=>a.q.price-b.q.price);
+ const fill=()=>{const A=acc(),s=$("#tSel"),cur=s.value;s.innerHTML=A.map(x=>`<option value="${x.i}">${esc(x.q.sup)} – ${money(x.q.price)}</option>`).join("")||`<option value="">${tr("no accepted supplier","لا يوجد مورد مقبول")}</option>`;if(A.some(x=>String(x.i)===cur))s.value=cur;why();};
+ const why=()=>{const A=acc();$("#tWhyF").style.display=A.length&&$("#tSel").value!==""&&+$("#tSel").value!==A[0].i?"block":"none";};
+ box.querySelectorAll("[data-tok]").forEach(s=>s.onchange=fill);$("#tSel").onchange=why;fill();
+ $("#tGo").onclick=()=>{const e=$("#tE");e.textContent="";const ev=Q.map((q,i)=>({ok:box.querySelector(`[data-tok="${i}"]`).value,cm:box.querySelector(`[data-tcm="${i}"]`).value.trim()}));
+  if(ev.some(x=>x.ok===""))return e.textContent=tr("Mark every supplier Acceptable or Not acceptable.","حدد كل مورد مقبول أو غير مقبول.");
+  if(ev.some(x=>x.ok==="0"&&!x.cm))return e.textContent=tr("Write why each not-acceptable offer does not match.","اكتب سبب عدم مطابقة كل عرض غير مقبول.");
+  const w=$("#tWith").value.trim();if(!w)return e.textContent=tr("Write who you checked it with.","اكتب مع من تمت المراجعة.");
+  const A=acc();if(!A.length)return e.textContent=tr("No supplier is technically acceptable – use “Not approve” to return it to Procurement.","لا يوجد مورد مقبول فنياً – استخدم «عدم الاعتماد» لإعادته للمشتريات.");
+  const si=+$("#tSel").value,notCheap=si!==A[0].i,rs=($("#tWhy").value||"").trim();if(notCheap&&!rs)return e.textContent=tr("Write the reason for choosing this supplier.","اكتب سبب اختيار هذا المورد.");
+  apPinDlg(tr("Technical review","المراجعة الفنية")+" – "+c.no,`<p style="margin:0">${tr("Selected","المختار")}: <b class="en">${esc(Q[si].sup)}</b> – ${money(Q[si].price)} SAR · ${tr("checked with","مع")} ${esc(w)}</p>`,false,sig=>{
+   c.techEval=ev.map(x=>({ok:x.ok==="1",cm:x.cm}));Q.forEach((q,i)=>{q.spec=c.techEval[i].ok;q.techCm=c.techEval[i].cm;});c.techWith=w;c.sel=Q[si].sup;if(notCheap)c.reason=rs;else delete c.reason;
+   c.ap=[...(c.ap||[]).filter(a=>a.role!=="TECH"),{role:"TECH",...sig,fp:apFp("cqs",c)}];apSync();persist();render();toast("✔ "+c.no+" "+tr("technically confirmed – sent to","مؤكد فنياً – أُرسل إلى")+" "+APPR.FM);});};}
+{const F=cqsDoc;cqsDoc=c=>{let h=F(c);if(!c.techBy)return h;const pr=prOf(c),T=apGet(c,"TECH"),i=h.indexOf("Prepared by (Procurement)"),j=i>-1?h.lastIndexOf("<table",i):-1;
+ const blk=`<table style="width:100%;border-collapse:collapse;margin-top:12px;font-size:8.5px"><tr><td colspan="3" style="background:#E8F0FE;border:1px solid #8A94A6;padding:4px;font-weight:700">TECHNICAL EVALUATION – Real requester: ${esc(pr.endUser||"")}${pr.dept?" ("+esc(pr.dept)+")":""}</td></tr>
+ ${(c.quotes||[]).map((q,k)=>`<tr><td style="border:1px solid #8A94A6;padding:3px;width:30%">${esc(q.sup)}</td><td style="border:1px solid #8A94A6;padding:3px;width:18%;font-weight:700;color:${(c.techEval||[])[k]&&c.techEval[k].ok?"#15803D":"#B42318"}">${c.techEval?(c.techEval[k].ok?"Acceptable":"Not acceptable"):"Waiting"}</td><td style="border:1px solid #8A94A6;padding:3px">${esc((c.techEval||[])[k]?c.techEval[k].cm:"")}</td></tr>`).join("")}
+ <tr><td colspan="3" style="border:1px solid #8A94A6;padding:4px">${T&&apOk("cqs",c,"TECH")?`Technically confirmed by <b>${esc(T.by)}</b> with ${esc(c.techWith||"")} · ${esc(apDt(T.at))} · ref ${T.fp}`:"Technical confirmation pending"}</td></tr></table>`;
+ return j>-1?h.slice(0,j)+blk+h.slice(j):h+blk;};}
+/* ---------- PR: real requester + department ---------- */
+{const V0=VIEWS.pr;VIEWS.pr=()=>{let h=V0();const i=h.indexOf('id="pReq"');if(i<0)return h;const j=h.indexOf("</div>",i)+6;
+ return h.slice(0,j)+fld("pEnd",tr("Real requester (name / position)","مقدم الطلب الفعلي (الاسم / الوظيفة)"),{req:true,ph:"e.g. Ahmed – HSE Officer"})+sel("pDept",tr("Department","القسم"),[["",tr("— choose —","— اختر —")],...PR_DEPTS.map(x=>[x,x])],{req:true})+h.slice(j);};}
+{const B0=BIND.pr;BIND.pr=()=>{B0&&B0();const ed=PR_EDIT&&D.prs.find(p=>p.no===PR_EDIT);if(ed){if($("#pEnd"))$("#pEnd").value=ed.endUser||"";if($("#pDept"))$("#pDept").value=ed.dept||"";}
+ const s=$("#pSave");if(!s||s._ru)return;const o=s.onclick;s._ru=1;s.onclick=function(ev){const eu=($("#pEnd")||{}).value||"",dp=($("#pDept")||{}).value||"",edNo=PR_EDIT,n0=D.prs.length;const r=o&&o.call(this,ev);
+  const p=edNo?D.prs.find(x=>x.no===edNo):(D.prs.length>n0?D.prs[D.prs.length-1]:null);if(p&&(eu.trim()||dp)){p.endUser=eu.trim();p.dept=dp;persist();}return r;};};}
+{const F=prDoc;prDoc=p=>{let h=F(p);if(!p.endUser)return h;const add=`<div style="font-size:9px;margin:6px 0;border:1px solid #8A94A6;padding:4px 6px"><b>Real requester:</b> ${esc(p.endUser)}${p.dept?" &nbsp;·&nbsp; <b>Department:</b> "+esc(p.dept):""}</div>`;const i=h.indexOf("<table",h.indexOf("<table")+6);return i>-1?h.slice(0,i)+add+h.slice(i):h+add;};}
+/* ---------- CQS form: single-source reason, more quotations, technical review ---------- */
+{const V0=VIEWS.cqs;VIEWS.cqs=()=>{let h=V0();h=h.replace(`<div class="btns"><span id="qRec" class="hint">`,`<div class="btns" style="margin-top:6px"><button class="b l sm" id="qAddRow">+ ${tr("Add quotation","إضافة عرض")}</button></div>
+ <div class="fg" style="margin-top:8px"><div class="f w2"><label>${tr("Single source / fewer quotations – reason","مورد وحيد / عروض أقل – السبب")}</label><input id="qSS" data-ar="1" placeholder="${esc(tr("Only if fewer quotations than required (e.g. sole agent, urgent breakdown)","فقط إذا كانت العروض أقل من المطلوب"))}"></div></div>
+ <p class="hint">${tr("Rule: 3 quotations above","القاعدة: 3 عروض فوق")} ${money(QT3_LIMIT)} SAR ${tr("(PR estimate or lowest offer), otherwise 1. After saving, the CQS goes to the PR's sender for the technical review with the real requester, then FM → PD.","(تقدير الطلب أو أقل عرض)، وإلا عرض واحد. بعد الحفظ تذهب المقارنة لمرسل الطلب للمراجعة الفنية مع مقدم الطلب الفعلي، ثم المالية ← مدير المشروع.")}</p>
+ <div class="btns"><span id="qRec" class="hint">`);return h;};}
+{const B0=BIND.cqs;BIND.cqs=()=>{B0&&B0();const ar=$("#qAddRow");if(ar)ar.onclick=()=>{const tb=$("#qTab"),last=tb.querySelector("tr:last-child");const r=last.cloneNode(true);r.querySelectorAll("input").forEach(x=>{if(x.type==="file")x.value="";else if(x.dataset.q!=="war")x.value="";});tb.appendChild(r);};
+ const nd=$("#qNeed"),pr=$("#qPr");const need=()=>{if(nd&&pr&&pr.value)nd.innerHTML=`${tr("Estimate","التقدير")} ${money(prEst(D.prs.find(p=>p.no===pr.value)))} SAR – ${qtNeed(pr.value)===3?tr("3 quotations needed","مطلوب 3 عروض"):tr("1 quotation is enough (unless an offer is above","عرض واحد يكفي (إلا إذا تجاوز عرض")+" "+money(QT3_LIMIT)+")"}`;};if(pr){pr.addEventListener("change",need);need();}
+ const s=$("#qSave");if(!s||s._tr)return;s.textContent=tr("Save & send for technical review","حفظ وإرسال للمراجعة الفنية");const o=s.onclick;s._tr=1;
+ s.onclick=async function(ev){const ss=(($("#qSS")||{}).value||"").trim(),n0=D.cqs.length;await (o&&o.call(this,ev));if(D.cqs.length>n0){const c=D.cqs[D.cqs.length-1],p=prOf(c);
+  c.techBy=p.toPdBy||p.req||WH_LM;c.endUser=p.endUser||"";c.dept=p.dept||"";if(ss){c.ssReason=ss;c.comment="Single source / fewer quotations: "+ss;}c.approved=false;c.ap=c.ap||[];persist();render();
+  msg("ok",`✔ <b class="en">${esc(c.no)}</b> ${tr("sent for the technical review to","أُرسل للمراجعة الفنية إلى")} <b>${esc(c.techBy)}</b>`);}};};}
+/* ---------- PO: delivery date, terms, place, quotation ref, supplier VAT / CR ---------- */
+const PO_TERMS=["100% after delivery","100% after completion","Cash on delivery","50% advance / 50% on delivery","30 days after invoice","60 days after invoice"];
+{const V0=VIEWS.po;VIEWS.po=()=>{let h=V0();const i=h.indexOf('id="oDate"');if(i>-1){const j=h.indexOf("</div>",i)+6;
+  h=h.slice(0,j)+fld("oDd",tr("Delivery date (supplier)","تاريخ التوريد (المورد)"),{type:"date"})+sel("oPay",tr("Payment terms","شروط الدفع"),PO_TERMS)+fld("oDel",tr("Delivery place","مكان التوريد"),{val:"ASP, Jeddah"})+fld("oQref",tr("Supplier quotation ref.","مرجع عرض المورد"),{upper:true})+fld("oVat",tr("Supplier VAT No.","الرقم الضريبي للمورد"),{ph:"3xxxxxxxxxxxxx3"})+fld("oCr",tr("Supplier CR No.","السجل التجاري للمورد"))+h.slice(j);}
+ const late=poLate();if(late.length)h=h.replace(`<div class="tabs">`,`<div class="banner" style="background:#FEF2F2;border-color:#F87171;color:#7F1D1D"><span>⏰ <b>${late.length}</b> ${tr("PO(s) past the delivery date and not fully received:","أمر شراء تجاوز تاريخ التوريد ولم يُستلم بالكامل:")} ${late.map(p=>`<b class="en">${esc(p.no)}</b> (${esc(p.sup)}, ${esc(p.dd)})`).join(" · ")}</span></div><div class="tabs">`);
+ D.pos.filter(p=>p.kind==="PO"&&poCanCancel(p)).forEach(p=>{h=h.replace(`data-doc="${p.no}">${tr("Print","طباعة")}</button></td></tr>`,`data-doc="${p.no}">${tr("Print","طباعة")}</button> <button class="b r sm" data-pocx="${esc(p.no)}">✕ ${tr("Cancel PO","إلغاء الأمر")}</button></td></tr>`);});
+ D.pos.filter(p=>p.kind==="PO"&&p.dd&&!p.cancelled).forEach(p=>{h=h.replace(`<td class="en"><b>${p.no}</b>`,`<td class="en"><b>${p.no}</b><div class="hint">${tr("Due","التوريد")} ${esc(p.dd)}${poLate().includes(p)?" "+tag(tr("late","متأخر"),"r"):""}</div>`);});
+ D.pos.filter(p=>p.kind==="PO"&&p.cancelled).forEach(p=>{h=h.replace(`<td class="en"><b>${p.no}</b>`,`<td class="en"><b>${p.no}</b> ${tag(tr("Cancelled","ملغى"),"r")}`);});return h;};}
+const poLate=()=>(D.pos||[]).filter(p=>p.kind==="PO"&&!p.cancelled&&p.dd&&p.dd<today()&&!poFull(p));
+const poHasActivity=p=>(D.docs||[]).some(d=>d.type==="GRN"&&!d.cancelled&&d.po===p.no)||(D.invs||[]).some(v=>v.po===p.no)||(p.lines||[]).some(l=>(l.rcv||[]).length);
+const poCanCancel=p=>!p.cancelled&&p.ap!==undefined&&!poHasActivity(p)&&(whL(apMe())===whL(APPR.PD)||(typeof whIsAdmin==="function"&&whIsAdmin()));
+{const B0=BIND.po;BIND.po=()=>{B0&&B0();const pr=$("#oPr"),q=()=>{const d=$("#oPrev")&&$("#oPrev")._d;if(d&&d.q&&$("#oQref")&&!$("#oQref").value)$("#oQref").value=d.q.qref||"";};if(pr)pr.addEventListener("change",q);q();
+ document.querySelectorAll("[data-pocx]").forEach(b=>b.onclick=()=>{const p=D.pos.find(x=>x.no===b.dataset.pocx);if(!p||!poCanCancel(p))return;
+  apPinDlg(tr("Cancel PO","إلغاء أمر الشراء")+" "+p.no,`<p style="margin:0">${esc(p.sup)} · ${money(poTotal(p))} SAR ${tr("excl. VAT","قبل الضريبة")}. ${tr("Nothing has been received or invoiced. The PR goes back to the PO list.","لم يُستلم أو يُفوتر شيء. يعود الطلب لقائمة أوامر الشراء.")}</p>`,true,(sig,reason)=>{
+   Object.assign(p,{cancelled:today(),cancelledBy:sig.by,cancelReason:reason,cancelSig:sig,prCancelled:p.pr});p.pr="";persist();render();toast("✔ "+p.no+" "+tr("cancelled","أُلغي"));});});
+ const s=$("#oSave");if(!s||s._pd)return;const o=s.onclick;s._pd=1;s.onclick=function(ev){if(!$("#oDd").value)return msg("err",tr("Enter the delivery date agreed with the supplier.","أدخل تاريخ التوريد المتفق عليه مع المورد."));
+  const v={dd:$("#oDd").value,pay:$("#oPay").value,place:$("#oDel").value.trim()||"ASP, Jeddah",qref:$("#oQref").value.trim(),vat:$("#oVat").value.trim(),cr:$("#oCr").value.trim()},n0=D.pos.length;const r=o&&o.call(this,ev);
+  if(D.pos.length>n0){const p=D.pos[D.pos.length-1];Object.assign(p,{dd:v.dd,pay:v.pay,del:v.place+" – by "+v.dd,qref:v.qref});if(v.vat||v.cr)p.vendor=Object.assign({},p.vendor||{},v.vat?{vat:v.vat}:{},v.cr?{cr:v.cr}:{});persist();render();}return r;};};}
+{const F=apCell;apCell=function(k,d,r){if(k==="po"&&r==="CEO"&&!apChain(k,d).includes("CEO"))return `<span style="font-size:8px">Not required (≤ ${money(CEO_LIMIT)} SAR)</span>`;return F(k,d,r);};}
+/* ---------- GRN only against an approved PO ---------- */
+{const B0=BIND.grn;BIND.grn=()=>{B0&&B0();const dlL=$("#poL");if(dlL)[...dlL.options].forEach(o=>{const p=D.pos.find(x=>x.no===o.value);if(p&&p.kind==="PO"&&(p.cancelled||!poSigned(p)))o.remove();});
+ const s=$("#gSave");if(!s||s._pa)return;const o=s.onclick;s._pa=1;s.onclick=function(ev){const p=D.pos.find(x=>x.no===($("#gPo").value||"").trim());
+  if(p&&p.kind==="PO"&&p.cancelled)return msg("err",tr("This PO was cancelled – material cannot be received against it.","أمر الشراء ملغى – لا يمكن الاستلام عليه."));
+  if(p&&p.kind==="PO"&&!poSigned(p))return msg("err",tr("This PO is not fully approved yet – ask Procurement before receiving.","أمر الشراء غير معتمد بالكامل بعد – راجع المشتريات قبل الاستلام."));return o.call(this,ev);};};}
+/* ---------- payment: voucher fully signed + PIN ---------- */
+function payGate(v){const k=esK("pv");if(v&&k&&esR(k,v)&&!esDone(k,v)){const n=esNext(k,v);return tr("The payment voucher is not fully signed yet","سند الصرف غير موقّع بالكامل بعد")+(n?" ("+tr("waiting","بانتظار")+" "+esName(k,v,n)+")":"")+".";}return "";}
+function payDo(v,after){if(!M365.can("fin"))return toast("✖ "+tr("Only Finance records payments.","المالية فقط تسجل السداد."));const g=payGate(v);if(g)return msg("err",g);
+ apPinDlg(tr("Record payment","تسجيل السداد")+" – "+(v.no||""),`<p style="margin:0">${esc(v.po||v.sup||"")} · ${money(+v.amt||+v.excl||0)} SAR</p>`,false,sig=>{v.paid=today();v.paidBy=sig.by;v.paidSig=sig;persist();render();toast("✔ "+tr("Payment recorded","تم تسجيل السداد"));after&&after();});}
+{const B0=BIND.fin;BIND.fin=()=>{B0&&B0();document.querySelectorAll("[data-pay]").forEach(b=>{b.onclick=()=>payDo(D.invs[+b.dataset.pay]);});};}
+{const B0=BIND.costs;if(B0)BIND.costs=()=>{B0();document.querySelectorAll("[data-cpay]").forEach(b=>{const o=b.onclick;b.onclick=()=>{try{const r=(typeof costRows==="function"?null:null);}catch(e){}
+ const tr0=b.closest("tr");const no=tr0?tr0.querySelector("td:nth-child(3)").textContent.trim():"";const v=(D.invs||[]).find(x=>no.startsWith(x.no));
+ if(v){const p=D.pos.find(x=>x.no===v.po);if(p&&!poFull(p))return msg("err",tr("The PO is not fully received yet – it cannot be paid.","أمر الشراء غير مستلم بالكامل – لا يمكن سداده."));const g=payGate(v);if(g)return msg("err",g);}
+ if(!M365.can("fin"))return toast("✖ "+tr("Only Finance records payments.","المالية فقط تسجل السداد."));apPinDlg(tr("Record payment","تسجيل السداد"),`<p style="margin:0">${esc(no)}</p>`,false,()=>o&&o.call(b));};});};}
+/* ---------- procurement dashboard: full figures, not the CAPEX month filter ---------- */
+{const V0=VIEWS.dashPF;VIEWS.dashPF=()=>{const m=CX_M;CX_M="";try{let h=V0();const late=poLate();if(late.length)h+=`<div class="card" style="border-color:#F87171"><h2>⏰ ${tr("Late deliveries","توريدات متأخرة")} (${late.length})</h2><table class="t"><tr><th>PO</th><th>${tr("Supplier","المورد")}</th><th>${tr("Due","التوريد")}</th></tr>${late.map(p=>`<tr><td class="en"><b>${esc(p.no)}</b></td><td class="en">${esc(p.sup)}</td><td><b style="color:#B42318">${esc(p.dd)}</b></td></tr>`).join("")}</table></div>`;return h;}finally{CX_M=m;}};}
+
+/* Update 75b: whoever can raise a PR can open My approvals (technical review of the quotations) */
+if(typeof M365_ROLES!=="undefined")Object.keys(M365_ROLES).forEach(r=>{const v=M365_ROLES[r];if(Array.isArray(v)&&v.includes("pr")&&!v.includes("appr"))v.push("appr");});
 </script>
 </body>
 </html>
