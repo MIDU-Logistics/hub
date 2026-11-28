@@ -2488,7 +2488,7 @@ function buyerMailScan(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.
 const ES_BASEL="Basel Shamma";HUB_MAIL.baselshamma=HUB_MAIL.baselshamma||"b.shamma@midu.com.sa";
 /* Debit notes (back charges to sub-contractors): Prepared (Logistics) → Project Manager → Project Director */
 {const k=esK("dn");if(k)k.steps=iss=>[["PREP","Prepared by (Logistics Manager)",iss],["PM","Reviewed by (Project Manager)",ES_BASEL],["PD","Approved by (Project Director)",ES_NAJED]];}
-{const F=dnDoc;dnDoc=d=>d.legacy?F(d):F(d).replace(   /* Update 83: not on the old notes signed before the Project Manager step existed */`<td>Approved By :<br>Najed Fakhreddine</td>`,`<td>Reviewed By :<br>Basel Shamma<br><span style="font-size:9px">Project Manager</span></td><td>Approved By :<br>Najed Fakhreddine</td>`);}
+{const F=dnDoc;dnDoc=d=>d.legacy||d.bci?F(d):F(d).replace(   /* Update 83: not on the old notes signed before the Project Manager step existed */`<td>Approved By :<br>Najed Fakhreddine</td>`,`<td>Reviewed By :<br>Basel Shamma<br><span style="font-size:9px">Project Manager</span></td><td>Approved By :<br>Najed Fakhreddine</td>`);}
 
 /* ---- Petty cash custody ---- */
 if(typeof COLL_AREA!=="undefined")COLL_AREA.pca="pr";
@@ -4219,6 +4219,40 @@ function bciDraw(){const out=$("#bciOut");if(!out)return;const m=($("#bM")||{}).
 const AREAS_UT_SIGNED=m=>(typeof AREAS!=="undefined"?AREAS.ut:"02 Utilities")+"/05 Signed back charges/"+m;
 {const V=VIEWS.utBC;VIEWS.utBC=()=>{const h=V(),k='<div class="card" id="xlbCard">',i=h.indexOf(k);return i<0?h+'<div id="bciOut"></div>':h.slice(0,i)+'<div id="bciOut"></div>'+h.slice(i);};}
 {const B=BIND.utBC;BIND.utBC=()=>{B();bciDraw();const s=$("#bM");if(s)s.addEventListener("change",bciDraw);};}
+/* ===================== Update 92: debit note only from a signed back-charge; Najed signs; attach the debit note signed by the sub-contractor (Azzam, 28 Nov 2026) =====================
+   Step 2 of the back-charge cycle. The debit note is created from the back-charge invoice once the sub-contractor's signed copy is attached
+   (same lines and amounts, d.bci = back-charge No.). E-signatures of the debit note: prepared (Logistics Manager) → approved (Najed) –
+   Basel already reviewed the back-charge. Once approved: print, the sub-contractor signs, attach the scan (02 Utilities/06 Signed debit notes/<month>)
+   → status "Signed by contractor". The old "Create debit note" button straight from Excel is no longer used. */
+{const k=esK("dn");if(k)k.steps=iss=>[["PREP","Prepared by (Logistics Manager)",iss],["PD","Approved by (Project Director)",ES_NAJED]];}
+const DN_SIGNED_DIR=m=>(typeof AREAS!=="undefined"?AREAS.ut:"02 Utilities")+"/06 Signed debit notes/"+m;
+const dnOfBci=o=>(D.dns||[]).find(d=>!d.cancelled&&d.bci===o.no)||(D.dns||[]).find(d=>!d.cancelled&&!d.bci&&d.contractor===o.contractor&&d.period===o.period&&d.auto);
+function dnFromBci(o){if(!bciSigned(o))return msg("err",tr("Attach the back-charge signed by the sub-contractor first.","أرفق إعادة الفوترة الموقعة من المقاول أولاً."));if(dnOfBci(o))return msg("err",tr("A debit note already exists for this back-charge.","يوجد إشعار مدين لهذه الفاتورة."));
+ const incl=o.contractor==="Concrete Division",d={no:seqNo("ASP-MIDU-2026-",D.dns.map(x=>x.no)),contractor:o.contractor,period:o.period,date:today(),sub:+o.sub||0,vat:+o.vat||0,status:"Draft",paid:0,auto:true,xl:true,type:"Utilities",
+  lines:(o.lines||[]).map(l=>Object.assign({},l)),xlNote:incl?"Note: All prices are VAT included":"Note: Amounts are shown before VAT; VAT 15% is added in the VAT column",summary:o.summary||("Utilities back charge – "+monthName(o.period)),src:o.src||"",bci:o.no};
+ if(!confirm(tr("Create debit note ","إنشاء إشعار المدين ")+d.no+" – "+d.contractor+" – "+monthName(d.period)+": "+money(d.sub+d.vat)+" SAR?"))return;
+ D.dns.push(d);persist();toast("✔ "+tr("Debit note created","تم إنشاء إشعار المدين")+": "+d.no);bciDraw();}
+function dnoDraw(){const out=$("#dnoOut");if(!out)return;const m=($("#bM")||{}).value||"",k=esK("dn");
+ const rows=CONTR.map(c=>{const o=(D.bcs||[]).find(b=>b.contractor===c&&b.period===m&&!b.cancelled);
+  if(!o)return `<tr><td class="en"><b>${esc(c)}</b></td><td colspan="4" class="hint">${tr("Back-charge not created yet (card ①)","لم تُنشأ فاتورة إعادة الفوترة بعد")}</td></tr>`;
+  const d=dnOfBci(o);
+  if(!d)return `<tr><td class="en"><b>${esc(c)}</b><div class="hint en">${esc(o.no)}</div></td><td colspan="3">${bciSigned(o)?tag("✔ "+tr("Back-charge signed by the sub-contractor","إعادة الفوترة موقعة من المقاول"),"g"):`<span class="hint">${tr("Waiting for the back-charge signed by the sub-contractor","بانتظار إعادة الفوترة الموقعة من المقاول")}</span>`}</td><td>${bciSigned(o)?`<button class="b sm" style="background:#0E7490;color:#fff" data-dnomk="${D.bcs.indexOf(o)}">➕ ${tr("Create debit note","إنشاء إشعار مدين")}</button>`:""}</td></tr>`;
+  const i=D.dns.indexOf(d),ok=esR(k,d)&&esDone(k,d);
+  const st=d.att?tag("✔ "+tr("Signed by sub-contractor","موقّع من المقاول"),"g"):ok?tag(tr("Approved – print and get the sub-contractor's signature","معتمد – اطبع واحصل على توقيع المقاول"),"b"):(esTag(k,d)||tag(d.status||"Draft",""));
+  return `<tr><td class="en"><b>${esc(c)}</b><div class="hint en">${esc(o.no)} → <b>${esc(d.no)}</b></div></td><td class="num">${money(dnTotal(d))}</td><td>${st}<div>${esTrail(k,d)}</div></td><td>${d.att?`<a href="#" data-dnoopen="${i}">📎 ${esc(d.att.name)}</a><div class="hint">${esc(dnFinDt(d.att.at))}</div>`:"–"}</td>
+   <td style="white-space:nowrap"><button class="b l sm" data-dnov="${i}">🖨 ${tr("View / print","عرض / طباعة")}</button> ${ok||d.att?`<label class="b g sm" style="cursor:pointer">📎 ${d.att?tr("Replace signed copy","استبدال النسخة الموقعة"):tr("Attach signed debit note","إرفاق إشعار المدين الموقّع")}<input type="file" accept=".pdf,image/*" data-dnoatt="${i}" style="display:none"></label>`:`<span class="hint">${tr("Attach after Najed signs","يُرفق بعد توقيع نجد")}</span>`}</td></tr>`;}).join("");
+ out.innerHTML=`<div class="card"><h2>② ${tr("Debit notes","إشعارات المدين")} – ${esc(m?monthName(m):"")}</h2><p class="hint">${tr("Created from the back-charge signed by the sub-contractor (same amounts) → you sign → Najed Fakhreddine signs with his PIN → print → the sub-contractor signs → attach the signed debit note.","يُنشأ من إعادة الفوترة الموقعة ← توقيعك ← توقيع نجد ← طباعة ← توقيع المقاول ← إرفاق إشعار المدين الموقّع.")}</p>
+ <table class="t"><tr><th>${tr("Contractor","المقاول")}</th><th class="num">${tr("Total","الإجمالي")}</th><th>${tr("Signatures","التواقيع")}</th><th>${tr("Signed by sub-contractor","موقّع من المقاول")}</th><th></th></tr>${rows}</table></div>`;
+ out.querySelectorAll("[data-dnomk]").forEach(b=>b.onclick=()=>{const o=D.bcs[+b.dataset.dnomk];if(o)dnFromBci(o);});
+ out.querySelectorAll("[data-dnov]").forEach(b=>b.onclick=()=>{const d=D.dns[+b.dataset.dnov];if(d)openDoc(dnDoc(d));});
+ out.querySelectorAll("[data-dnoopen]").forEach(a=>a.onclick=ev=>{ev.preventDefault();const d=D.dns[+a.dataset.dnoopen];if(d)openAtt(d.att);});
+ out.querySelectorAll("[data-dnoatt]").forEach(inp=>inp.onchange=async()=>{const d=D.dns[+inp.dataset.dnoatt],f=inp.files[0];if(!d||!f)return;
+  try{d.att=await saveAtt(f,DN_SIGNED_DIR(d.period),d.no,"signed by "+d.contractor);if(!dnFin(d))d.status="Signed by contractor";persist();toast("✔ "+d.no+" – "+tr("signed debit note attached","أُرفق إشعار المدين الموقّع"));bciDraw();}catch(e){msg("err",esc(e.message));}});}
+{const B0=bciDraw;bciDraw=function(){B0();dnoDraw();};}
+{const V=VIEWS.utBC;VIEWS.utBC=()=>V().replace('<div id="bciOut"></div>','<div id="bciOut"></div><div id="dnoOut"></div>').replace(tr("Create the debit note from the Excel back-charge file","إنشاء إشعار المدين من ملف إعادة الفوترة (Excel)"),tr("Excel back-charge file of the month (amounts for the back-charge invoices ①)","ملف إعادة الفوترة للشهر (مبالغ فواتير إعادة الفوترة ①)"))+`<style>#xlbMake{display:none}</style>`;}
+/* register: link to the debit note signed by the sub-contractor */
+{const V=VIEWS.utReg;VIEWS.utReg=()=>{let h=V();(D.dns||[]).forEach((d,i)=>{if(!d.att)return;const k='data-doc="'+d.no+'">',j=h.indexOf(k);if(j<0)return;const e=h.indexOf("</button>",j);if(e<0)return;h=h.slice(0,e+9)+` <a class="b l sm" style="text-decoration:none" href="#" data-dnratt="${i}" title="${esc(d.att.name||"")}">📎 ${tr("Signed debit note","إشعار المدين الموقّع")}</a>`+h.slice(e+9);});return h;};}
+{const B=BIND.utReg;BIND.utReg=()=>{B&&B();document.querySelectorAll("[data-dnratt]").forEach(a=>a.onclick=ev=>{ev.preventDefault();const d=D.dns[+a.dataset.dnratt];if(d)openAtt(d.att);});};}
 {const B=BIND.utReg;BIND.utReg=()=>{B&&B();document.querySelectorAll("[data-dnown]").forEach(c=>c.onchange=()=>{const d=D.dns[+c.dataset.dnown];if(!d)return;d.owned=c.checked;persist();render();toast("✔ "+d.no);});};}
 </script>
 </body>
