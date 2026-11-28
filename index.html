@@ -18,7 +18,7 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="m365.js?v=202611281000"></script>
-<script src="local.js?v=202611281000"></script>
+<script src="local.js?v=202611281500"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -4141,6 +4141,16 @@ const rptBar=(p,x)=>`<div class="btns rptBar" style="margin:0 0 12px"><button cl
   const reg=[["Debit note","Contractor","Type","Period","Date","Description","Class","Subtotal excl. VAT","VAT","Total incl. VAT","Status","Submitted to Finance?","Submitted","Received by Finance","Finance: debited / charged to sub-contractor?","Paid","Balance","Asset ownership","Signed copy"]].concat(L.map(d=>[d.no,d.contractor,dnType(d),d.period||"",d.date||"",dnSum(d),dnCls(d),+d.sub||0,r2(dnVat(d)),r2(dnTotal(d)),d.status||"",dnFin(d)?"Submitted":"NOT submitted",d.fin?dnFinDt(d.fin.sub):"",d.fin?dnFinDt(d.fin.rcv):"",+d.paid?"Paid "+d.paid:"Not yet updated by Finance",+d.paid||0,r2(dnTotal(d)-(+d.paid||0)),typeof dnOwned==="function"&&dnOwned(d)?"Belongs to "+d.contractor:"",((d.signed||[])[0]||{}).u||""]));
   const li=[["Debit note","Contractor","Line","Amount excl. VAT","VAT","Total"]];L.forEach(d=>(d.lines||[]).forEach(l=>{const a=(+l.rate||0)*(l.qty===undefined?1:+l.qty),v=l.vat!==undefined&&l.vat!==null?+l.vat:(d.vat===0?0:r2(a*.15));li.push([d.no,d.contractor,l.type,r2(a),r2(v),r2(a+v)]);}));
   rptXlsx("Master back-charge register – "+today()+".xlsx",[["Register",reg],["Line items",li]]);};};}
+/* ===================== Update 89: master back-charge file linked with the Hub + Finance treatment per debit note (Azzam, 28 Nov 2026) =====================
+   The Excel file "ASP Master Back charge Invoice File 2026 (linked with Hub).xlsx" (MIDU Hub Data › 02 Utilities › Excel (linked with Hub))
+   is written by the Hub and read back (local.js, part C). d.finTreat = what Finance did: debited / charged to the sub-contractor, offset … */
+{const V=VIEWS.utReg;VIEWS.utReg=()=>{let h=V();const adm=typeof whIsAdmin==="function"&&whIsAdmin();
+ h=h.replace(/(<div class="card">)/,`<div class="banner" style="background:#ECFDF5;border-color:#10B981;color:#065F46">📗 ${tr("Linked Excel: MIDU Hub Data › 02 Utilities › Excel (linked with Hub) › “ASP Master Back charge Invoice File 2026 (linked with Hub).xlsx”. Finance columns (✎) typed there come back here; everything else follows the Hub.","ملف Excel مرتبط: MIDU Hub Data › 02 Utilities › Excel (linked with Hub). أعمدة المالية (✎) تعود إلى المنصة.")}</div>$1`);
+ (D.dns||[]).forEach((d,i)=>{if(d.cancelled)return;const k=`<td class="en"><b>${esc(d.no)}</b>`,j=h.indexOf(k);if(j<0)return;const e=h.indexOf("</td>",j);if(e<0)return;
+  const issued=!/draft/i.test(d.status||""),ft=d.finTreat?`<div style="margin-top:3px;color:#15803D;font-size:11px">💼 ${tr("Finance","المالية")}: ${esc(d.finTreat)}</div>`:(issued&&!+d.paid?`<div style="margin-top:3px;background:#FFFBEB;border:1px solid #FCD34D;color:#92400E;border-radius:6px;padding:1px 6px;font-size:11px;display:inline-block">⚠ ${tr("Not yet updated by Finance (debited / charged?)","لم تحدّثه المالية بعد")}</div>`:"");
+  const ed=adm?` <a href="#" data-dnft="${i}" style="font-size:11px">✎ ${tr("Finance","المالية")}</a>`:"";h=h.slice(0,e)+ft+ed+h.slice(e);});return h;};}
+{const B=BIND.utReg;BIND.utReg=()=>{B&&B();document.querySelectorAll("[data-dnft]").forEach(a=>a.onclick=ev=>{ev.preventDefault();const d=D.dns[+a.dataset.dnft];if(!d)return;
+ const v=prompt(tr("What did Finance do with ","ماذا فعلت المالية بـ ")+d.no+"? (e.g. debited to MCC account / charged to EMCO / offset against amount owed)",d.finTreat||"");if(v===null)return;d.finTreat=v.trim();persist();render();toast("✔ "+d.no);});};}
 {const B=BIND.utReg;BIND.utReg=()=>{B&&B();document.querySelectorAll("[data-dnown]").forEach(c=>c.onchange=()=>{const d=D.dns[+c.dataset.dnown];if(!d)return;d.owned=c.checked;persist();render();toast("✔ "+d.no);});};}
 </script>
 </body>

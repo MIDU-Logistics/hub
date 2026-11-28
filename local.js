@@ -862,6 +862,81 @@ async function xlAreaSync(area) {
   try { await xlWriteFile(d, name, xlAreaBook(area, D), id); sync.files[id] = { cells: xlAreaSnap(area, D), at: new Date().toISOString(), by: LOCAL.user }; await xlSyncWrite(area, sync); return name; }
   catch (e) { xlWarn(name, e); return null; }
 }
+/* ---------------- C. ASP Master Back charge Invoice File, linked with the Hub (28 Nov 2026) ----------------
+   02 Utilities/Excel (linked with Hub)/ASP Master Back charge Invoice File 2026 (linked with Hub).xlsx
+   Same layout as the Finance master file (Summary, Register, Line Items). The Finance columns marked ✎ (Status,
+   Submitted, Received by Finance, Paid amount, Paid date, Finance treatment, Remarks) can be typed in Excel and come back
+   into the Hub; every other column is written by the Hub from the debit notes. */
+const XL_MASTER = "ASP Master Back charge Invoice File 2026 (linked with Hub).xlsx";
+const XM_ED = [["status", "Status"], ["fsub", "Submitted Date"], ["frcv", "Received by Finance Dept."], ["paid", "Paid Amount (SAR)"], ["paidDate", "Paid Date"], ["finTreat", "Finance: debited / charged to sub-contractor?"], ["remarks", "Remarks"]];
+const xmDate = v => { if (v === undefined || v === null || v === "") return ""; if (typeof v === "number") return xlFromSerial(v); const s = String(v).trim(); let m = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/.exec(s); if (m) return m[3] + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0"); m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s); return m ? m[0] : s; };
+const xmShow = ymd => ymd ? ymd.split("-").reverse().join("/") : "";
+function xmGet(d) { return { status: String(d.status || ""), fsub: d.fin ? xmDate(d.fin.sub) : "", frcv: d.fin ? xmDate(d.fin.rcv) : "", paid: +d.paid || 0, paidDate: xmDate(d.paidDate), finTreat: String(d.finTreat || ""), remarks: String(d.remarks || "") }; }
+function xmNorm(f, v) { if (f === "paid") { if (v === "" || v === undefined || v === null) return 0; const n = +String(v).replace(/,/g, ""); return isNaN(n) ? String(v) : n; } if (f === "fsub" || f === "frcv" || f === "paidDate") return xmDate(v); return v === undefined || v === null ? "" : String(v).trim(); }
+function xlMasterBook() {
+  const L = (D.dns || []).filter(d => !d.cancelled).slice().sort((a, b) => String(a.no).localeCompare(String(b.no))), wb = XLSX.utils.book_new();
+  const r2x = n => Math.round((+n || 0) * 100) / 100, tot = d => typeof dnTotal === "function" ? dnTotal(d) : (+d.sub || 0) + (+d.vat || 0);
+  const ctr = [...new Set(L.map(d => d.contractor))];
+  const sum = [["ASP Master Back Charge Invoice File 2026 – linked with MIDU-Team Hub"], ["MIDU Company Limited · ASP project (PO P1020139) · back charges to sub-contractors · SAR incl. VAT · updated " + xmShow(new Date().toISOString().slice(0, 10))], [],
+    ["Contractor", "No. of invoices", "Total billed", "Paid", "Outstanding", "Submitted to Finance", "NOT submitted"]].concat(ctr.map(c => { const X = L.filter(d => d.contractor === c), b = X.reduce((a, d) => a + tot(d), 0), p = X.reduce((a, d) => a + (+d.paid || 0), 0);
+      return [c, X.length, r2x(b), r2x(p), r2x(b - p), X.filter(d => typeof dnFin === "function" && dnFin(d)).length, X.filter(d => !(typeof dnFin === "function" && dnFin(d))).length]; }));
+  sum.push(["TOTAL", L.length, r2x(L.reduce((a, d) => a + tot(d), 0)), r2x(L.reduce((a, d) => a + (+d.paid || 0), 0)), r2x(L.reduce((a, d) => a + tot(d) - (+d.paid || 0), 0))]);
+  sum.push([], ["How it works"], ["• This file is linked with the Hub. Columns marked ✎ can be changed here (Status, Submitted Date, Received by Finance Dept., Paid Amount, Paid Date, Finance treatment, Remarks): the change goes into the Hub within about 30 seconds while the Hub is open on the administrator's PC."],
+    ["• All other columns are written by the Hub from the debit notes – change them in the Hub. New debit notes are created in the Hub (Back charge & debit notes)."], ["• Status must be one of: " + (typeof DNST !== "undefined" ? DNST.join(", ") : "")]);
+  const ws0 = XLSX.utils.aoa_to_sheet(sum); ws0["!cols"] = [{ wch: 22 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 20 }, { wch: 15 }]; XLSX.utils.book_append_sheet(wb, ws0, "Summary");
+  const H = ["No.", "Contractor", "Type", "Period", "Invoice No.", "Invoice Date", "Description", "Subtotal (SAR)", "VAT (SAR)", "Total incl. VAT (SAR)"].concat(XM_ED.slice(0, 5).map(x => x[1] + XL_EDIT_MARK), ["Balance (SAR)", "Remarks" + XL_EDIT_MARK, "Signed PDF", "Submitted to Finance?", "Soft copy emailed to Finance", "Finance: debited / charged to sub-contractor?" + XL_EDIT_MARK, "Asset ownership", "Class"]);
+  const rows = [H].concat(L.map((d, i) => { const g = xmGet(d), fin = typeof dnFin === "function" && dnFin(d), own = typeof dnOwned === "function" && dnOwned(d);
+    return [i + 1, d.contractor, typeof dnType === "function" ? dnType(d) : d.type, d.period || "", d.no, xmShow(xmDate(d.date)), typeof dnSum === "function" ? dnSum(d) : "", r2x(d.sub), r2x(typeof dnVat === "function" ? dnVat(d) : d.vat), r2x(tot(d)),
+      g.status, xmShow(g.fsub), xmShow(g.frcv), g.paid || "", xmShow(g.paidDate), r2x(tot(d) - g.paid), g.remarks, ((d.signed || [])[0] || {}).u || "Not signed yet",
+      fin ? "✔ Submitted" : (/draft/i.test(d.status || "") ? "Not issued (draft)" : "✖ NOT submitted"), d.fin && d.fin.src && /mail/i.test(d.fin.src) ? xmShow(xmDate(d.fin.sub)) : "", g.finTreat || (g.paid ? "" : "⚠ Not yet updated by Finance"), own ? "Belongs to " + d.contractor : "", typeof dnCls === "function" ? dnCls(d) : ""]; }));
+  rows.push(["TOTAL", "", "", "", "", "", "", r2x(L.reduce((a, d) => a + (+d.sub || 0), 0)), "", r2x(L.reduce((a, d) => a + tot(d), 0)), "", "", "", r2x(L.reduce((a, d) => a + (+d.paid || 0), 0)), "", r2x(L.reduce((a, d) => a + tot(d) - (+d.paid || 0), 0))]);
+  const ws = XLSX.utils.aoa_to_sheet([["ASP – Master Back Charge Invoice Register 2026 (linked with MIDU-Team Hub)"], ["✎ = can be typed here, comes back into the Hub · other columns are written by the Hub · amounts in SAR"], []].concat(rows));
+  ws["!cols"] = H.map((h, i) => ({ wch: Math.min(48, Math.max(10, h.length + 2, ...rows.slice(1).map(r => String(r[i] === undefined ? "" : r[i]).length + 1))) }));
+  ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 3, c: 0 }, e: { r: 3 + L.length, c: H.length - 1 } }) };
+  L.forEach((d, i) => { const u = ((d.signed || [])[0] || {}).u; if (u) { const a = XLSX.utils.encode_cell({ r: 4 + i, c: 17 }); ws[a] = { t: "s", v: "Open signed PDF", l: { Target: u } }; } });
+  XLSX.utils.book_append_sheet(wb, ws, "Register");
+  const li = [["Contractor", "Type", "Period", "Invoice No.", "Description", "Amount (SAR)", "VAT (SAR)", "Total (SAR)"]];
+  L.forEach(d => (d.lines || []).forEach(l => { const a = (+l.rate || 0) * (l.qty === undefined ? 1 : +l.qty), v = l.vat !== undefined && l.vat !== null ? +l.vat : (d.vat === 0 ? 0 : r2x(a * .15)); li.push([d.contractor, typeof dnType === "function" ? dnType(d) : "", d.period || "", d.no, l.type, r2x(a), r2x(v), r2x(a + v)]); }));
+  const ws2 = XLSX.utils.aoa_to_sheet(li); ws2["!cols"] = [{ wch: 18 }, { wch: 16 }, { wch: 9 }, { wch: 20 }, { wch: 70 }, { wch: 14 }, { wch: 12 }, { wch: 14 }]; XLSX.utils.book_append_sheet(wb, ws2, "Line Items");
+  return XLSX.write(wb, { bookType: "xlsx", type: "array", compression: true });
+}
+function xlMasterSnap() { const o = {}; (D.dns || []).filter(d => !d.cancelled).forEach(d => o[d.no] = xmGet(d)); return o; }
+function xlMasterRead(u8) {
+  const wb = XLSX.read(u8, { type: "array" }), ws = wb.Sheets.Register; if (!ws) return {};
+  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" }), hi = aoa.findIndex(r => r.some(c => String(c).trim() === "Invoice No.")); if (hi < 0) return {};
+  const hdr = aoa[hi].map(h => String(h).replace(/\s*✎\s*$/, "").trim()), ki = hdr.indexOf("Invoice No."), out = {};
+  aoa.slice(hi + 1).forEach(row => { const no = String(row[ki] || "").trim(); if (!/^ASP-MIDU-\d{4}-\d{4}$/.test(no)) return; const o = {};
+    XM_ED.forEach(([f, h]) => { const i = hdr.indexOf(h); if (i > -1) o[f] = xmNorm(f, row[i]); }); if (o.finTreat === "⚠ Not yet updated by Finance") o.finTreat = ""; out[no] = o; });
+  return out;
+}
+function xlMasterApply(E, S) {
+  let n = 0; const rej = [];
+  Object.keys(E).forEach(no => { const d = (D.dns || []).find(x => x.no === no), s = S[no]; if (!d || !s) return; const e = E[no], h = xmGet(d);
+    XM_ED.forEach(([f]) => { if (!(f in e)) return; const ev = e[f], sv = xmNorm(f, s[f]); if (ev === sv || ev === h[f]) return;
+      if (f === "paid" && typeof ev !== "number") { rej.push(no + " – paid: not a number"); return; }
+      if (f === "status" && typeof DNST !== "undefined" && DNST.indexOf(ev) < 0) { rej.push(no + " – status \"" + ev + "\" is not a Hub status"); return; }
+      if ((f === "fsub" || f === "frcv" || f === "paidDate") && ev && !/^\d{4}-\d{2}-\d{2}$/.test(ev)) { rej.push(no + " – " + f + ": not a date"); return; }
+      if (f === "fsub" || f === "frcv") { d.fin = d.fin || {}; d.fin[f === "fsub" ? "sub" : "rcv"] = ev; if (!d.fin.src) d.fin.src = "Entered in the master back charge file (Excel)"; if (!ev && !d.fin.sub && !d.fin.rcv) delete d.fin; }
+      else if (f === "paid") { d.paid = ev; if (ev && typeof dnTotal === "function" && ev >= dnTotal(d)) d.status = "Paid"; }
+      else d[f] = ev;
+      n++; });
+  });
+  return { n, rej };
+}
+async function xlMasterSync() {
+  const d = await subDir(AREAS.ut + "/" + XL_DIR, true), name = XL_MASTER, id = "master:bc", sync = await xlSyncRead("ut");
+  const snap = sync.files[id], files = [name].concat(await xlCopies(d, name)); let n = 0; const rej = [];
+  if (snap) for (const fn of files) {
+    const x0 = await xlReadFile(d, fn); if (!x0) continue;
+    if (fn === name && x0.f.lastModified === LOCAL.xlKnown[id]) continue;
+    let E; try { E = xlMasterRead(x0.u8); } catch (e) { console.warn("[hub] cannot read", fn, e); continue; }
+    const r = xlMasterApply(E, snap.cells || {}); n += r.n; rej.push(...r.rej);
+  }
+  if (n) { persist(); xlRerender(); toast("✔ " + n + " " + tr("change(s) brought in from the master back charge file", "تغيير أُدخل من ملف إعادة الفوترة الرئيسي")); }
+  if (rej.length) toast("⚠ " + rej.length + " " + tr("change(s) in the master file not accepted: ", "تغيير في الملف الرئيسي غير مقبول: ") + rej.slice(0, 3).join(" · "));
+  try { await xlWriteFile(d, name, xlMasterBook(), id); sync.files[id] = { cells: xlMasterSnap(), at: new Date().toISOString(), by: LOCAL.user }; await xlSyncWrite("ut", sync); return name; }
+  catch (e) { xlWarn(name, e); return null; }
+}
 const XL_RERENDER = ["home", "dashWH", "dashPF", "dashHR", "dashMT", "utRep", "utReg", "search", "assetReg", "pr", "po", "fin"];
 function xlRerender() { try { if (typeof view !== "undefined" && XL_RERENDER.indexOf(view) > -1 && !document.querySelector("#ov.on")) render(true); } catch (e) {} }
 function xlWarn(name, e) {
@@ -879,7 +954,8 @@ async function xlRefreshNow(areas, months) {
   for (const a of areas) {
     if (!LOCAL.areaOK[a]) continue;
     try { const r = await xlAreaSync(a); if (r) done.push(r);
-      if (a === "ut") { const ms = new Set((months && months.size ? [...months] : []).concat(xlMonthsNow())); for (const m of ms) done.push(...await xlUtilMonth(m)); }
+      if (a === "ut") { try { const m = await xlMasterSync(); if (m) done.push(m); } catch (e) { xlWarn(XL_MASTER, e); }
+        const ms = new Set((months && months.size ? [...months] : []).concat(xlMonthsNow())); for (const m of ms) done.push(...await xlUtilMonth(m)); }
     } catch (e) { xlWarn(AREAS[a], e); }
   }
   return done;
@@ -900,6 +976,7 @@ LOCAL.xlCheck = () => xlQueue(async () => {
     const d = await subDir(AREAS[a] + "/" + XL_DIR).catch(() => null); if (!d) continue;
     const name = AREAS[a] + " - Hub data.xlsx", x = await d.getFileHandle(name).catch(() => null);
     if (x && ((await x.getFile()).lastModified !== LOCAL.xlKnown["area:" + a] || (await xlCopies(d, name)).length)) stale.add(a);
+    if (a === "ut") { const mx = await d.getFileHandle(XL_MASTER).catch(() => null); if (!mx || (await mx.getFile()).lastModified !== LOCAL.xlKnown["master:bc"] || (await xlCopies(d, XL_MASTER)).length) await xlMasterSync().catch(e => xlWarn(XL_MASTER, e)); }
     if (a === "ut") for (const m of xlMonthsNow()) {
       const ts = [{ d, name: xlUtilName(m), id: "hub:" + xlUtilName(m) }]; const w = await xlWeeklyTarget(m).catch(() => null); if (w && !w.isNew) ts.push(w);
       for (const t of ts) { const fh = await t.d.getFileHandle(t.name).catch(() => null); if (fh && ((await fh.getFile()).lastModified !== LOCAL.xlKnown[t.id] || (await xlCopies(t.d, t.name)).length)) months.add(m); }
