@@ -4451,7 +4451,7 @@ function consPick(){const C=(D.items||[]).filter(i=>i.kind==="Consumable"&&!i.in
   if(q){const ql=q.toLowerCase(),ex=L.filter(i=>(i.code+" "+i.desc+" "+(i.ar||"")).toLowerCase().includes(ql)),fz=new Set(itemSimilar(q,40).map(i=>i.code));L=[...ex,...L.filter(i=>!ex.includes(i)&&fz.has(i.code))];}
   else L.sort((x,y)=>(before.has(y.code)-before.has(x.code))||String(x.desc).localeCompare(String(y.desc)));
   G.innerHTML=L.slice(0,600).map(i=>{const p=itemLastPrice(i.code),on=sel[i.code];return `<div data-ci="${esc(i.code)}" style="border:1px solid ${on?"#7C3AED":"#D5DCE8"};background:${on?"#F5F0FF":"#fff"};border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:5px">
-   <div style="height:92px;display:flex;align-items:center;justify-content:center;background:#F7F8FA;border-radius:6px">${i.photo?`<img data-ph="${esc(i.code)}" style="max-height:88px;max-width:100%;object-fit:contain;cursor:zoom-in;visibility:hidden">`:`<span style="font-size:30px;opacity:.35">📦</span>`}</div>
+   <div style="height:92px;display:flex;align-items:center;justify-content:center;background:#F7F8FA;border-radius:6px">${i.photo||LOCAL.connected?`<img data-ph="${esc(i.code)}" style="max-height:88px;max-width:100%;object-fit:contain;cursor:zoom-in;visibility:hidden">`:`<span style="font-size:30px;opacity:.35">📦</span>`}</div>
    <label style="display:flex;gap:6px;align-items:flex-start;cursor:pointer"><input type="checkbox" data-ck="${esc(i.code)}" ${on?"checked":""} style="margin-top:3px"><span class="en" style="font-weight:600;font-size:13px;line-height:1.3">${esc(i.desc)}</span></label>
    <div class="hint en" style="font-size:11px">${esc(i.code)} · ${esc(i.unit||"")}${before.has(i.code)?" · ★ "+tr("ordered before","طُلب سابقاً"):""}</div>
    <div style="display:flex;gap:6px;align-items:center;font-size:12px"><span>${tr("Qty","الكمية")}</span><input type="number" min="0" step="any" data-cq="${esc(i.code)}" value="${on?on.q:""}" style="width:64px"><span>${tr("Price","السعر")}</span><input type="number" min="0" step="any" data-cp="${esc(i.code)}" value="${on?on.p:(p?p.v:"")}" style="width:72px" title="${esc(p?(p.est?"":tr("Last price from","آخر سعر من")+" ")+p.src:tr("No price yet","لا يوجد سعر"))}">${p&&p.est?`<span class="hint" title="${esc(p.src)}">≈ ${tr("est.","تقديري")}</span>`:""}</div></div>`;}).join("")+(L.length>600?`<div class="hint">${tr("Showing 600 – search to narrow down","يظهر 600 – ابحث للتضييق")}</div>`:"")+(!L.length?`<div class="hint">${tr("Nothing found","لا يوجد")}</div>`:"");
@@ -4472,6 +4472,21 @@ function consPick(){const C=(D.items||[]).filter(i=>i.kind==="Consumable"&&!i.in
   close();toast("✔ "+n+" "+tr("item(s) added to the PR","صنف أُضيف للطلب"));};}
 {const V=VIEWS.pr;VIEWS.pr=()=>V().replace('<button class="b l" id="pAdd">',m=>`<button class="b l" id="pPick" style="background:#F5F0FF;border-color:#7C3AED;color:#5B21B6">🧺 ${tr("Pick from consumables list","اختر من قائمة المستهلكات")}</button> `+m);}
 {const B=BIND.pr;BIND.pr=()=>{B&&B();const b=$("#pPick");if(b)b.onclick=consPick;};}
+/* ===================== Update 98: item photos dropped in a folder by item code are picked up automatically (Azzam, 28 Nov 2026) =====================
+   The storekeeper saves a photo as "<item code>.jpg" (or .jpeg / .png) in MIDU Hub Data › 01 Warehouse & Assets › Item Photos
+   (or 00 System › Item Photos). Items without a "photo" in items.json show it with no further step. */
+const IPH_DIRS=["01 Warehouse & Assets/Item Photos","00 System/Item Photos"],IPH_EXT=["jpg","jpeg","png","JPG","JPEG","PNG"];
+itemPhotoUrl=function(code){if(!code)return Promise.resolve(null);if(IPH[code]!==undefined)return IPH[code];const it=item(code);
+ if(!it||typeof LOCAL==="undefined"||!LOCAL.connected||!LOCAL.readRootFile)return Promise.resolve(null);
+ const paths=it.photo?[it.photo]:IPH_DIRS.flatMap(d=>IPH_EXT.map(x=>d+"/"+code+"."+x));
+ IPH[code]=(async()=>{for(const p of paths){try{const f=await LOCAL.readRootFile(p);if(f)return URL.createObjectURL(f);}catch(e){}}return null;})();return IPH[code];};
+itemThumbFor=function(inp){const code=itemCodeFromInput(inp);let t=inp._ithumb;
+ if(!code||!(item(code)||{}).photo&&!(typeof LOCAL!=="undefined"&&LOCAL.connected)){if(t){t.remove();inp._ithumb=null;inp.style.width="";}return;}
+ if(t&&t.dataset.code===code)return;
+ if(!t){t=document.createElement("img");t.className="ithumb";t.title=tr("Click to see the photo","اضغط لرؤية الصورة");
+  t.style.cssText="width:38px;height:38px;object-fit:contain;border:1px solid #D5DCE8;border-radius:6px;background:#fff;vertical-align:middle;margin-inline-end:6px;cursor:zoom-in";
+  inp.parentNode.insertBefore(t,inp);inp._ithumb=t;inp.style.width="calc(100% - 48px)";t.onclick=()=>itemPhotoShow(t.dataset.code);}
+ t.dataset.code=code;t.style.visibility="hidden";itemPhotoUrl(code).then(u=>{if(t.dataset.code!==code)return;if(u){t.src=u;t.style.visibility="visible";}else{t.remove();inp._ithumb=null;inp.style.width="";}});};
 </script>
 </body>
 </html>
