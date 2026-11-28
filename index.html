@@ -4061,6 +4061,18 @@ function xlbDn(c,m,x,fname){const incl=c==="Concrete Division";const lines=x.lin
 /* signed copies of the old debit notes: link in the master register */
 {const V=VIEWS.utReg;VIEWS.utReg=()=>{let h=V();(D.dns||[]).forEach(d=>{if(!d.signed||!d.signed.length)return;const a=d.signed.filter(s=>/^https:\/\/[a-z0-9-]+\.sharepoint\.com\//i.test(s.u||"")).map(s=>`<a class="b l sm" style="text-decoration:none" href="${esc(s.u)}" target="_blank" rel="noopener" title="${esc(s.f||"")}">📎 ${esc(s.n||tr("Signed copy","النسخة الموقعة"))}</a>`).join(" ");
  const k='data-doc="'+d.no+'">',i=h.indexOf(k);if(!a||i<0)return;const j=h.indexOf("</button>",i);if(j<0)return;h=h.slice(0,j+9)+" "+a+h.slice(j+9);});return h;};}
+/* ===================== Update 84: debit notes already submitted to Finance are not sent for e-signature (Azzam, 28 Nov 2026) =====================
+   ASP-MIDU-2026-0001…0013 were handed to Finance (Osama Al Saggaf / Mohammed Hawbani) on 7–13 Nov 2026 (master back-charge file, Register).
+   d.fin = {sub, rcv} in the data. A note submitted to Finance (d.fin, or status "Received by Finance" / "Paid") leaves the
+   "Saved before e-signatures → Send" list; a note not yet submitted keeps the Send button. */
+const dnFin=o=>!!o&&(!!o.fin||o.status==="Received by Finance"||o.status==="Paid");
+const dnFinDt=v=>v?String(v).split("-").reverse().join("/"):"";
+const dnFinTxt=o=>o.fin?tr("Submitted to Finance","سُلّم للمالية")+" "+dnFinDt(o.fin.sub)+(o.fin.rcv&&o.fin.rcv!==o.fin.sub?" · "+tr("received","استُلم")+" "+dnFinDt(o.fin.rcv):""):tr("Submitted to Finance","سُلّم للمالية");
+{const k=esK("dn");if(k){const A=k.applies;k.applies=o=>(!A||A(o))&&(!!o.es||!dnFin(o));}}
+{const V=VIEWS.esign;VIEWS.esign=()=>{let h=V();if(!whIsAdmin())return h;const L=(D.dns||[]).filter(d=>!d.cancelled&&!d.es&&dnFin(d));if(!L.length)return h;
+ return h+`<div class="card"><h2>${tr("Debit notes already submitted to Finance","إشعارات مدين سُلّمت للمالية")} (${L.length})</h2><p class="hint">${tr("Signed on paper and handed to Finance – no e-signature and no Send needed.","موقعة ورقياً وسُلّمت للمالية – لا تحتاج توقيعاً إلكترونياً ولا إرسالاً.")}</p><table class="t">${L.map(d=>`<tr><td>${tag(tr("Debit note","إشعار مدين"),"")}</td><td class="en"><b>${esc(d.no)}</b></td><td class="en">${esc((d.contractor||"")+" · "+(d.period||""))}</td><td>${tag("📤 "+dnFinTxt(d),"g")}</td><td><button class="b l sm" data-esv="dnf|${esc(d.no)}">${tr("View","عرض")}</button></td></tr>`).join("")}</table></div>`;};}
+{const B=BIND.esign;BIND.esign=()=>{B();document.querySelectorAll('[data-esv^="dnf|"]').forEach(b=>b.onclick=()=>{const d=(D.dns||[]).find(x=>x.no===b.dataset.esv.slice(4));if(d)openDoc(dnDoc(d));});};}
+{const V=VIEWS.utReg;VIEWS.utReg=()=>{let h=V();(D.dns||[]).forEach(d=>{if(!dnFin(d))return;const k=`<td class="en"><b>${esc(d.no)}</b>`;const i=h.indexOf(k);if(i<0)return;h=h.slice(0,i+k.length)+`<div class="hint" style="color:#15803D;white-space:nowrap">📤 ${esc(dnFinTxt(d))}</div>`+h.slice(i+k.length);});return h;};}
 </script>
 </body>
 </html>
