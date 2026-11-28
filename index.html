@@ -17,8 +17,8 @@
 <script src="vendor/jspdf.umd.min.js" defer></script>
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
-<script src="m365.js?v=202611281000"></script>
-<script src="local.js?v=202611281500"></script>
+<script src="m365.js?v=202611281800"></script>
+<script src="local.js?v=202611281800"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -2243,7 +2243,7 @@ function whSendDlg(list){if(!list.length)return;const U=(LOCAL.users||[]).filter
 /* ===== Update 41: e-mail alerts – the Hub drops one small file per e-mail in 00 System/_mail outbox;
    a Power Automate flow (Azzam's Outlook) sends it and deletes the file. ===== */
 const HUB_URL="https://midu-team.github.io/hub/";
-const HUB_MAIL={"azzamelmasri":"m.elmasri@midu.com.sa","mazharashraf":"m.ashraf@midu.com.sa","turkialghamdi":"t.alghamdi@midu.com.sa","najedfakhreddine":"nfakhreddine@midu.com.sa","osamaalsaggaf":"o.alsaggaf@midu.com.sa","raghadaltowirgi":"r.altowirgi@midu.com.sa","kaidalharbi":"kaid@midu.com.sa","marwantelmesani":"marwan@midu.com.sa","rawanalharbi":"r.alharbi@midu.com.sa"};
+const HUB_MAIL={};   /* Update 93: addresses are in MIDU Hub Data › 00 System › _data › hub-config.json (mail), not in the public code */
 const mailOf=n=>{const k=String(n||"").toLowerCase().replace(/[^a-z]/g,"");const u=(typeof LOCAL!=="undefined"&&LOCAL.users||[]).find(x=>String(x.name||"").toLowerCase().replace(/[^a-z]/g,"")===k);return (u&&u.email)||HUB_MAIL[k]||"";};
 const MAIL_DIR="00 System/_mail outbox";
 function mailSend(toName,subject,lines,screen){const to=mailOf(toName);if(!to||typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.readOnly||!LOCAL.uploadDoc)return;
@@ -2468,7 +2468,7 @@ document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.clos
 {const B0=BIND.appr;BIND.appr=()=>{B0();document.querySelectorAll("[data-qatt]").forEach(a=>a.onclick=ev=>{ev.preventDefault();const [no,i]=a.dataset.qatt.split("|");qtOpen(no,i);});};}
 
 /* ===================== Update 49: Purchaser (Bandar Nasser) on PO and petty cash ===================== */
-const PURCHASER="Bandar Nasser";HUB_MAIL.bandarnasser=HUB_MAIL.bandarnasser||"b.saleh@msb.com";
+const PURCHASER="Bandar Nasser";
 const buyerOpts=()=>{const L=[PURCHASER];try{(LOCAL.users||[]).filter(u=>u.active!==false&&/procurement/i.test(u.role||"")).forEach(u=>{if(!L.some(x=>whL(x)===whL(u.name)))L.push(u.name);});}catch(e){}return L;};
 {const V1=VIEWS.po;VIEWS.po=()=>{let h=V1();D.pos.forEach(p=>{if(p.buyer)h=h.replace(`<td class="en"><b>${p.no}</b></td>`,`<td class="en"><b>${p.no}</b><div class="hint">${tr("Purchaser","المشتري")}: ${esc(p.buyer)}</div></td>`);});const opt=buyerOpts().map(n=>`<option>${esc(n)}</option>`).join("");
  const box=id=>`<div class="f"><label>${tr("Purchaser","المشتري")} <span style="color:#D2463C">*</span></label><select id="${id}">${opt}</select></div>`;
@@ -2485,7 +2485,7 @@ function buyerMailScan(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.
 {const P2=persist;persist=function(...a){try{buyerMailScan();}catch(e){console.warn(e);}return P2.apply(this,a);};}
 
 /* ===================== Update 50: Basel Shamma (Project Manager, ASP) + Petty cash custody (advance → invoices → clearance) ===================== */
-const ES_BASEL="Basel Shamma";HUB_MAIL.baselshamma=HUB_MAIL.baselshamma||"b.shamma@midu.com.sa";
+const ES_BASEL="Basel Shamma";
 /* Debit notes (back charges to sub-contractors): Prepared (Logistics) → Project Manager → Project Director */
 {const k=esK("dn");if(k)k.steps=iss=>[["PREP","Prepared by (Logistics Manager)",iss],["PM","Reviewed by (Project Manager)",ES_BASEL],["PD","Approved by (Project Director)",ES_NAJED]];}
 {const F=dnDoc;dnDoc=d=>d.legacy||d.bci?F(d):F(d).replace(   /* Update 83: not on the old notes signed before the Project Manager step existed */`<td>Approved By :<br>Najed Fakhreddine</td>`,`<td>Reviewed By :<br>Basel Shamma<br><span style="font-size:9px">Project Manager</span></td><td>Approved By :<br>Najed Fakhreddine</td>`);}
@@ -2940,7 +2940,7 @@ VIEWS.capex=()=>{const bar=(a,b,c)=>{const p=b?Math.min(a/b*100,100):0;return `<
    the invoice (August ice = MBL 3 SAR/bag and Emaar skips 12 × 650 are from the MBL invoices).
    Every line can be corrected on "Real cost (internal)" (admin): collection "uhist", one record per month|category|company.
    Invoice PDFs are linked per month + supplier (INV_LINKS) and shown on Real cost and CAPEX & OPEX. */
-const SPF="https://mblaec.sharepoint.com/sites/MIDULogistics/Shared Documents/Logistics Files/Finance/",ODM="https://mblaec-my.sharepoint.com/personal/m_elmasri_midu_com_sa/Documents/MIDU Logistics (Claude)/MBL Invoices/";
+const SPF="spf:/",ODM="odm:/";   /* Update 93: base addresses come from hub-config.json (links) */
 const IL=(n,u)=>({n,u:encodeURI(u)});
 const INV_LINKS={
  "2026-08|MBL":[IL("B.C Diesel",ODM+"August/B.C Diesel.pdf"),IL("Potable water",ODM+"August/Potable Water Midu.pdf"),IL("Sewage",ODM+"August/Sewage MIDU.pdf"),IL("Drinking water labour",ODM+"August/Drinking water labors.pdf"),IL("Drinking water cartons",ODM+"August/Drinking Water Cartons.pdf"),IL("Rewam back charge",ODM+"August/Rewam Back Charge.pdf"),IL("Skip waste Emaar",ODM+"August/WhatsApp Image 2026-09-08 at 2.57.51 PM.jpeg"),IL("Ice cubes",ODM+"August/WhatsApp Image 2026-09-08 at 2.58.31 PM.jpeg")],
@@ -2954,7 +2954,7 @@ const INV_LINKS={
  "2026-08|Byrne":[IL("Byrne pro forma Aug",SPF+"Utilities Contractor Invoice/Pro Forma - Aug 26 I MIDU.pdf"),IL("Timesheet Aug",SPF+"Generators Timesheet/ASP Generators Timesheet August 26.pdf")],
  "2026-09|Byrne":[IL("Timesheet Sep",SPF+"Generators Timesheet/ASP Generators Timesheet September 26.pdf")]};
 const invOf=(m,sup)=>{const r=(D.uhist||[]).filter(x=>x.m===m&&x.sup===sup&&x.inv&&!x.deleted&&x.link).map(x=>({n:x.invName||tr("Invoice","فاتورة"),u:x.inv}));return (INV_LINKS[m+"|"+sup]||[]).concat(r);};
-const invHtml=L=>L.length?L.map(l=>`<a href="${esc(l.u)}" target="_blank" rel="noopener" class="hint" style="white-space:nowrap">📎 ${esc(l.n)}</a>`).join(" "):"";
+const invHtml=L=>L.length?L.map(l=>`<a href="${esc(hubLink(l.u))}" target="_blank" rel="noopener" class="hint" style="white-space:nowrap">📎 ${esc(l.n)}</a>`).join(" "):"";
 /* month lines: [category, company, supplier, unit, qty, rate, estimated] */
 const UH_DEF={
  "2026-08":[["Generators diesel","","MBL","L",92515,1.557,1],["Tower lights diesel","","MBL","L",525,1.557,1],["Equipment diesel","","MBL","L",2387,1.557,1],["Concrete waste skip","","MBL","Skips",10,1430,1],
@@ -4253,6 +4253,44 @@ function dnoDraw(){const out=$("#dnoOut");if(!out)return;const m=($("#bM")||{}).
 /* register: link to the debit note signed by the sub-contractor */
 {const V=VIEWS.utReg;VIEWS.utReg=()=>{let h=V();(D.dns||[]).forEach((d,i)=>{if(!d.att)return;const k='data-doc="'+d.no+'">',j=h.indexOf(k);if(j<0)return;const e=h.indexOf("</button>",j);if(e<0)return;h=h.slice(0,e+9)+` <a class="b l sm" style="text-decoration:none" href="#" data-dnratt="${i}" title="${esc(d.att.name||"")}">📎 ${tr("Signed debit note","إشعار المدين الموقّع")}</a>`+h.slice(e+9);});return h;};}
 {const B=BIND.utReg;BIND.utReg=()=>{B&&B();document.querySelectorAll("[data-dnratt]").forEach(a=>a.onclick=ev=>{ev.preventDefault();const d=D.dns[+a.dataset.dnratt];if(d)openAtt(d.att);});};}
+/* ===================== Update 93: private settings out of the public code + "Send to Finance" (Azzam, 28 Nov 2026) =====================
+   MIDU Hub Data › 00 System › _data › hub-config.json (read at sign-in by local.js / m365.js):
+     {"mail":{"<name without spaces, lower case>":"address",…},
+      "finance":{"to":["Osama Al Saggaf","Mohammed Hawbani"],"info":["Najed Fakhreddine"]},
+      "links":{"spf":"<SharePoint …/Logistics Files/Finance/>","odm":"<…/MBL Invoices/>","hub":"<SharePoint …/MIDU Hub Data/>"}}
+   Staff e-mail addresses and SharePoint addresses are no longer written in the code. */
+window.HUB_CFG=window.HUB_CFG||{};
+function hubSetConfig(j){if(!j||typeof j!=="object")return;window.HUB_CFG=j;Object.entries(j.mail||{}).forEach(([k,v])=>{if(typeof v==="string"&&/@/.test(v))HUB_MAIL[String(k).toLowerCase().replace(/[^a-z]/g,"")]=v;});}
+function hubLink(u){u=String(u||"");const L=(window.HUB_CFG||{}).links||{},enc=s=>encodeURI(String(s||""));
+ if(u.startsWith("spf:/"))return L.spf?enc(L.spf)+u.slice(5):"#";if(u.startsWith("odm:/"))return L.odm?enc(L.odm)+u.slice(5):"#";return u;}
+const hubFileUrl=path=>{const b=((window.HUB_CFG||{}).links||{}).hub;return b&&path&&!/demo/i.test(path)?encodeURI(b)+String(path).split("/").map(encodeURIComponent).join("/"):"";};
+const finTo=()=>(((window.HUB_CFG||{}).finance||{}).to)||["Osama Al Saggaf","Mohammed Hawbani"];
+const finInfo=()=>(((window.HUB_CFG||{}).finance||{}).info)||["Najed Fakhreddine"];
+/* one e-mail file per person in the outbox (the Power Automate flow sends it) */
+function mailRaw(toName,subject,html){const to=mailOf(toName);if(!to)return false;if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.readOnly||!LOCAL.uploadDoc)return false;
+ const id=new Date().toISOString().replace(/[-:.TZ]/g,"").slice(0,17)+"-"+Math.random().toString(36).slice(2,7);
+ LOCAL.uploadDoc(MAIL_DIR,id+".json",new Blob([JSON.stringify({to,toName,subject,body:html,from:apMe(),at:new Date().toISOString()})],{type:"application/json"})).catch(e=>console.warn("mail outbox",e));return true;}
+const dnCanSend=d=>!!d&&!d.cancelled&&!dnFin(d)&&!!(d.att||(d.signed&&d.signed.length));
+function finSend(d){if(!dnCanSend(d))return;const to=finTo(),info=finInfo(),miss=to.concat(info).filter(n=>!mailOf(n));
+ if(!confirm(tr("Send ","إرسال ")+d.no+" ("+d.contractor+", "+money(dnTotal(d))+" SAR) "+tr("to Finance","إلى المالية")+":\n• "+to.join("\n• ")+"\n"+tr("For information","للعلم")+": "+info.join(", ")+(miss.length?"\n\n⚠ "+tr("No e-mail address for","لا يوجد بريد لـ")+": "+miss.join(", "):"")))return;
+ const b=(D.bcs||[]).find(x=>x.no===d.bci),links=[];
+ if(d.att){const u=hubFileUrl(d.att.path);links.push(u?`<a href="${u}">📎 ${tr("Debit note signed by the sub-contractor","إشعار المدين موقّع من المقاول")} (${esc(d.att.name)})</a>`:esc(d.att.name));}
+ (d.signed||[]).forEach(s=>links.push(`<a href="${esc(s.u)}">📎 ${esc(s.n||"Signed copy")}</a>`));
+ if(b&&b.att){const u=hubFileUrl(b.att.path);links.push(u?`<a href="${u}">📎 ${tr("Back-charge invoice signed by the sub-contractor","فاتورة إعادة الفوترة موقعة من المقاول")} ${esc(b.no)}</a>`:esc(b.att.name));}
+ const rows=[["Debit note",d.no],["Contractor",d.contractor],["Type",dnType(d)],["Period",d.period?monthName(d.period):""],["Description",dnSum(d)],["Subtotal (SAR)",money(+d.sub||0)],["VAT (SAR)",money(dnVat(d))],["Total incl. VAT (SAR)",money(dnTotal(d))]];
+ const html=n=>`<div style="font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#1E2433"><p>Dear ${esc(n)},</p><p>Please find below the back-charge debit note <b>${esc(d.no)}</b> to <b>${esc(d.contractor)}</b>, signed by MIDU and by the sub-contractor. The original hard copy follows.</p>
+ <table style="border-collapse:collapse;font-size:13px">${rows.map(([a,v])=>`<tr><td style="padding:3px 10px 3px 0;color:#5B6476">${a}</td><td style="padding:3px 0"><b>${esc(v)}</b></td></tr>`).join("")}</table><p>${links.join("<br>")||""}</p>
+ <p>Kindly confirm receipt and update the Finance columns (debited / charged to the sub-contractor, paid amount and date) in the master back-charge file.</p><p>Regards,<br>${esc(apMe())}<br>Logistics Department – MIDU</p><p style="color:#5B6476;font-size:12px">Sent from MIDU-Team Hub.</p></div>`;
+ let n=0;to.forEach(p=>{if(mailRaw(p,"Back-charge debit note "+d.no+" – "+d.contractor+" – "+(d.period?monthName(d.period):""),html(p)))n++;});
+ info.forEach(p=>mailRaw(p,"For information: back-charge debit note "+d.no+" sent to Finance – "+d.contractor,html(p)));
+ d.fin={sub:today(),src:"Sent to Finance from the Hub ("+to.join(", ")+")"};d.sentFin={at:new Date().toISOString(),by:apMe(),to:to.slice(),info:info.slice(),mails:n};if(!/paid/i.test(d.status||""))d.status="Submitted";
+ persist();toast(n?"✔ "+d.no+" "+tr("sent to Finance","أُرسل إلى المالية")+" ("+n+" e-mail(s))":"ℹ "+d.no+" "+tr("marked as submitted to Finance – no e-mail sent (Hub folder not connected or address missing)","سُجّل كمسلّم للمالية – لم يُرسل بريد"));if(typeof render==="function")render();}
+/* button in ② Debit notes and in the Master register */
+{const B0=dnoDraw;dnoDraw=function(){B0();const out=$("#dnoOut");if(!out)return;out.querySelectorAll("[data-dnov]").forEach(b=>{const d=D.dns[+b.dataset.dnov];if(!d)return;
+ const x=document.createElement("span");x.innerHTML=dnFin(d)?` <span class="tag" style="background:#ECFDF5;color:#065F46">📤 ${esc(typeof dnFinTxt==="function"?dnFinTxt(d):tr("Submitted to Finance","سُلّم للمالية"))}</span>`:dnCanSend(d)?` <button class="b sm" style="background:#7C3AED;color:#fff" data-finsend="${D.dns.indexOf(d)}">📤 ${tr("Send to Finance","إرسال إلى المالية")}</button>`:"";b.parentNode.appendChild(x);});
+ out.querySelectorAll("[data-finsend]").forEach(b=>b.onclick=()=>{finSend(D.dns[+b.dataset.finsend]);bciDraw();});};}
+{const V=VIEWS.utReg;VIEWS.utReg=()=>{let h=V();(D.dns||[]).forEach((d,i)=>{if(!dnCanSend(d))return;const k='data-doc="'+d.no+'">',j=h.indexOf(k);if(j<0)return;const e=h.indexOf("</button>",j);if(e<0)return;h=h.slice(0,e+9)+` <button class="b sm" style="background:#7C3AED;color:#fff" data-finsend="${i}">📤 ${tr("Send to Finance","إرسال إلى المالية")}</button>`+h.slice(e+9);});return h;};}
+{const B=BIND.utReg;BIND.utReg=()=>{B&&B();document.querySelectorAll("#main [data-finsend]").forEach(b=>b.onclick=()=>finSend(D.dns[+b.dataset.finsend]));};}
 {const B=BIND.utReg;BIND.utReg=()=>{B&&B();document.querySelectorAll("[data-dnown]").forEach(c=>c.onchange=()=>{const d=D.dns[+c.dataset.dnown];if(!d)return;d.owned=c.checked;persist();render();toast("✔ "+d.no);});};}
 </script>
 </body>

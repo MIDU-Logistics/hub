@@ -17,7 +17,7 @@
 const M365_CONFIG = {
   clientId: "",                                   // Application (client) ID — from IT (app registration)
   tenantId: "464e5e59-26fe-4715-ac16-9efb6ccf733f", // Directory (tenant) ID
-  site: "mblaec-my.sharepoint.com:/personal/m_elmasri_midu_com_sa", // SharePoint site that holds the lists
+  site: "",   // set with the company SharePoint site when IT gives the client ID (was a personal OneDrive) // SharePoint site that holds the lists
   docRoot: "MIDU Logistics (Claude)/Hub Documents", // folder in that site's document library for PDFs and Excel files
   scopes: ["User.Read", "Sites.ReadWrite.All"]
 };
@@ -326,6 +326,11 @@ async function getAll() {
     const r = await M365.graph("GET", "/sites/" + M365.siteId + "/drive/root:/" + encPath(M365_CONFIG.docRoot + "/00 System/stamps.json") + ":/content", undefined, { raw: true });
     if (typeof hubSetStamps === "function") hubSetStamps(JSON.parse(await r.text()));
   } catch (e) { console.warn("stamps", e); }
+  /* e-mail addresses / Finance recipients / SharePoint addresses: <docRoot>/00 System/hub-config.json – Update 93 */
+  try {
+    const r = await M365.graph("GET", "/sites/" + M365.siteId + "/drive/root:/" + encPath(M365_CONFIG.docRoot + "/00 System/hub-config.json") + ":/content", undefined, { raw: true });
+    if (typeof hubSetConfig === "function") hubSetConfig(JSON.parse(await r.text()));
+  } catch (e) { console.warn("hub-config", e); }
   return out;
 }
 

@@ -262,6 +262,8 @@ async function localGetAll() {
   try { window.WHREF = await readJson(sysDir, "whref.json"); } catch (e) { window.WHREF = null; }
   /* Company stamps live only in the shared folder (00 System/_data/stamps.json), never in the public code – Update 81 */
   try { if (typeof hubSetStamps === "function") hubSetStamps(await readJson(sysDir, "stamps.json")); } catch (e) { console.warn("stamps", e); }
+  /* Staff e-mail addresses, Finance recipients and SharePoint addresses: 00 System/_data/hub-config.json, not in the public code – Update 93 */
+  try { if (typeof hubSetConfig === "function") hubSetConfig(await readJson(sysDir, "hub-config.json")); } catch (e) { console.warn("hub-config", e); }
   M365.choices = (ch && ch.choices) || {};
   const out = {}; let merged = 0;
   for (const n of LOCAL_COLLS) {

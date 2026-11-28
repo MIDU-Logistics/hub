@@ -17,7 +17,7 @@ sign-in with MIDU Microsoft accounts (MSAL.js), data in SharePoint lists, PDFs a
 ```js
 clientId: "",                                     // from IT after the app registration
 tenantId: "464e5e59-26fe-4715-ac16-9efb6ccf733f",
-site: "mblaec-my.sharepoint.com:/personal/m_elmasri_midu_com_sa", // change here to move to a company site
+site: "<company SharePoint site>", // set when IT gives the client ID
 docRoot: "MIDU Logistics (Claude)/Hub Documents"  // folder for PDFs and Excel exports
 ```
 
