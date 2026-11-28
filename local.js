@@ -1049,6 +1049,10 @@ LOCAL.readDoc = async function (relPath) {
   const parts = String(relPath).split("/"); const name = parts.pop();
   const d = await subDir(docPath(parts.join("/")), false); const fh = await d.getFileHandle(name); return await fh.getFile();
 };
+LOCAL.readRootFile = async function (relPath) {   /* update 59: a file anywhere in MIDU Hub Data (item photos) */
+  const parts = String(relPath).split("/").filter(Boolean); const name = parts.pop();
+  const d = parts.length ? await subDir(parts.join("/"), false) : LOCAL.dir; return await (await d.getFileHandle(name)).getFile();
+};
 async function localUploadDoc(path, name, blob) { return (await localSaveBlob(path, name, blob)).path; }
 
 (function () {

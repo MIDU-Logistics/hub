@@ -18,7 +18,7 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="m365.js?v=202611281800"></script>
-<script src="local.js?v=202611282000"></script>
+<script src="local.js?v=202611282100"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -4323,6 +4323,30 @@ function bcReminders(){const out=[],k1=esK("bci"),k2=esK("dn"),age=d=>d?Math.flo
 {const V=VIEWS.home;if(V)VIEWS.home=()=>{const h=V();try{if(!((typeof whIsAdmin==="function"&&whIsAdmin())||(typeof M365!=="undefined"&&M365.can&&M365.can("utBC"))))return h;const L=bcReminders();if(!L.length)return h;
  const b=`<div class="banner" style="background:#EFF6FF;border-color:#3B82F6;color:#1E3A8A;cursor:pointer" onclick="go('utBC')">⏱ <b>${tr("Back-charge cycle – waiting","دورة إعادة الفوترة – بانتظار")}</b><br>${L.slice(0,6).join("<br>")}${L.length>6?"<br>+ "+(L.length-6):""}</div>`;const i=h.indexOf('<div class="card">');return i<0?b+h:h.slice(0,i)+b+h.slice(i);}catch(e){return h;}};}
 {const B=BIND.utReg;BIND.utReg=()=>{B&&B();document.querySelectorAll("[data-dnown]").forEach(c=>c.onchange=()=>{const d=D.dns[+c.dataset.dnown];if(!d)return;d.owned=c.checked;persist();render();toast("✔ "+d.no);});};}
+
+/* ---- Update 59: item photos (items.json "photo" = path in MIDU Hub Data, e.g. "00 System/Item Photos/<code>.png") ---- */
+const IPH={};
+function itemPhotoUrl(code){if(!code)return Promise.resolve(null);if(IPH[code]!==undefined)return IPH[code];const it=item(code);const p=it&&it.photo;
+ if(!p||!LOCAL.connected||!LOCAL.readRootFile)return Promise.resolve(null);IPH[code]=LOCAL.readRootFile(p).then(f=>URL.createObjectURL(f)).catch(()=>null);return IPH[code];}
+function itemPhotoShow(code){const it=item(code)||{};itemPhotoUrl(code).then(u=>{if(!u)return;const o=document.createElement("div");
+ o.style.cssText="position:fixed;inset:0;background:rgba(10,20,40,.55);z-index:9999;display:flex;align-items:center;justify-content:center";
+ o.innerHTML=`<div style="background:#fff;border-radius:12px;padding:16px;max-width:440px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.3)"><img src="${u}" style="max-width:400px;max-height:400px;display:block;margin:0 auto 10px"><div class="en" style="font-weight:700">${esc(it.desc||"")}</div><div class="en" style="color:#555;font-size:12px;margin-top:4px">${esc(code)} · ${esc(it.unit||"")}${+it.price?" · SAR "+money(+it.price)+" "+tr("excl. VAT","بدون ضريبة"):""}</div><button class="b sm" style="margin-top:10px">${tr("Close","إغلاق")}</button></div>`;
+ o.onclick=e=>{if(e.target===o||e.target.tagName==="BUTTON")o.remove();};document.body.appendChild(o);});}
+function itemCodeFromInput(inp){const v=(inp.value||"").trim();if(!v)return "";let l=null;try{if(inp.getAttribute("list")!=="itemL"||typeof pickLine!=="function")l=null;else l=pickLine(v);}catch(e){l=null;}
+ if(l&&l.code)return l.code;const i=parseItem(v);return i?i.code:"";}
+function itemThumbFor(inp){const code=itemCodeFromInput(inp);let t=inp._ithumb;
+ if(!code||!(item(code)||{}).photo){if(t){t.remove();inp._ithumb=null;inp.style.width="";}return;}
+ if(t&&t.dataset.code===code)return;
+ if(!t){t=document.createElement("img");t.className="ithumb";t.title=tr("Click to see the photo","اضغط لرؤية الصورة");
+  t.style.cssText="width:38px;height:38px;object-fit:contain;border:1px solid #D5DCE8;border-radius:6px;background:#fff;vertical-align:middle;margin-inline-end:6px;cursor:zoom-in";
+  inp.parentNode.insertBefore(t,inp);inp._ithumb=t;inp.style.width="calc(100% - 48px)";t.onclick=()=>itemPhotoShow(t.dataset.code);}
+ t.dataset.code=code;t.style.visibility="hidden";itemPhotoUrl(code).then(u=>{if(t.dataset.code!==code)return;if(u){t.src=u;t.style.visibility="visible";}else{t.remove();inp._ithumb=null;inp.style.width="";}});}
+const ITHUMB_LISTS=["itemL","ihL"];
+function itemThumbScan(){document.querySelectorAll("input[list]").forEach(i=>{if(ITHUMB_LISTS.indexOf(i.getAttribute("list"))>-1&&(i.value||i._ithumb))itemThumbFor(i);});}
+["change","input"].forEach(ev=>document.addEventListener(ev,e=>{const i=e.target;if(i&&i.tagName==="INPUT"&&ITHUMB_LISTS.indexOf(i.getAttribute("list"))>-1)itemThumbFor(i);},true));
+{let tm=0;const m=document.getElementById("main");if(m)new MutationObserver(()=>{clearTimeout(tm);tm=setTimeout(itemThumbScan,150);}).observe(m,{childList:true,subtree:true});}
+/* new item codes: count every code already in the item list, not only stock lines, so a new code never repeats one */
+{const NC=newCodes;newCodes=function(catKey,extra){return NC(catKey,[...(D.items||[]).map(i=>({code:i.code})),...(extra||[])]);};}
 </script>
 </body>
 </html>
