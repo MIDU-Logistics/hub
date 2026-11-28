@@ -891,7 +891,7 @@ BIND.utReg=()=>{bindDocBtns();const rt=$("#regT");if(rt)rt.onchange=e=>{REG_T=e.
  document.querySelectorAll("[data-pd]").forEach(s=>s.onchange=()=>{const d=D.dns[+s.dataset.pd];d.paid=Math.min(+s.value||0,dnTotal(d));if(d.paid>=dnTotal(d))d.status="Paid";persist();render();toast("✔");});};
 
 /* ============================ PROCUREMENT & FINANCE ============================ */
-const prStage=p=>{if(p.status==="Deleted")return -1;if(p.status==="Draft")return 0;if(p.status==="PD")return p.pd?1.5:1;if(p.status==="Rejected")return 0.5;const c=D.cqs.find(x=>x.pr===p.no),po=D.pos.find(x=>x.pr===p.no);if(po){const inv=D.invs.find(i=>i.po===po.no);if(inv&&inv.paid)return 6;if(inv)return 5;if(poFull(po))return 4.5;return 4;}if(c&&c.approved)return 3;if(c)return 2.5;if(p.pd)return 2;return 1;};
+const prStage=p=>{if(p.status==="Deleted")return -1;if(p.status==="Draft")return 0;if(p.status==="PD")return p.pd?1.5:1;if(p.status==="Rejected")return 0.5;const c=D.cqs.find(x=>x.pr===p.no),po=D.pos.find(x=>x.pr===p.no);if(po){if(po.kind==="PC")return po.fin==="Approved"?6:pcRecv(po)?4.5:4;const inv=D.invs.find(i=>i.po===po.no);if(inv&&inv.paid)return 6;if(inv)return 5;if(poFull(po))return 4.5;return 4;}if(c&&c.approved)return 3;if(c)return 2.5;if(p.pd)return 2;return 1;};
 const STG=()=>({"-1":[tr("Deleted","محذوف"),"r"],0:[tr("Draft — can be edited","مسودة — قابلة للتعديل"),""],0.5:[tr("Not approved by PD — returned to you","غير معتمد من مدير المشروع — أُعيد إليك"),"r"],1.5:[tr("PD approved — send to Procurement","اعتمده مدير المشروع — أرسله للمشتريات"),"g"],1:[tr("Submitted — awaiting PD","مُرسل — بانتظار مدير المشروع"),""],2:[tr("PD approved — get quotations","اعتمده مدير المشروع — اطلب عروض"),"b"],2.5:[tr("CQS in progress","المقارنة قيد التنفيذ"),"a"],3:[tr("CQS approved — prepare PO","اعتُمدت المقارنة — جهّز أمر الشراء"),"b"],4:[tr("PO issued — awaiting delivery","صدر أمر الشراء — بانتظار التوريد"),"a"],4.5:[tr("Fully received","استُلم بالكامل"),"g"],5:[tr("Invoiced","مفوتر"),"p"],6:[tr("Paid","مدفوع"),"g"]});
 const prFlow=k=>`<div class="flow">${[["pr","PR"],["cqs","CQS"],["po",tr("PO / petty cash","أمر شراء / نثرية")],["grn","GRN"],["fin",tr("Invoice & payment","الفاتورة والسداد")]].map(([v,l],i)=>`${i?"<em>→</em>":""}<span class="${v===k?"on":""}">${l}</span>`).join("")}</div>`;
 VIEWS.pr=()=>head(tr("Purchase requests (PR)","طلبات الشراء (PR)"),tr("Logistics raises the PR; the Project Director approves; Procurement takes it from there.","اللوجستيات ترفع الطلب، ومدير المشروع يعتمده، ثم تتولاه المشتريات."))+prFlow("pr")+msgBox+
@@ -900,7 +900,7 @@ VIEWS.pr=()=>head(tr("Purchase requests (PR)","طلبات الشراء (PR)"),tr
  <table class="t" id="pLines" style="margin-top:14px"><tr><th style="width:44%">${tr("Item (code or free text)","الصنف (كود أو وصف)")}</th><th style="width:10%">${tr("Qty","الكمية")}</th><th style="width:14%">${tr("Est. unit price","السعر التقديري")}</th><th style="width:14%">CAPEX / OPEX</th><th></th></tr></table>
  <div class="btns"><button class="b l" id="pAdd">${tr("+ Add line","+ إضافة سطر")}</button><span style="flex:1"></span><button class="b" style="background:#7C3AED" id="pSave">${tr("Submit PR","إرسال الطلب")}</button></div></div>
  <div class="card"><h2>${tr("Requests and where they are","الطلبات وأين وصلت")}</h2><table class="t"><tr><th>PR</th><th>${tr("Date","التاريخ")}</th><th>${tr("Cost center","مركز التكلفة")}</th><th class="num">${tr("Est. value","القيمة التقديرية")}</th><th>${tr("Stage","المرحلة")}</th><th></th></tr>
- ${D.prs.filter(prActive).slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))||String(b.no||"").localeCompare(String(a.no||""))).map(p=>{const s=STG()[prStage(p)];return `<tr><td class="en"><b>${p.no}</b></td><td class="en">${p.date}</td><td class="en">${p.cc}</td><td class="num">${money(p.lines.reduce((a,l)=>a+l.qty*l.est,0))}</td><td>${tag(s[0],s[1])}</td><td style="white-space:nowrap">${prBtns(p)}</td></tr>`;}).join("")}</table></div>${dl("itemL",D.items.map(itemLabel))}`;
+ ${D.prs.filter(prActive).slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))||String(b.no||"").localeCompare(String(a.no||""))).map(p=>{const s=prPcLbl(p)||STG()[prStage(p)];return `<tr><td class="en"><b>${p.no}</b></td><td class="en">${p.date}</td><td class="en">${p.cc}</td><td class="num">${money(p.lines.reduce((a,l)=>a+l.qty*l.est,0))}</td><td>${tag(s[0],s[1])}</td><td style="white-space:nowrap">${prBtns(p)}</td></tr>`;}).join("")}</table></div>${dl("itemL",D.items.map(itemLabel))}`;
 function pRow(){const r=document.createElement("tr");r.innerHTML=`<td><input class="en" list="itemL" data-k="item" lang="en" autocomplete="off"></td><td><input class="en" type="number" min="1" value="1" data-k="qty"></td><td><input class="en" type="number" min="0" data-k="est"></td><td><select data-k="cls"><option>OPEX</option><option>CAPEX</option></select></td><td><button class="b r sm" data-k="del">✕</button></td>`;
  r.querySelector("[data-k=item]").addEventListener("change",e=>{const i=parseItem(e.target.value);if(i){r.querySelector("[data-k=est]").value=i.price;r.querySelector("[data-k=cls]").value=i.kind==="Asset"?"CAPEX":"OPEX";}});r.querySelector("[data-k=del]").onclick=()=>r.remove();return r;}
 BIND.pr=()=>{const tb=$("#pLines");tb.appendChild(pRow());$("#pAdd").onclick=()=>tb.appendChild(pRow());bindDocBtns();
@@ -4367,6 +4367,48 @@ function itemThumbScan(){document.querySelectorAll("input[list]").forEach(i=>{if
 {let tm=0;const m=document.getElementById("main");if(m)new MutationObserver(()=>{clearTimeout(tm);tm=setTimeout(itemThumbScan,150);}).observe(m,{childList:true,subtree:true});}
 /* new item codes: count every code already in the item list, not only stock lines, so a new code never repeats one */
 {const NC=newCodes;newCodes=function(catKey,extra){return NC(catKey,[...(D.items||[]).map(i=>({code:i.code})),...(extra||[])]);};}
+/* ===================== Update 96: approved PR bought with petty cash (purchaser paid cash) → site receipt (GRN) → invoice → Finance (Azzam, 28 Nov 2026) =====================
+   PO & petty cash › Petty cash: choose a PD-approved PR (no CQS / PO yet). The voucher takes the PR lines; enter the prices paid, the shop, the invoice No. and attach
+   the invoice (now or later). The PR then shows: bought with petty cash – awaiting receipt → received (GRN with "PO No." = the PC number) → Finance approved. */
+function pcOfPr(p){return (D.pos||[]).find(x=>x.kind==="PC"&&!x.cancelled&&x.pr===p.no);}
+function prPcLbl(p){const c=pcOfPr(p);if(!c)return null;
+ return c.fin==="Approved"?[tr("Petty cash – Finance approved","نثرية – اعتمدتها المالية")+" · "+c.no,"g"]:pcRecv(c)?[tr("Bought with petty cash – received; invoice to Finance","اشتُري نقداً – استُلم؛ الفاتورة للمالية")+" · "+c.no,"g"]:[tr("Bought with petty cash – awaiting site receipt (GRN)","اشتُري نقداً – بانتظار الاستلام (GRN)")+" · "+c.no,"a"];}
+const prPcList=()=>(D.prs||[]).filter(p=>p.pd&&!["Draft","Deleted","PD","Rejected"].includes(p.status)&&!D.cqs.some(c=>c.pr===p.no)&&!D.pos.some(o=>o.pr===p.no));
+{const V=VIEWS.po;VIEWS.po=()=>{let h=V();const L0=prPcList();
+ const opts=[["",tr("— none (small purchase without PR) —","— بدون طلب شراء (شراء صغير) —")],...L0.map(p=>[p.no,p.no+" — "+(p.just||"")+" — "+money(prEst(p))+" SAR"])];
+ h=h.replace('<div class="card" id="tabpc" style="display:none"><div class="fg">',m=>m+sel("pcPr",tr("Approved PR bought with cash","طلب شراء معتمد اشتُري نقداً"),opts,{w:"w2"}));
+ const i=h.indexOf('id="cSave"'),j=i>-1?h.lastIndexOf('<div class="btns">',i):-1;
+ if(j>-1)h=h.slice(0,j)+'<div id="pcPrBox"></div>'+h.slice(j);
+ h=h.replace('<button class="b a" id="cSave">',m=>`<button class="b a" id="pcPrSave" style="display:none">💵 ${tr("Save – bought with cash for this PR","حفظ – اشتُري نقداً لهذا الطلب")}</button>`+m);
+ (D.pos||[]).filter(p=>p.kind==="PC").forEach(p=>{
+  if(p.pr)h=h.replace(`<td class="en"><b>${p.no}</b>`,m=>m+`<div class="hint">PR ${esc(p.pr)}${p.inv?" · "+tr("Invoice","فاتورة")+" "+esc(p.inv):""}</div>`);
+  if(!p.att){const k=`data-doc="${p.no}">${tr("Print","طباعة")}</button></td></tr>`;h=h.replace(k,`data-doc="${p.no}">${tr("Print","طباعة")}</button> <button class="b l sm" data-pcatt="${esc(p.no)}">📎 ${tr("Attach invoice","إرفاق الفاتورة")}</button></td></tr>`);}});
+ return h;};}
+{const B=BIND.po;BIND.po=()=>{B&&B();
+ document.querySelectorAll("[data-pcatt]").forEach(b=>b.onclick=()=>{const p=D.pos.find(x=>x.no===b.dataset.pcatt);if(!p)return;const f=document.createElement("input");f.type="file";f.accept=".pdf,image/*";
+  f.onchange=async()=>{const fl=f.files[0];if(!fl)return;b.disabled=true;try{const att=await saveAtt(fl,"03 Procurement/05 Petty cash/"+p.no,p.no,"Invoice - "+qtSafe(p.sup||""));if(att){p.att=att;p.receipt=true;persist();render();toast("✔ "+p.no);}}catch(e){b.disabled=false;msg("err",esc(e.message));}};f.click();});
+ const s=$("#pcPr");if(!s)return;
+ const single=["#cDesc","#cQty","#cPrice","#cCls","#cTot","#cCc"].map(q=>$(q)&&$(q).closest(".f")).filter(Boolean);
+ const draw=()=>{const p=D.prs.find(x=>x.no===s.value),box=$("#pcPrBox");single.forEach(f=>f.style.display=p?"none":"");if($("#cSave"))$("#cSave").style.display=p?"none":"";$("#pcPrSave").style.display=p?"":"none";
+  if(!box)return;if(!p){box.innerHTML="";return;}
+  box.innerHTML=`<table class="t" style="margin-top:12px"><tr><th>#</th><th>${tr("Item (from the PR)","الصنف (من الطلب)")}</th><th class="num">${tr("Qty bought","الكمية المشتراة")}</th><th class="num">${tr("Unit price paid, excl. VAT","سعر الوحدة المدفوع قبل الضريبة")}</th><th class="num">${tr("Total","الإجمالي")}</th></tr>
+  ${p.lines.map((l,i)=>`<tr><td>${i+1}</td><td class="en">${esc(l.code||"")} ${esc(l.desc||"")}</td><td class="num"><input class="en" type="number" min="0" step="any" data-pq="${i}" value="${+l.qty||0}" style="width:80px"></td><td class="num"><input class="en" type="number" min="0" step="any" data-pp="${i}" value="${+l.est||0}" style="width:110px"></td><td class="num" data-pt="${i}"></td></tr>`).join("")}
+  <tr><td colspan="4" class="num"><b>${tr("Total incl. VAT 15%","الإجمالي مع ضريبة 15%")}</b></td><td class="num"><b id="pcPrTot"></b></td></tr></table>
+  <div class="fg" style="margin-top:10px">${fld("pcInv",tr("Invoice / receipt No.","رقم الفاتورة / الإيصال"),{upper:true})}${fld("pcDate",tr("Purchase date","تاريخ الشراء"),{type:"date",val:today()})}<div class="f w2"><label>${tr("Invoice copy (PDF / photo) – you can also attach it later","نسخة الفاتورة (PDF / صورة) – يمكن إرفاقها لاحقاً")}</label><input type="file" id="pcFile" accept=".pdf,image/*"></div></div>
+  <p class="hint">${tr("Qty 0 = not bought. After saving, the storekeeper receives the items with a GRN (PO No. = this petty cash No.), then Finance approves the voucher.","الكمية 0 = لم يُشترَ. بعد الحفظ يستلم أمين المستودع الأصناف بسند GRN (رقم أمر الشراء = رقم النثرية)، ثم تعتمد المالية السند.")}</p>`;
+  const calc=()=>{let t=0;p.lines.forEach((l,i)=>{const v=(+box.querySelector(`[data-pq="${i}"]`).value||0)*(+box.querySelector(`[data-pp="${i}"]`).value||0);t+=v;box.querySelector(`[data-pt="${i}"]`).textContent=money(v);});$("#pcPrTot").textContent=money(t*1.15);};
+  box.querySelectorAll("input[type=number]").forEach(x=>x.addEventListener("input",calc));calc();};
+ s.onchange=draw;draw();
+ $("#pcPrSave").onclick=async()=>{const p=D.prs.find(x=>x.no===s.value),box=$("#pcPrBox");if(!p||!box)return;const sup=($("#cSup").value||"").trim();if(!sup)return msg("err",tr("Enter the shop / supplier.","أدخل المحل / المورد."));
+  const lines=p.lines.map((l,i)=>({code:l.code||"",desc:l.desc||"",unit:l.unit||"",qty:+box.querySelector(`[data-pq="${i}"]`).value||0,price:+box.querySelector(`[data-pp="${i}"]`).value||0,cls:l.cls||"OPEX"})).filter(l=>l.qty>0);
+  if(!lines.length||lines.some(l=>!(l.price>0)))return msg("err",ERR.qty());
+  const tot=lines.reduce((a,l)=>a+l.qty*l.price,0);if(tot*1.15>5000.01)return msg("err",tr("Above the SAR 5,000 petty cash limit – this PR needs quotations (CQS) and a PO.","يتجاوز حد النثرية 5,000 ريال – يحتاج الطلب مقارنة عروض وأمر شراء."));
+  const no=seqNo("PC-"+YY()+"-",D.pos.filter(x=>x.kind==="PC").map(x=>x.no)),b=$("#pcPrSave"),fl=$("#pcFile")&&$("#pcFile").files[0];let att=null;b.disabled=true;
+  if(fl){try{att=await saveAtt(fl,"03 Procurement/05 Petty cash/"+no,no,"Invoice - "+qtSafe(sup));}catch(e){b.disabled=false;return msg("err",esc(e.message));}}
+  const pc={no,kind:"PC",date:$("#pcDate").value||today(),pr:p.no,cqs:"",sup,cc:p.cc,fin:"Pending",buyer:($("#cBuyer")||{}).value||PURCHASER,lines,inv:($("#pcInv").value||"").trim(),receipt:!!att,by:apMe()};if(att)pc.att=att;
+  D.pos.push(pc);persist();render();saved(pc.no,poDoc(pc),"a");};};}
+/* petty cash voucher print: invoice No. next to the receipt check */
+{const F=pcDoc;pcDoc=p=>{let h=F(p);if(p&&p.inv)h=h.replace(`${fV(p.receipt?"Yes":"")}`,fV((p.receipt?"Yes":"")+" – Invoice "+esc(p.inv)));return h;};}
 </script>
 </body>
 </html>
