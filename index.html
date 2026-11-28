@@ -878,7 +878,8 @@ BIND.utBC=()=>{const draw=()=>{const m=$("#bM").value,c=$("#bC").value,lines=bcL
  $("#bM").onchange=draw;$("#bC").onchange=draw;draw();};
 const monthName=m=>new Date(m+"-01T00:00").toLocaleString("en-US",{month:"long",year:"numeric"});
 const DNST=["Draft","Submitted","Signed by contractor","Received by Finance","Paid"];
-const dnType=d=>d.type||(d.auto||/utilit/i.test(((d.lines||[])[0]||{}).type||"")?"Utilities":"Other");const dnSum=d=>d.summary||((d.lines||[])[0]||{}).type||"";   /* Update 85: one-line description of a debit note (its lines may be detailed) */let REG_T="";
+const dnType=d=>d.type||(d.auto||/utilit/i.test(((d.lines||[])[0]||{}).type||"")?"Utilities":"Other");const DN_CAPEX_T=["Electrical Panels","Porta Cabin"];const dnCls=d=>d.cls==="CAPEX"||d.cls==="OPEX"?d.cls:(DN_CAPEX_T.includes(dnType(d))?"CAPEX":"OPEX");   /* Update 86 */
+const dnSum=d=>d.summary||((d.lines||[])[0]||{}).type||"";   /* Update 85: one-line description of a debit note (its lines may be detailed) */let REG_T="";
 VIEWS.utReg=()=>{const types=[...new Set(D.dns.map(dnType))].sort();if(REG_T&&!types.includes(REG_T))REG_T="";const DL=D.dns.map((d,i)=>({d,i})).filter(x=>!REG_T||dnType(x.d)===REG_T);
  const sum=CONTR.map(c=>{const ds=DL.map(x=>x.d).filter(d=>d.contractor===c);const b=ds.reduce((a,d)=>a+dnTotal(d),0),p=ds.reduce((a,d)=>a+d.paid,0);return {c,b,p,o:b-p};});
  return head(tr("Master back-charge register","السجل الرئيسي لإعادة الفوترة"),tr("Every debit note in one register: status, payment and balance. Finance updates payment here.","كل إشعارات المدين في سجل واحد: الحالة والسداد والرصيد. المالية تحدّث السداد هنا."))+utFlow("utReg")+
@@ -2911,7 +2912,7 @@ function cxLines(){const out=[],gp=(D.pos||[]).find(p=>p.no===GR_PO);
  /* MBL back charges to MIDU that were re-charged to a sub-contractor (debit note text "MBL back charge"), unless the MBL invoice is already registered above */
  (D.dns||[]).filter(d=>!d.cancelled&&(d.mbl||/MBL back charge/i.test(dnSum(d)))).forEach(d=>{const m=String(d.period||d.date||"").slice(0,7),amt=+d.sub||0;
   if((D.cost||[]).some(v=>!v.cancelled&&/MBL/i.test((v.sup||"")+" "+(v.type||""))&&String(v.month||v.date||"").startsWith(m)&&Math.abs((+v.excl||0)-amt)<1))return;
-  out.push({order:"MBL → "+d.no,cc:UTX_CC(),desc:"MBL back charge to MIDU – "+(d.type||"")+" ("+tr("re-charged to","أعيد تحميله على")+" "+d.contractor+" by "+d.no+")",cls:"OPEX",amt,m,src:"mbl",rec:amt});});
+  out.push({order:"MBL → "+d.no,cc:UTX_CC(),desc:"MBL back charge to MIDU – "+(d.type||"")+" ("+tr("re-charged to","أعيد تحميله على")+" "+d.contractor+" by "+d.no+")",cls:dnCls(d),amt,m,src:"mbl",rec:amt});});
  utxLines().forEach(x=>out.push({order:tr("Utilities","الخدمات"),cc:x.cc,desc:x.desc,cls:"OPEX",amt:x.amt,m:x.m,src:"ut",rec:x.rec,inv:x.inv,est:x.est}));
  return out;}
 const cxSel=()=>cxLines().filter(x=>!CX_M||x.m===CX_M);
@@ -3083,8 +3084,8 @@ function conBcCalc(m){const c=CONTR.find(x=>/concrete/i.test(x))||"Concrete Divi
  const dns=(D.dns||[]).filter(d=>!d.cancelled&&isCon(d));
  dns.forEach(d=>{const m=String(d.period||d.date||"").slice(0,7),amt=+d.sub||0,t=(typeof dnType==="function"?dnType(d):d.type)||"";if(!amt)return;
   const v=typeof dnVat==="function"?r2(dnVat(d)):r2(amt*.15);
-  out.push({order:d.no,cc:con,desc:"Back charge to Concrete Division – "+t+" ("+dnSum(d)+")",cls:"OPEX",amt,vat:v,m,src:"bc"});
-  out.push({order:d.no,cc:own,desc:"Recovered from Concrete Division (ASP-CON) – "+t,cls:"OPEX",amt:-amt,vat:-v,m,src:"bc"});});
+  out.push({order:d.no,cc:con,desc:"Back charge to Concrete Division – "+t+" ("+dnSum(d)+")",cls:dnCls(d),amt,vat:v,m,src:"bc"});
+  out.push({order:d.no,cc:own,desc:"Recovered from Concrete Division (ASP-CON) – "+t,cls:dnCls(d),amt:-amt,vat:-v,m,src:"bc"});});
  /* months with readings and no Concrete utilities debit note yet */
  utMonths().filter(m=>(D.ut||[]).some(u=>String(u.date).startsWith(m))&&!dns.some(d=>String(d.period||"").startsWith(m)&&/utilit/i.test((typeof dnType==="function"?dnType(d):d.type)||""))).forEach(m=>{const amt=conBcCalc(m);if(!amt)return;
   out.push({order:tr("not issued yet","لم يصدر بعد"),cc:con,desc:"Back charge to Concrete Division – utilities "+monthName(m)+" (calculated in the Hub, debit note not issued yet)",cls:"OPEX",amt,m,src:"bc",est:true});
@@ -4079,14 +4080,25 @@ const dnFinTxt=o=>o.fin?tr("Submitted to Finance","سُلّم للمالية")+"
    Concrete Division = cost moved to ASP-CON (+) and recovered on ASP-CONST (–); MBL re-charge = MBL cost to MIDU in OPEX;
    EMCO / MCC (external) = recovered from the sub-contractor. */
 {const V=VIEWS.capex;VIEWS.capex=()=>{const h=V(),all=cxLines(),L=(D.dns||[]).filter(d=>!d.cancelled&&(!CX_M||String(d.period||d.date||"").startsWith(CX_M))).slice().sort((a,b)=>String(a.period).localeCompare(String(b.period))||a.no.localeCompare(b.no));if(!L.length)return h;
- const how=d=>{const r=[];if(all.some(x=>x.src==="bc"&&x.order===d.no))r.push(tag(tr("OPEX – moved to","OPEX – نُقل إلى")+" "+CON_CC(),"b"));if(all.some(x=>x.src==="mbl"&&x.order==="MBL → "+d.no))r.push(tag(tr("OPEX – MBL cost to MIDU","OPEX – تكلفة MBL على MIDU"),"p"));
-  if(!r.length)r.push(tag(/concrete/i.test(d.contractor||"")?tr("not in OPEX – check","غير مدرج – يُراجع"):tr("Recovered from","مسترد من")+" "+d.contractor,/concrete/i.test(d.contractor||"")?"r":"g"));return r.join(" ");};
+ const how=d=>{const r=[];if(all.some(x=>x.src==="bc"&&x.order===d.no))r.push(tag(dnCls(d)+" – "+tr("moved to","نُقل إلى")+" "+CON_CC(),dnCls(d)==="CAPEX"?"a":"b"));if(all.some(x=>x.src==="rcv"&&x.order===d.no))r.push(tag(dnCls(d)+" – "+tr("deducted (paid by","مخصوم (دفعه")+" "+d.contractor+")","a"));if(all.some(x=>x.src==="mbl"&&x.order==="MBL → "+d.no))r.push(tag(dnCls(d)+" – "+tr("MBL cost to MIDU","تكلفة MBL على MIDU"),"p"));
+  if(!r.length)r.push(tag(/concrete/i.test(d.contractor||"")?tr("not in OPEX – check","غير مدرج – يُراجع"):dnCls(d)+" – "+tr("recovered from","مسترد من")+" "+d.contractor,/concrete/i.test(d.contractor||"")?"r":"g"));return r.join(" ");};
  const tot=L.reduce((a,d)=>a+dnTotal(d),0);
  const card=`<div class="card"><h2>${tr("Back charges (debit notes) in CAPEX & OPEX","إعادة الفوترة (إشعارات المدين) في CAPEX و OPEX")}${CX_M?" – "+esc(monthName(CX_M)):""} (${L.length})</h2><p class="hint">${tr("Each debit note in its period month. Concrete Division (MIDU's own division): the cost moves to","كل إشعار في شهر فترته. قسم الخرسانة: تنتقل التكلفة إلى")} ${esc(CON_CC())} ${tr("and is taken off the project cost. MBL back charges passed on to a sub-contractor: MBL's cost to MIDU is in OPEX. EMCO / MCC: amounts recovered from the external sub-contractors.","وتُخصم من تكلفة المشروع. إعادة فوترة MBL المحمّلة على مقاول: تكلفة MBL على MIDU ضمن OPEX. EMCO / MCC: مبالغ مستردة من المقاولين الخارجيين.")}</p>
- <table class="t"><tr><th>${tr("Period","الفترة")}</th><th>${tr("Debit note","إشعار المدين")}</th><th>${tr("Contractor","المقاول")}</th><th>${tr("Type","النوع")}</th><th class="num">${tr("Excl. VAT","بدون ضريبة")}</th><th class="num">${tr("Incl. VAT","شامل الضريبة")}</th><th>${tr("Status","الحالة")}</th><th>${tr("In CAPEX & OPEX","في CAPEX و OPEX")}</th></tr>
- ${L.map(d=>`<tr><td class="en">${esc(d.period?monthName(d.period):"")}</td><td class="en"><b>${esc(d.no)}</b><div class="hint">${esc(dnSum(d))}</div></td><td class="en">${esc(d.contractor||"")}</td><td class="en">${esc(dnType(d))}</td><td class="num">${money(+d.sub||0)}</td><td class="num">${money(dnTotal(d))}</td><td>${esc(d.status||"")}${typeof dnFin==="function"&&dnFin(d)&&d.fin?`<div class="hint" style="color:#15803D">📤 ${esc(dnFinDt(d.fin.rcv||d.fin.sub))}</div>`:""}</td><td>${how(d)}</td></tr>`).join("")}
- <tr class="tot"><td colspan="4">${tr("Total","المجموع")}</td><td class="num">${money(L.reduce((a,d)=>a+(+d.sub||0),0))}</td><td class="num">${money(tot)}</td><td colspan="2"></td></tr></table></div>`;
+ <table class="t"><tr><th>${tr("Period","الفترة")}</th><th>${tr("Debit note","إشعار المدين")}</th><th>${tr("Contractor","المقاول")}</th><th>${tr("Type","النوع")}</th><th class="num">${tr("Excl. VAT","بدون ضريبة")}</th><th class="num">${tr("Incl. VAT","شامل الضريبة")}</th><th>${tr("Status","الحالة")}</th><th>${tr("Class","التصنيف")}</th><th>${tr("In CAPEX & OPEX","في CAPEX و OPEX")}</th></tr>
+ ${L.map(d=>`<tr><td class="en">${esc(d.period?monthName(d.period):"")}</td><td class="en"><b>${esc(d.no)}</b><div class="hint">${esc(dnSum(d))}</div></td><td class="en">${esc(d.contractor||"")}</td><td class="en">${esc(dnType(d))}</td><td class="num">${money(+d.sub||0)}</td><td class="num">${money(dnTotal(d))}</td><td>${esc(d.status||"")}${typeof dnFin==="function"&&dnFin(d)&&d.fin?`<div class="hint" style="color:#15803D">📤 ${esc(dnFinDt(d.fin.rcv||d.fin.sub))}</div>`:""}</td><td>${tag(dnCls(d),dnCls(d)==="CAPEX"?"a":"b")}</td><td>${how(d)}</td></tr>`).join("")}
+ <tr class="tot"><td colspan="4">${tr("Total","المجموع")}</td><td class="num">${money(L.reduce((a,d)=>a+(+d.sub||0),0))}</td><td class="num">${money(tot)}</td><td colspan="3"></td></tr></table><p class="hint">${tr("Class: electrical panels and porta cabins are CAPEX, the rest OPEX – change it per debit note in the Master back-charge register.","التصنيف: اللوحات الكهربائية والكبائن CAPEX والباقي OPEX – يمكن تغييره لكل إشعار في السجل الرئيسي.")}</p></div>`;
  return h+card;};}
+/* ===================== Update 86: CAPEX or OPEX per debit note (Azzam, 28 Nov 2026) =====================
+   Electrical panels and porta cabins are CAPEX by default, other back charges OPEX (dnCls). The admin can change it per note
+   in the Master back-charge register (d.cls); the CAPEX & OPEX lines of that note follow it. */
+{const V=VIEWS.utReg;VIEWS.utReg=()=>{let h=V();if(typeof whIsAdmin!=="function"||!whIsAdmin())return h;(D.dns||[]).forEach((d,i)=>{const k=`<td class="en"><b>${esc(d.no)}</b>`,j=h.indexOf(k);if(j<0)return;const e=h.indexOf("</td>",j);if(e<0)return;
+ const s=`<div><select data-dncls="${i}" title="${tr("CAPEX or OPEX","CAPEX أو OPEX")}" style="font-size:11px;padding:1px 4px;margin-top:3px">${["CAPEX","OPEX"].map(c=>`<option${dnCls(d)===c?" selected":""}>${c}</option>`).join("")}</select></div>`;h=h.slice(0,e)+s+h.slice(e);});return h;};}
+/* Electrical panels paid by EMCO / MCC become their property after the project: the debit note amount is taken off MIDU's CAPEX
+   (same cost center as the Gheil panels purchase), in the debit note period month. */
+const DN_OWNED_T=["Electrical Panels"];
+{const C3=cxLines;cxLines=function(){const out=C3();(D.dns||[]).filter(d=>!d.cancelled&&!/concrete/i.test(d.contractor||"")&&DN_OWNED_T.includes(dnType(d))).forEach(d=>{const amt=+d.sub||0;if(!amt)return;
+ out.push({order:d.no,cc:UTX_CC(),desc:"Recovered from "+d.contractor+" – "+dnType(d).toLowerCase()+" paid by "+d.contractor+" (its property after the project) – "+dnSum(d),cls:dnCls(d),amt:-amt,vat:-r2(dnVat(d)),m:String(d.period||d.date||"").slice(0,7),src:"rcv"});});return out;};}
+{const B=BIND.utReg;BIND.utReg=()=>{B&&B();document.querySelectorAll("[data-dncls]").forEach(s=>s.onchange=()=>{const d=D.dns[+s.dataset.dncls];if(!d)return;d.cls=s.value;persist();toast("✔ "+d.no+" → "+s.value);});};}
 </script>
 </body>
 </html>
