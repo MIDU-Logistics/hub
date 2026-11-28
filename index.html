@@ -4151,6 +4151,28 @@ const rptBar=(p,x)=>`<div class="btns rptBar" style="margin:0 0 12px"><button cl
   const ed=adm?` <a href="#" data-dnft="${i}" style="font-size:11px">✎ ${tr("Finance","المالية")}</a>`:"";h=h.slice(0,e)+ft+ed+h.slice(e);});return h;};}
 {const B=BIND.utReg;BIND.utReg=()=>{B&&B();document.querySelectorAll("[data-dnft]").forEach(a=>a.onclick=ev=>{ev.preventDefault();const d=D.dns[+a.dataset.dnft];if(!d)return;
  const v=prompt(tr("What did Finance do with ","ماذا فعلت المالية بـ ")+d.no+"? (e.g. debited to MCC account / charged to EMCO / offset against amount owed)",d.finTreat||"");if(v===null)return;d.finTreat=v.trim();persist();render();toast("✔ "+d.no);});};}
+/* ===================== Update 90: PO limits – warn before the supplier's invoices reach the PO total (Azzam, 28 Nov 2026) =====================
+   Utility supply POs (Yazan drinking water MIDU-PO-260554, TEKLAY water MIDU-PO-260534 …, p.util = supplier name in the readings) are a
+   ceiling, not a cost: their cost is already counted from the daily readings, so the PO value is no longer added to CAPEX & OPEX
+   (it was counted twice). Use of a PO = utilities cost of that supplier from the readings since the PO month (excl. VAT) – known before
+   the supplier sends the invoice – or, for other POs, the invoices registered against the PO. Alert at 80 % (renew the PO) and 100 %. */
+const UT_PO_SUP={"MIDU-PO-260554":"YAZAN","MIDU-PO-260534":"TEKLAY"};
+const poUtil=p=>p?(p.util||UT_PO_SUP[p.no]||""):"";
+const poVal=p=>(p.lines||[]).reduce((a,l)=>a+(+l.qty||0)*(+l.price||0),0);
+{const C=cxLines;cxLines=function(){const pos=D.pos||[];return C().filter(x=>!(x.src==="po"&&poUtil(pos.find(p=>p.no===x.order))));};}
+function poUse(p){const val=poVal(p),u=poUtil(p);let used=0,ms=[],src;
+ if(u){const from=String(p.date||"").slice(0,7);const R=utxLines().filter(x=>x.sup===u&&x.m>=from);used=R.reduce((a,x)=>a+(+x.amt||0),0);ms=[...new Set(R.map(x=>x.m))];src="readings";}
+ else{const I=(D.invs||[]).filter(v=>v.po===p.no&&!v.cancelled);used=I.reduce((a,v)=>a+(+v.excl||(+v.amt||0)/1.15),0);ms=[...new Set(I.map(v=>String(v.month||v.date||"").slice(0,7)))];src="invoices";}
+ const avg=ms.length?used/ms.length:0,left=val-used;return {val,used:r2(used),pct:val?used/val:0,left:r2(left),avg:r2(avg),monthsLeft:avg>0?left/avg:null,src,ceiling:!!u||!!p.ceiling};}
+const poWarn=u=>u.pct>=0.8||(u.monthsLeft!==null&&u.monthsLeft<2);   /* 80 % used, or less than 2 months of the usual monthly use left */
+const poAlerts=()=>(D.pos||[]).filter(p=>!p.cancelled&&!p.rej&&!p.renewed).map(p=>({p,u:poUse(p)})).filter(({u})=>u.val>0&&(u.ceiling?poWarn(u):u.pct>1.0001));
+const poAlertTxt=({p,u})=>`${u.pct>=1?"⛔":"⚠"} <b>${esc(p.no)}</b> – ${esc(p.sup)}: ${tr("used","مستخدم")} <b>${money(u.used)}</b> ${tr("of","من")} ${money(u.val)} SAR (${Math.round(u.pct*100)}%, ${u.src==="readings"?tr("from the daily readings","من القراءات اليومية"):tr("invoices","الفواتير")})${u.pct>=1?" – "+tr("the PO total is reached: the next invoice will be over the PO","تم بلوغ قيمة أمر الشراء: الفاتورة التالية ستتجاوزه"):u.monthsLeft!==null?" – "+tr("about","حوالي")+" "+(Math.round(u.monthsLeft*10)/10)+" "+tr("month(s) left at the current rate","شهر متبقٍ بالمعدل الحالي"):""}. <b>${tr("Renew / increase the PO before the supplier's next invoice.","جدّد / زِد أمر الشراء قبل فاتورة المورد التالية.")}</b>`;
+const poAlertBox=()=>{const A=poAlerts();return A.length?`<div class="banner" style="background:${A.some(x=>x.u.pct>=1)?"#FEF2F2":"#FFFBEB"};border-color:${A.some(x=>x.u.pct>=1)?"#DC2626":"#F59E0B"};color:#7C2D12">${A.map(poAlertTxt).join("<br>")}</div>`:"";};
+{const V=VIEWS.home;if(V)VIEWS.home=()=>{const h=V();try{const b=(typeof whIsAdmin==="function"&&whIsAdmin())||(typeof M365!=="undefined"&&M365.can&&M365.can("po"))?poAlertBox():"";if(!b)return h;const i=h.indexOf('<div class="card">');return i<0?b+h:h.slice(0,i)+b+h.slice(i);}catch(e){return h;}};}
+{const V=VIEWS.capex;VIEWS.capex=()=>{const h=V(),b=poAlertBox(),i=h.indexOf('<div class="card">');return !b?h:i<0?b+h:h.slice(0,i)+b+h.slice(i);};}
+{const V=VIEWS.po;if(V)VIEWS.po=()=>{let h=V();(D.pos||[]).forEach(p=>{const u=poUse(p);if(!u.val||!(u.ceiling||u.pct>1.0001))return;const k=`<b>${p.no}</b>`,i=h.indexOf(k);if(i<0)return;
+ const w=u.ceiling&&poWarn(u),c=u.pct>=1?"background:#FEE2E2;color:#991B1B":w?"background:#FEF3C7;color:#92400E":"background:#ECFDF5;color:#065F46";
+ h=h.slice(0,i+k.length)+` <span class="tag" style="${c}" title="${esc(tr("Used","مستخدم")+" "+money(u.used)+" / "+money(u.val)+" SAR"+(u.monthsLeft!==null?" · ≈"+(Math.round(u.monthsLeft*10)/10)+" "+tr("month(s) left","شهر متبقٍ"):""))}">${u.ceiling?tr("PO limit","حد الأمر")+" ":""}${Math.round(u.pct*100)}% ${tr("used","مستخدم")}${w||u.pct>=1?" – "+tr("renew","جدّد"):""}</span>`+h.slice(i+k.length);});return h;};}
 {const B=BIND.utReg;BIND.utReg=()=>{B&&B();document.querySelectorAll("[data-dnown]").forEach(c=>c.onchange=()=>{const d=D.dns[+c.dataset.dnown];if(!d)return;d.owned=c.checked;persist();render();toast("✔ "+d.no);});};}
 </script>
 </body>
