@@ -4492,6 +4492,20 @@ itemThumbFor=function(inp){const code=itemCodeFromInput(inp);let t=inp._ithumb;
    Supplier payments already made by Finance and recorded from the transfer receipt (invs with legacy:true) stay out of the
    e-signature lists ("Saved before e-signatures" / Send all); they still show as Paid on the Finance screen and in the PO use. */
 {const k=typeof esK==="function"?esK("pv"):null;if(k){const A=k.applies;k.applies=o=>A(o)&&!(o&&o.legacy);}}
+/* ===================== Update 100: payment already made by Finance prints as a payment RECORD, not a request (Azzam, 28 Nov 2026) =====================
+   Records taken from Finance's bank-transfer receipts (invs legacy:true) print "Payment record – paid by Finance": no signature
+   boxes, no "payment allowed" checks, no e-signature panel. Normal supplier invoices keep the payment voucher / request. */
+{const P=esPanel;esPanel=function(k,o){if(k&&k.id==="pv"&&o&&o.legacy)return "";return P.apply(this,arguments);};}
+{const F=invDoc;invDoc=v=>{if(!v||!v.legacy)return F(v);const p=D.pos.find(x=>x.no===v.po)||{lines:[]},vr=vatR(p),pt=poTotal(p)*(1+vr),paidAll=D.invs.filter(x=>x.po===v.po&&x.paid).reduce((a,x)=>a+(+x.amt||0),0),ex=(+v.amt||0)/(1+vr),dd=s=>(s||"").split("-").reverse().join("/");
+ return `<div class="doc xl" style="font-family:Georgia,'Times New Roman',serif;color:#111;padding:14px 22px">${fhead("PAYMENT RECORD – PAID BY FINANCE","سجل سداد – سددته المالية")}
+ <div style="border:1px solid #15803D;background:#ECFDF5;color:#065F46;font-size:9.5px;padding:6px 8px;margin-bottom:10px">This is a record of a payment <b>already made by Finance</b>, taken from the bank-transfer receipt. It is not a payment request and needs no signatures. &nbsp;<span dir="rtl">هذا سجل لدفعة سددتها المالية، مأخوذ من إيصال التحويل البنكي – ليس طلب صرف ولا يحتاج توقيعات.</span></div>
+ <table style="width:100%;border-collapse:collapse"><tr>${fL("Record","السجل")}${fV(`<b>${esc(v.no)}</b>`,"background:"+PP_Y)}${fL("Paid on","تاريخ السداد")}${fV(`<b>${dd(v.paid||v.date)}</b>`)}</tr>
+ <tr>${fL("PO No.")}${fV(esc(v.po))}${fL("Supplier")}${fV(esc(p.sup||""))}</tr><tr>${fL("Cost center")}${fV(esc(p.cc||""))}${fL("For month")}${fV(esc(v.month||""))}</tr></table>
+ <table style="width:100%;border-collapse:collapse;margin-top:12px">${fBar('AMOUNT PAID / <span dir="rtl">المبلغ المدفوع</span>','THIS PO / <span dir="rtl">أمر الشراء</span>')}
+ <tr>${fL("Amount excl. VAT")}${fV(ppM(ex))}${fL("PO amount incl. VAT")}${fV(ppM(pt))}</tr><tr>${fL("VAT")}${fV(ppM(ex*vr))}${fL("Paid to date (recorded)")}${fV(ppM(paidAll))}</tr>
+ <tr>${fL("Total paid incl. VAT (SAR)")}${fV(`<b>${ppM(v.amt)}</b>`)}${fL("Remaining on PO")}${fV(ppM(pt-paidAll))}</tr></table>
+ <table style="width:100%;border-collapse:collapse;margin-top:12px"><tr>${fL("Bank transfer details")}<td colspan="3" style="border:${PP_B};font-size:8.5px;padding:3px 4px">${esc(v.remarks||"")}</td></tr><tr>${fL("Source")}<td colspan="3" style="border:${PP_B};font-size:8.5px;padding:3px 4px">${esc(v.src||"")}</td></tr></table></div>`;};}
+{const V=VIEWS.fin;VIEWS.fin=()=>{let h=V();(D.invs||[]).filter(v=>v&&v.legacy).forEach(v=>{const k=`>${esc(v.no)}</td>`;let i=h.indexOf(k);while(i>-1){const e=h.indexOf("</tr>",i);if(e<0)break;const seg=h.slice(i,e).replace(/<span class="tag[^"]*">(?:[^<]*)(?:Not fully received|Invoices exceed payable value|الاستلام غير مكتمل|الفواتير تتجاوز المبلغ المستحق)(?:[^<]*)<\/span>/,`<span class="tag g">${tr("Paid by Finance (bank receipt)","سددته المالية (إيصال بنكي)")}</span>`).replace(/>Voucher</,">"+tr("Record","السجل")+"<").replace(/>سند الصرف</,">"+tr("Record","السجل")+"<");h=h.slice(0,i)+seg+h.slice(e);i=h.indexOf(k,i+seg.length);}});return h;};}
 </script>
 </body>
 </html>
