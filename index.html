@@ -923,13 +923,14 @@ BIND.cqs=()=>{bindDocBtns();const read=()=>[...$("#qTab").querySelectorAll("tr")
  $("#qSave").onclick=()=>{if(!$("#qPr").value)return msg("err",ERR.req());const best=evalQ();if(!best)return msg("err",tr("Enter at least one compliant quotation.","أدخل عرضاً مطابقاً واحداً على الأقل."));
   const c={no:seqNo(("CQS-"+YY()+"-"),D.cqs.map(c=>c.no)),pr:$("#qPr").value,date:today(),quotes:read(),sel:best.sup,approved:true};D.cqs.push(c);persist();delete KEEP.cqs;render();saved(c.no,cqsDoc(c));};};
 
+var PC_LIMIT=5000;const pcLim=()=>PC_LIMIT.toLocaleString("en-US");
 VIEWS.po=()=>{const ready=D.prs.filter(p=>D.cqs.some(c=>c.pr===p.no&&c.approved)&&!D.pos.some(o=>o.pr===p.no));
- return head(tr("Purchase order & petty cash","أمر الشراء والعهدة النثرية"),tr("PO header fills itself from the approved CQS. Small purchases up to SAR 5,000 go through petty cash.","بيانات أمر الشراء تُملأ تلقائياً من المقارنة المعتمدة. المشتريات الصغيرة حتى 5,000 ريال تتم بالعهدة النثرية."))+prFlow("po")+msgBox+
+ return head(tr("Purchase order & petty cash","أمر الشراء والعهدة النثرية"),tr("PO header fills itself from the approved CQS. Small purchases up to SAR "+pcLim()+" go through petty cash.","بيانات أمر الشراء تُملأ تلقائياً من المقارنة المعتمدة. المشتريات الصغيرة حتى "+pcLim()+" ريال تتم بالعهدة النثرية."))+prFlow("po")+msgBox+
  `<div class="tabs"><button class="on" data-tab="po">${tr("Purchase order","أمر شراء")}</button><button data-tab="pc">${tr("Petty cash","عهدة نثرية")}</button></div>
  <div class="card" id="tabpo"><div class="fg">${fld("oNo",tr("PO No.","رقم أمر الشراء"),{ro:true,val:poNextNo()})}${sel("oPr",tr("PR with approved CQS","طلب بمقارنة معتمدة"),ready.length?ready.map(p=>[p.no,p.no+" — "+p.cc]):[["",tr("None waiting","لا يوجد بالانتظار")]],{w:"w2"})}${fld("oDate",tr("Date","التاريخ"),{type:"date",val:today()})}</div><div id="oPrev" style="margin-top:14px"></div>
  <div class="btns"><span style="flex:1"></span><button class="b" style="background:#7C3AED" id="oSave">${tr("Issue PO","إصدار أمر الشراء")}</button></div></div>
  <div class="card" id="tabpc" style="display:none"><div class="fg">${fld("cNo2",tr("Petty cash No.","رقم النثرية"),{ro:true,val:seqNo(("PC-"+YY()+"-"),D.pos.filter(p=>p.kind==="PC").map(p=>p.no))})}${fld("cSup",tr("Shop / supplier","المحل / المورد"),{req:true})}${sel("cCc",tr("Cost center","مركز التكلفة"),CC)}${fld("cDesc",tr("Description","الوصف"),{req:true})}${fld("cQty",tr("Qty","الكمية"),{type:"number",val:1,req:true})}${fld("cPrice",tr("Unit price (SAR)","سعر الوحدة (ريال)"),{type:"number",req:true})}${sel("cCls","CAPEX / OPEX",["OPEX","CAPEX"],{req:true})}${fld("cTot",tr("Total (SAR)","الإجمالي (ريال)"),{ro:true})}</div>
- <div class="btns"><span class="hint">${tr("Limit SAR 5,000 per petty cash voucher.","الحد 5,000 ريال لكل سند نثرية.")}</span><span style="flex:1"></span><button class="b a" id="cSave">${tr("Save petty cash","حفظ النثرية")}</button></div></div>
+ <div class="btns"><span class="hint">${tr("Limit SAR "+pcLim()+" incl. VAT per petty cash voucher.","الحد "+pcLim()+" ريال شامل الضريبة لكل سند نثرية.")}</span><span style="flex:1"></span><button class="b a" id="cSave">${tr("Save petty cash","حفظ النثرية")}</button></div></div>
  <div class="card"><h2>${tr("Orders","الأوامر")}</h2><table class="t"><tr><th>${tr("No.","الرقم")}</th><th>${tr("Type","النوع")}</th><th>${tr("Supplier","المورد")}</th><th>${tr("Cost center","مركز التكلفة")}</th><th class="num">${tr("Total incl. VAT","الإجمالي مع الضريبة")}</th><th>${tr("Delivery","التوريد")}</th><th></th></tr>
  ${D.pos.slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))||String(b.no||"").localeCompare(String(a.no||""))).map(p=>`<tr><td class="en"><b>${p.no}</b></td><td>${tag(p.kind==="PC"?tr("Petty cash","نثرية"):"PO",p.kind==="PC"?"a":"p")}</td><td class="en">${esc(p.sup)}</td><td class="en">${p.cc}</td><td class="num">${money(poTotal(p)*1.15)}</td><td>${p.kind==="PC"?(p.fin==="Approved"?tag(tr("Finance approved","اعتمدته المالية"),"g"):tag(tr("Pending Finance","بانتظار المالية"),"a"))+" "+pcTag(p):poFull(p)?tag(p.lines.some(l=>l.closed)?tr("Complete (closed short)","مكتمل (أُغلق بنقص)"):tr("Fully received","مستلم بالكامل"),"g"):tag(tr("Awaiting","بالانتظار"),"a")}</td><td><button class="b l sm" data-doc="${p.no}">${tr("Print","طباعة")}</button></td></tr>`).join("")}</table></div>${poRcvCard()}`;};
 function poRcvCard(){const open=D.pos.filter(p=>p.kind==="PO"&&!p.cancelled&&!poFull(p));
@@ -951,8 +952,8 @@ BIND.po=()=>{bindDocBtns();const rp=$("#rPo");if(rp){rp.onchange=poRcvDraw;poRcv
  $("#oPr").onchange=prev;prev();
  $("#oSave").onclick=()=>{const d=$("#oPrev")._d;if(!d)return msg("err",ERR.req());const po={no:poNextNo(),kind:"PO",date:$("#oDate").value,pr:d.p.no,cqs:d.c.no,sup:d.c.sel,cc:d.p.cc,lines:d.p.lines.map((l,i)=>({code:l.code,desc:l.desc,qty:l.qty,price:d.q.lp&&d.q.lp[i]!=null?+d.q.lp[i]:Math.round(l.est*d.f*100)/100,cls:l.cls})),...(d.q.noVat?{noVat:true}:{}),...(d.q.lp?{lpFrom:d.c.no}:{})};D.pos.push(po);persist();render();saved(po.no,poDoc(po));};
  const ct=()=>{$("#cTot").value=money((+$("#cQty").value||0)*(+$("#cPrice").value||0));};$("#cQty").addEventListener("input",ct);$("#cPrice").addEventListener("input",ct);
- $("#cSave").onclick=()=>{if(!checkReq($("#tabpc")))return msg("err",ERR.req());const tot=(+$("#cQty").value)*(+$("#cPrice").value);if(!(tot>0))return msg("err",ERR.qty());if(tot*1.15>5000)return msg("err",tr("Above the SAR 5,000 petty cash limit — raise a PR instead.","يتجاوز حد النثرية 5,000 ريال — ارفع طلب شراء بدلاً من ذلك."));
-  const pc={no:seqNo(("PC-"+YY()+"-"),D.pos.filter(p=>p.kind==="PC").map(p=>p.no)),kind:"PC",date:today(),pr:"",cqs:"",sup:$("#cSup").value.trim(),cc:$("#cCc").value,fin:"Pending",lines:[{code:"",desc:$("#cDesc").value.trim(),qty:+$("#cQty").value,price:+$("#cPrice").value,cls:$("#cCls").value}]};D.pos.push(pc);persist();render();saved(pc.no,poDoc(pc),"a");};};
+ $("#cSave").onclick=()=>{if(!checkReq($("#tabpc")))return msg("err",ERR.req());const tot=(+$("#cQty").value)*(+$("#cPrice").value);if(!(tot>0))return msg("err",ERR.qty());if(tot*1.15>PC_LIMIT+0.01)return msg("err",tr("Above the SAR "+pcLim()+" petty cash limit — raise a PR instead.","يتجاوز حد النثرية "+pcLim()+" ريال — ارفع طلب شراء بدلاً من ذلك."));
+  const pc={no:seqNo(("PC-"+YY()+"-"),D.pos.filter(p=>p.kind==="PC").map(p=>p.no)),kind:"PC",date:today(),pr:"",cqs:"",sup:$("#cSup").value.trim(),cc:$("#cCc").value,fin:"Pending",lim:PC_LIMIT,lines:[{code:"",desc:$("#cDesc").value.trim(),qty:+$("#cQty").value,price:+$("#cPrice").value,cls:$("#cCls").value}]};D.pos.push(pc);persist();render();saved(pc.no,poDoc(pc),"a");};};
 
 VIEWS.fin=()=>head(tr("Finance — invoices & payment","المالية — الفواتير والسداد"),tr("3-way match: PO · warehouse receipt (GRN) · supplier invoice. Payment is allowed only when the PO is fully received.","المطابقة الثلاثية: أمر الشراء · الاستلام (GRN) · فاتورة المورد. السداد مسموح فقط عند اكتمال الاستلام."))+prFlow("fin")+msgBox+
  `<div class="card"><h2>${tr("Register supplier invoice","تسجيل فاتورة مورد")}</h2><div class="fg">${sel("iPo",tr("PO","أمر الشراء"),D.pos.filter(p=>p.kind==="PO"&&!p.cancelled).map(p=>[p.no,`${p.no} — ${p.sup}`]),{req:true,w:"w2"})}${fld("iNo",tr("Invoice No.","رقم الفاتورة"),{req:true,upper:true})}${fld("iAmt",tr("Invoice total incl. VAT","إجمالي الفاتورة مع الضريبة"),{type:"number",req:true})}</div><div class="btns"><span style="flex:1"></span><button class="b" style="background:#7C3AED" id="iSave">${tr("Save invoice","حفظ الفاتورة")}</button></div></div>
@@ -1055,8 +1056,8 @@ function pcDoc(p){const L=p.lines||[],tot=L.reduce((a,l)=>a+l.qty*l.price,0)*1.1
  <tr style="height:30px">${fL("Description","البيان")}${fV(esc(L.map(l=>l.desc+(l.qty>1?" × "+l.qty:"")).join("; ")+(p.sup?" – "+p.sup:"")))}${fL("Receipt attached?")}${fV(p.receipt?"Yes":"")}</tr>
  <tr>${fL("Reimbursed to")}${fV(esc(p.buyer||""))}${fL("Reimbursed date")}${fV(p.paid||"")}</tr></table>
  <table style="width:100%;border-collapse:collapse;margin-top:12px">${fBar('AMOUNT / <span dir="rtl">المبلغ</span>','CHECKS / <span dir="rtl">التحقق</span>')}
- <tr>${fL("Amount incl. VAT (SAR)")}${fV(ppM(tot))}${fL("Limit check")}${fV(tot<=5000?"OK":"Over limit")}</tr><tr>${fL("Status")}${fV(esc(p.fin==="Approved"?(p.paid?"Reimbursed":"Approved"):"Pending"))}${fL("Approval check")}${fV(p.fin==="Approved"?"OK":"Pending")}</tr>
- <tr>${fL("")}${fV("")}${fL("Petty cash limit (incl. VAT)")}${fV("5,000.00")}</tr><tr>${fL("")}${fV("")}${fL("")}${fV("")}</tr><tr>${fL("")}${fV("")}${fL("")}${fV("")}</tr></table>
+ <tr>${fL("Amount incl. VAT (SAR)")}${fV(ppM(tot))}${fL("Limit check")}${fV(tot<=(p.lim||PC_LIMIT)+0.01?"OK":"Over limit")}</tr><tr>${fL("Status")}${fV(esc(p.fin==="Approved"?(p.paid?"Reimbursed":"Approved"):"Pending"))}${fL("Approval check")}${fV(p.fin==="Approved"?"OK":"Pending")}</tr>
+ <tr>${fL("")}${fV("")}${fL("Petty cash limit (incl. VAT)")}${fV(ppM(p.lim||PC_LIMIT))}</tr><tr>${fL("")}${fV("")}${fL("")}${fV("")}</tr><tr>${fL("")}${fV("")}${fL("")}${fV("")}</tr></table>
  ${fSig([["Purchaser",p.buyer||p.sup],["Approved by","Osama Al Saggaf"],["Finance","Osama Al Saggaf"],["Received cash by",p.buyer||p.sup]])}</div>`;}
 /* Payment Voucher / Request (supplier invoice) */
 function invDoc(v){const p=D.pos.find(x=>x.no===v.po)||{lines:[]},pt=poTotal(p)*(1+vatR(p)),recv=(p.lines||[]).reduce((a,l)=>a+Math.min(poRecv(p,l),l.qty)*l.price,0)*(1+vatR(p)),invd=D.invs.filter(x=>x.po===v.po).reduce((a,x)=>a+(+x.amt||0),0);
@@ -4402,13 +4403,75 @@ const prPcList=()=>(D.prs||[]).filter(p=>p.pd&&!["Draft","Deleted","PD","Rejecte
  $("#pcPrSave").onclick=async()=>{const p=D.prs.find(x=>x.no===s.value),box=$("#pcPrBox");if(!p||!box)return;const sup=($("#cSup").value||"").trim();if(!sup)return msg("err",tr("Enter the shop / supplier.","أدخل المحل / المورد."));
   const lines=p.lines.map((l,i)=>({code:l.code||"",desc:l.desc||"",unit:l.unit||"",qty:+box.querySelector(`[data-pq="${i}"]`).value||0,price:+box.querySelector(`[data-pp="${i}"]`).value||0,cls:l.cls||"OPEX"})).filter(l=>l.qty>0);
   if(!lines.length||lines.some(l=>!(l.price>0)))return msg("err",ERR.qty());
-  const tot=lines.reduce((a,l)=>a+l.qty*l.price,0);if(tot*1.15>5000.01)return msg("err",tr("Above the SAR 5,000 petty cash limit – this PR needs quotations (CQS) and a PO.","يتجاوز حد النثرية 5,000 ريال – يحتاج الطلب مقارنة عروض وأمر شراء."));
+  const tot=lines.reduce((a,l)=>a+l.qty*l.price,0);if(tot*1.15>PC_LIMIT+0.01)return msg("err",tr("Above the SAR "+pcLim()+" petty cash limit – this PR needs quotations (CQS) and a PO.","يتجاوز حد النثرية "+pcLim()+" ريال – يحتاج الطلب مقارنة عروض وأمر شراء."));
   const no=seqNo("PC-"+YY()+"-",D.pos.filter(x=>x.kind==="PC").map(x=>x.no)),b=$("#pcPrSave"),fl=$("#pcFile")&&$("#pcFile").files[0];let att=null;b.disabled=true;
   if(fl){try{att=await saveAtt(fl,"03 Procurement/05 Petty cash/"+no,no,"Invoice - "+qtSafe(sup));}catch(e){b.disabled=false;return msg("err",esc(e.message));}}
-  const pc={no,kind:"PC",date:$("#pcDate").value||today(),pr:p.no,cqs:"",sup,cc:p.cc,fin:"Pending",buyer:($("#cBuyer")||{}).value||PURCHASER,lines,inv:($("#pcInv").value||"").trim(),receipt:!!att,by:apMe()};if(att)pc.att=att;
+  const pc={no,kind:"PC",date:$("#pcDate").value||today(),pr:p.no,cqs:"",sup,cc:p.cc,fin:"Pending",lim:PC_LIMIT,buyer:($("#cBuyer")||{}).value||PURCHASER,lines,inv:($("#pcInv").value||"").trim(),receipt:!!att,by:apMe()};if(att)pc.att=att;
   D.pos.push(pc);persist();render();saved(pc.no,poDoc(pc),"a");};};}
 /* petty cash voucher print: invoice No. next to the receipt check */
 {const F=pcDoc;pcDoc=p=>{let h=F(p);if(p&&p.inv)h=h.replace(`${fV(p.receipt?"Yes":"")}`,fV((p.receipt?"Yes":"")+" – Invoice "+esc(p.inv)));return h;};}
+/* ===================== Update 97: PR items – "did you mean" for spelling mistakes, consumables pick-list with photos and prices, petty cash limit from hub-config (Azzam, 28 Nov 2026) =====================
+   1. Typing "Detol" finds "Dettol spray bottle": double letters and one or two wrong letters are tolerated; the matches show above the "New item" box.
+   2. PR form: "🧺 Pick from consumables list" – every consumable in the item list with its photo, unit and last price; tick, type the qty, add to the PR.
+   3. Petty cash limit = hub-config.json "pettyCashLimit" (SAR incl. VAT, default 5,000); each voucher keeps the limit it was saved under. */
+{const H=hubSetConfig;hubSetConfig=function(j){H(j);if(j&&+j.pettyCashLimit>0)PC_LIMIT=+j.pettyCashLimit;};if(window.HUB_CFG&&+window.HUB_CFG.pettyCashLimit>0)PC_LIMIT=+window.HUB_CFG.pettyCashLimit;}
+const fzN=s=>String(s||"").toLowerCase().replace(/[^a-z0-9؀-ۿ]+/g," ").replace(/(.)\1+/g,"$1").trim();
+function fzLev(a,b){if(a===b)return 0;const m=a.length,n=b.length;if(!m||!n)return m||n;let p=Array.from({length:n+1},(_,j)=>j);for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c;}return p[n];}
+function itemSimilar(q,n){const qw=fzN(q).split(" ").filter(x=>x.length>=3);if(!qw.length)return [];
+ return (D.items||[]).map(i=>{const w=fzN((i.desc||"")+" "+(i.ar||"")+" "+(i.code||"").replace(/-/g," ")).split(" ");let s=0;
+  qw.forEach(x=>{const tol=x.length>6?2:1;if(w.some(y=>y===x))s+=3;else if(w.some(y=>y.startsWith(x)||x.startsWith(y)&&y.length>=4))s+=2;else if(w.some(y=>Math.abs(y.length-x.length)<=tol&&fzLev(x,y)<=tol))s+=1.5;});
+  return {i,s:s/qw.length};}).filter(x=>x.s>=1).sort((a,b)=>b.s-a.s||String(a.i.desc).localeCompare(String(b.i.desc))).slice(0,n||5).map(x=>x.i);}
+{const P=pRow;pRow=function(){const r=P(),box=r.querySelector(".prnew"),inp=r.querySelector("[data-k=item]");if(!box||!inp)return r;
+ const sg=document.createElement("div");sg.className="prsim";sg.style.cssText="margin-bottom:6px;font-size:12px";box.insertBefore(sg,box.firstChild);
+ const show=()=>{if(box.style.display==="none"){sg.innerHTML="";return;}const L=itemSimilar(inp.value,5);
+  sg.innerHTML=L.length?`<b style="color:#0E7490">${tr("Did you mean (already in the item list):","هل تقصد (موجود في قائمة الأصناف):")}</b> `+L.map(i=>`<button type="button" class="b l sm" data-sim="${esc(i.code)}" style="margin:2px">${esc(i.desc)} <span class="hint">${esc(i.code)}</span></button>`).join(""):"";
+  sg.querySelectorAll("[data-sim]").forEach(b=>b.onclick=()=>{const it=item(b.dataset.sim);if(!it)return;inp.value=itemLabel(it);inp.dispatchEvent(new Event("change",{bubbles:true}));inp.dispatchEvent(new Event("input",{bubbles:true}));});};
+ inp.addEventListener("input",()=>setTimeout(show,0));inp.addEventListener("change",()=>setTimeout(show,0));return r;};}
+/* ---- consumables pick-list ---- */
+function itemLastPrice(code){let best=null;(D.pos||[]).filter(p=>!p.cancelled).forEach(p=>(p.lines||[]).forEach(l=>{if(l.code===code&&+l.price>0&&(!best||String(p.date||"")>best.d))best={v:+l.price,d:String(p.date||""),src:p.no};}));
+ if(best)return best;const it=item(code);if(it&&+it.price>0)return {v:+it.price,src:"item list"};
+ let pr=null;(D.prs||[]).forEach(p=>(p.lines||[]).forEach(l=>{if(l.code===code&&+l.est>0&&(!pr||String(p.date||"")>pr.d))pr={v:+l.est,d:String(p.date||""),src:p.no};}));return pr;}
+const consCat=i=>{const s=String(i.code||"").split("-");return s.length>=3?s[1]+"-"+s[2]:"";};
+const consCatLbl=k=>{const c=(WR().cats||[]).find(x=>x.key===k||String(x.key||"").endsWith(k));return c?(c.label||c.key):k;};
+function consPick(){const C=(D.items||[]).filter(i=>i.kind==="Consumable"&&!i.inactive);const before=new Set();(D.prs||[]).forEach(p=>(p.lines||[]).forEach(l=>l.code&&before.add(l.code)));
+ const cats=[...new Set(C.map(consCat))].filter(Boolean).sort();const sel={};
+ const o=document.createElement("div");o.id="consOv";o.style.cssText="position:fixed;inset:0;background:rgba(10,20,40,.55);z-index:9990;display:flex;align-items:center;justify-content:center";
+ o.innerHTML=`<div style="background:#fff;border-radius:12px;width:min(1150px,96vw);height:88vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.3)">
+ <div style="padding:14px 18px;border-bottom:1px solid #E4E8F0"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b style="font-size:17px">🧺 ${tr("Consumables list","قائمة المستهلكات")}</b><span class="hint">${C.length} ${tr("items","صنف")}</span><span style="flex:1"></span><button class="b l sm" id="csX">✕ ${tr("Close","إغلاق")}</button></div>
+ <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><input id="csQ" class="en" placeholder="${esc(tr("Search name or code (spelling mistakes are OK)","ابحث بالاسم أو الكود"))}" style="flex:1;min-width:220px">
+ <select id="csC"><option value="">${tr("All categories","كل الفئات")}</option>${cats.map(k=>`<option value="${esc(k)}">${esc(consCatLbl(k))}</option>`).join("")}</select>
+ <label style="display:flex;align-items:center;gap:4px;font-size:13px"><input type="checkbox" id="csB"> ${tr("Ordered before only","طُلب سابقاً فقط")}</label>
+ <label style="display:flex;align-items:center;gap:4px;font-size:13px"><input type="checkbox" id="csS"> ${tr("Ticked only","المحدد فقط")}</label></div></div>
+ <div id="csG" style="flex:1;overflow:auto;padding:12px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:10px;align-content:start"></div>
+ <div style="padding:12px 18px;border-top:1px solid #E4E8F0;display:flex;gap:10px;align-items:center"><span id="csN" class="hint"></span><span style="flex:1"></span><button class="b" style="background:#7C3AED" id="csAdd">${tr("Add to the PR","إضافة إلى الطلب")}</button></div></div>`;
+ document.body.appendChild(o);const G=o.querySelector("#csG");
+ const cnt=()=>{const n=Object.keys(sel).length;o.querySelector("#csN").textContent=n+" "+tr("ticked","محدد");o.querySelector("#csAdd").disabled=!n;};
+ const draw=()=>{const q=o.querySelector("#csQ").value.trim(),c=o.querySelector("#csC").value,b=o.querySelector("#csB").checked,s=o.querySelector("#csS").checked;
+  let L=C.filter(i=>(!c||consCat(i)===c)&&(!b||before.has(i.code))&&(!s||sel[i.code]));
+  if(q){const ql=q.toLowerCase(),ex=L.filter(i=>(i.code+" "+i.desc+" "+(i.ar||"")).toLowerCase().includes(ql)),fz=new Set(itemSimilar(q,40).map(i=>i.code));L=[...ex,...L.filter(i=>!ex.includes(i)&&fz.has(i.code))];}
+  else L.sort((x,y)=>(before.has(y.code)-before.has(x.code))||String(x.desc).localeCompare(String(y.desc)));
+  G.innerHTML=L.slice(0,600).map(i=>{const p=itemLastPrice(i.code),on=sel[i.code];return `<div data-ci="${esc(i.code)}" style="border:1px solid ${on?"#7C3AED":"#D5DCE8"};background:${on?"#F5F0FF":"#fff"};border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:5px">
+   <div style="height:92px;display:flex;align-items:center;justify-content:center;background:#F7F8FA;border-radius:6px">${i.photo?`<img data-ph="${esc(i.code)}" style="max-height:88px;max-width:100%;object-fit:contain;cursor:zoom-in;visibility:hidden">`:`<span style="font-size:30px;opacity:.35">📦</span>`}</div>
+   <label style="display:flex;gap:6px;align-items:flex-start;cursor:pointer"><input type="checkbox" data-ck="${esc(i.code)}" ${on?"checked":""} style="margin-top:3px"><span class="en" style="font-weight:600;font-size:13px;line-height:1.3">${esc(i.desc)}</span></label>
+   <div class="hint en" style="font-size:11px">${esc(i.code)} · ${esc(i.unit||"")}${before.has(i.code)?" · ★ "+tr("ordered before","طُلب سابقاً"):""}</div>
+   <div style="display:flex;gap:6px;align-items:center;font-size:12px"><span>${tr("Qty","الكمية")}</span><input type="number" min="0" step="any" data-cq="${esc(i.code)}" value="${on?on.q:""}" style="width:64px"><span>${tr("Price","السعر")}</span><input type="number" min="0" step="any" data-cp="${esc(i.code)}" value="${on?on.p:(p?p.v:"")}" style="width:72px" title="${esc(p?tr("Last price from","آخر سعر من")+" "+p.src:tr("No price yet","لا يوجد سعر"))}"></div></div>`;}).join("")+(L.length>600?`<div class="hint">${tr("Showing 600 – search to narrow down","يظهر 600 – ابحث للتضييق")}</div>`:"")+(!L.length?`<div class="hint">${tr("Nothing found","لا يوجد")}</div>`:"");
+  G.querySelectorAll("img[data-ph]").forEach(im=>{itemPhotoUrl(im.dataset.ph).then(u=>{if(u){im.src=u;im.style.visibility="visible";}else im.replaceWith(Object.assign(document.createElement("span"),{textContent:"📦",style:"font-size:30px;opacity:.35"}));});im.onclick=()=>itemPhotoShow(im.dataset.ph);});
+  const card=code=>G.querySelector(`[data-ci="${CSS.escape(code)}"]`);
+  const setOn=(code,on)=>{const k=card(code);if(!k)return;if(on){const q=+k.querySelector("[data-cq]").value||1;k.querySelector("[data-cq]").value=q;sel[code]={q,p:+k.querySelector("[data-cp]").value||0};}else delete sel[code];k.style.borderColor=on?"#7C3AED":"#D5DCE8";k.style.background=on?"#F5F0FF":"#fff";k.querySelector("[data-ck]").checked=on;cnt();};
+  G.querySelectorAll("[data-ck]").forEach(x=>x.onchange=()=>setOn(x.dataset.ck,x.checked));
+  G.querySelectorAll("[data-cq]").forEach(x=>x.oninput=()=>{const v=+x.value||0;if(v>0){setOn(x.dataset.cq,true);sel[x.dataset.cq].q=v;}else setOn(x.dataset.cq,false);});
+  G.querySelectorAll("[data-cp]").forEach(x=>x.oninput=()=>{if(sel[x.dataset.cp])sel[x.dataset.cp].p=+x.value||0;});cnt();};
+ ["#csQ","#csC","#csB","#csS"].forEach(id=>o.querySelector(id).addEventListener(id==="#csQ"?"input":"change",draw));draw();setTimeout(()=>o.querySelector("#csQ").focus(),50);
+ const close=()=>o.remove();o.querySelector("#csX").onclick=close;o.addEventListener("click",e=>{if(e.target===o)close();});
+ o.querySelector("#csAdd").onclick=()=>{const tb=$("#pLines");if(!tb)return close();let n=0;
+  Object.entries(sel).forEach(([code,v])=>{const it=item(code);if(!it||!(v.q>0))return;
+   const ex=[...tb.querySelectorAll("tr")].slice(1).find(r=>{const i=r.querySelector("[data-k=item]");return i&&parseItem(i.value)===it;});
+   let r=ex||[...tb.querySelectorAll("tr")].slice(1).find(r=>{const i=r.querySelector("[data-k=item]");return i&&!i.value.trim();});
+   if(!r){r=pRow();tb.appendChild(r);}const inp=r.querySelector("[data-k=item]");inp.value=itemLabel(it);inp.dispatchEvent(new Event("change",{bubbles:true}));inp.dispatchEvent(new Event("input",{bubbles:true}));
+   r.querySelector("[data-k=qty]").value=ex?(+r.querySelector("[data-k=qty]").value||0)+v.q:v.q;if(v.p>0)r.querySelector("[data-k=est]").value=v.p;r.querySelector("[data-k=cls]").value="OPEX";n++;});
+  close();toast("✔ "+n+" "+tr("item(s) added to the PR","صنف أُضيف للطلب"));};}
+{const V=VIEWS.pr;VIEWS.pr=()=>V().replace('<button class="b l" id="pAdd">',m=>`<button class="b l" id="pPick" style="background:#F5F0FF;border-color:#7C3AED;color:#5B21B6">🧺 ${tr("Pick from consumables list","اختر من قائمة المستهلكات")}</button> `+m);}
+{const B=BIND.pr;BIND.pr=()=>{B&&B();const b=$("#pPick");if(b)b.onclick=consPick;};}
 </script>
 </body>
 </html>
