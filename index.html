@@ -4039,10 +4039,10 @@ function xlbLines(wb,c,m){if(!/^\d{4}-\d{2}$/.test(m||""))return {lines:[],warn:
  (XLB_ORDER[c]||[]).forEach(p=>{const ws=wb.Sheets[p+" "+key]||(key==="Concrete"?wb.Sheets[p]:null);if(!ws)return;const amt=+cv(ws,"F40")||0;if(Math.abs(amt)<0.005)return;
   let desc;if(p==="Generators Rental"){const n=(String(cv(ws,"C3")||"").split("–")[1]||"").trim(),per=String(cv(ws,"C6")||"").split("(")[0].trim().replace(/\s+[–-]\s+/," to ");desc="Generators Rental Charges"+(n?" – "+n:"")+(per?" ("+per+")":" ("+mon+")");}
   else desc=((key==="MCC"&&XLB_MCC[p])||XLB_NAME[p]||p)+" ("+mon+")";
-  out.push({p,desc,gross:Math.round(amt*100)/100});});
+  const sh=+cv(ws,"C40");out.push({p,desc,gross:Math.round(amt*100)/100,pct:sh>=0&&sh<=1&&!isNaN(sh)?Math.round(sh*10000)/100:null});});
  return {lines:out,warn};}
 /* Concrete Division (MIDU's own division): amounts are VAT included, VAT 0. EMCO / MCC: Excel amount ÷ 1.15 before VAT + VAT 15 % (as the November Excel debit notes) */
-function xlbDn(c,m,x,fname){const incl=c==="Concrete Division";const lines=x.lines.map(l=>{const a=incl?l.gross:Math.round(l.gross/1.15*100)/100;return {type:l.desc,qty:1,unit:"lot",rate:a,vat:incl?0:Math.round((l.gross-a)*100)/100};});
+function xlbDn(c,m,x,fname){const incl=c==="Concrete Division";const lines=x.lines.map(l=>{const a=incl?l.gross:Math.round(l.gross/1.15*100)/100;return Object.assign({type:l.desc,qty:1,unit:"lot",rate:a,vat:incl?0:Math.round((l.gross-a)*100)/100},l.pct!==null&&l.pct!==undefined?{pct:l.pct}:{});});
  const sub=r2(lines.reduce((a,l)=>a+l.rate,0)),vat=r2(lines.reduce((a,l)=>a+l.vat,0));
  return {no:seqNo("ASP-MIDU-2026-",D.dns.map(d=>d.no)),contractor:c,period:m,date:today(),sub,vat,status:"Draft",paid:0,auto:true,xl:true,type:"Utilities",lines,summary:"Utilities back charge – "+monthName(m)+(x.lines.some(l=>l.p==="Generators Rental")?" (incl. generators rental)":""),
   xlNote:incl?"Note: All prices are VAT included":"Note: Amounts are shown before VAT; VAT 15% is added in the VAT column",src:fname||""};}
@@ -4057,7 +4057,7 @@ function xlbDn(c,m,x,fname){const incl=c==="Concrete Division";const lines=x.lin
   <div class="btns"><span class="hint en">${esc(FN)}</span><span style="flex:1"></span>${exists?tag(tr("Debit note already created","تم إنشاء إشعار المدين")+": "+exists.no,"g"):`<button class="b" style="background:#0E7490" id="xlbMake" ${dn.lines.length&&!x.warn.length?"":"disabled"}>${tr("Create debit note","إنشاء إشعار مدين")} ${esc(dn.no)}</button>`}</div>`;
   const mk=$("#xlbMake");if(mk)mk.onclick=()=>{const d=xlbDn(c,m,xlbLines(WB,c,m),FN);if(!confirm(tr("Create debit note ","إنشاء إشعار المدين ")+d.no+" – "+c+" – "+monthName(m)+": "+money(d.sub+d.vat)+" SAR?"))return;
    D.dns.push(d);persist();toast("✔ "+tr("Debit note created","تم إنشاء إشعار المدين")+": "+d.no);draw();openDoc(dnDoc(d));};};
- f.onchange=async()=>{const file=f.files[0];if(!file)return;try{WB=XLSX.read(await file.arrayBuffer(),{type:"array"});FN=file.name;draw();}catch(e){WB=null;out.innerHTML=`<div class="msg err" style="display:flex">${esc(e.message)}</div>`;}};
+ f.onchange=async()=>{const file=f.files[0];if(!file)return;try{WB=XLSX.read(await file.arrayBuffer(),{type:"array"});FN=file.name;window.XLB_WB=WB;window.XLB_FN=FN;draw();if(typeof bciDraw==="function")bciDraw();}catch(e){WB=null;out.innerHTML=`<div class="msg err" style="display:flex">${esc(e.message)}</div>`;}};
  ["#bM","#bC"].forEach(s=>{const el=$(s);if(el)el.addEventListener("change",draw);});};}
 /* signed copies of the old debit notes: link in the master register */
 {const V=VIEWS.utReg;VIEWS.utReg=()=>{let h=V();(D.dns||[]).forEach(d=>{if(!d.signed||!d.signed.length)return;const a=d.signed.filter(s=>/^https:\/\/([a-z0-9-]+\.sharepoint\.com|outlook\.office365\.com)\//i.test(s.u||"")).map(s=>`<a class="b l sm" style="text-decoration:none" href="${esc(s.u)}" target="_blank" rel="noopener" title="${esc(s.f||"")}">📎 ${esc(s.n||tr("Signed copy","النسخة الموقعة"))}</a>`).join(" ");
@@ -4173,6 +4173,52 @@ const poAlertBox=()=>{const A=poAlerts();return A.length?`<div class="banner" st
 {const V=VIEWS.po;if(V)VIEWS.po=()=>{let h=V();(D.pos||[]).forEach(p=>{const u=poUse(p);if(!u.val||!(u.ceiling||u.pct>1.0001))return;const k=`<b>${p.no}</b>`,i=h.indexOf(k);if(i<0)return;
  const w=u.ceiling&&poWarn(u),c=u.pct>=1?"background:#FEE2E2;color:#991B1B":w?"background:#FEF3C7;color:#92400E":"background:#ECFDF5;color:#065F46";
  h=h.slice(0,i+k.length)+` <span class="tag" style="${c}" title="${esc(tr("Used","مستخدم")+" "+money(u.used)+" / "+money(u.val)+" SAR"+(u.monthsLeft!==null?" · ≈"+(Math.round(u.monthsLeft*10)/10)+" "+tr("month(s) left","شهر متبقٍ"):""))}">${u.ceiling?tr("PO limit","حد الأمر")+" ":""}${Math.round(u.pct*100)}% ${tr("used","مستخدم")}${w||u.pct>=1?" – "+tr("renew","جدّد"):""}</span>`+h.slice(i+k.length);});return h;};}
+/* ===================== Update 91: back-charge invoices – e-signature Basel → Najed, print for the sub-contractor, attach the signed copy (Azzam, 28 Nov 2026) =====================
+   Step 1 of the back-charge cycle. One back-charge invoice per contractor and month (collection bcs, 02 Utilities/_data/bcs.json),
+   amounts from the month's Excel back-charge file (same lines as the Excel debit note). E-signatures: prepared (Logistics Manager)
+   → reviewed (Basel Shamma, Project Manager) → approved (Najed Fakhreddine, Project Director), PIN + e-mail alert at each step.
+   Once approved: print, the sub-contractor signs on paper, attach the scan (02 Utilities/05 Signed back charges/<month>). */
+if(typeof COLL_AREA!=="undefined")COLL_AREA.bcs="ut";
+if(typeof LOCAL_COLLS!=="undefined"&&!LOCAL_COLLS.includes("bcs"))LOCAL_COLLS.push("bcs");
+if(typeof XL_NAMES!=="undefined")XL_NAMES.bcs="Back-charge invoices";
+KEYS.bcs=r=>r.no;D.bcs=D.bcs||[];
+const BCI_KEY={"Concrete Division":"CON",EMCO:"EMCO",MCC:"MCC"};
+const bciNo=(c,m)=>"BCI-"+String(m).replace("-","")+"-"+(BCI_KEY[c]||String(c).replace(/[^A-Z0-9]/gi,"").slice(0,6).toUpperCase());
+ES_K.push({id:"bci",coll:"bcs",key:"es",scr:"utBC",area:"ut",label:"Back-charge invoice",title:o=>(o.contractor||"")+" · "+(o.period?monthName(o.period):""),issuerOf:()=>WH_LM,
+ fields:o=>[o.no,o.contractor,o.period,(o.lines||[]).map(l=>[l.type,+l.rate,+l.vat])],steps:iss=>[["PREP","Prepared by (Logistics Manager)",iss],["PM","Reviewed by (Project Manager)",ES_BASEL],["PD","Approved by (Project Director)",ES_NAJED]],doc:o=>bciDoc(o)});
+const bciK=()=>esK("bci");
+const bciSigned=o=>!!(o&&o.att);
+const bciStat=o=>{const k=bciK();if(!o)return "";if(o.cancelled)return tag(tr("Cancelled","ملغى"),"r");if(bciSigned(o))return tag("✔ "+tr("Signed by sub-contractor","موقّع من المقاول"),"g");if(esR(k,o)&&esDone(k,o))return tag(tr("Approved – print and get the sub-contractor's signature","معتمد – اطبع واحصل على توقيع المقاول"),"b");return esTag(k,o)||tag(tr("Draft","مسودة"),"");};
+function bciDoc(o){const C=upKey(o.contractor),B=UT_BILL[C]||{n:o.contractor,ar:"",addr:"",vat:""},L=o.lines||[],sub=L.reduce((a,l)=>a+(+l.rate||0),0),vat=L.reduce((a,l)=>a+(+l.vat||0),0);
+ const td=(a,x)=>`<td style="border:1px solid #8A94A6;padding:5px 6px;font-size:10.5px;text-align:${a||"left"};${x||""}">`;
+ const own=["azzam","bassel","basel","najed"],cs=(UT_SIGN[C]||[]).filter(s=>!own.some(n=>String(s[2]).toLowerCase().includes(n)));
+ const csT=cs.length?`<table style="width:100%;border-collapse:collapse;margin-top:12px"><tr><th colspan="${cs.length}" style="background:#1B273D;color:#fff;font-size:9.5px;padding:4px">SUB-CONTRACTOR – ${esc(B.n)}</th></tr><tr>${cs.map(s=>`<th style="background:#EEF1F6;font-size:9px;padding:4px;border:1px solid #8EA9DB">${String(s[0]).replace(/<br>/g," ")}${s[1]?" – "+esc(s[1]):""}</th>`).join("")}</tr><tr>${cs.map(s=>`<td style="border:1px solid #8EA9DB;font-size:9.5px;padding:4px 5px">Name: <b>${esc(s[2])}</b></td>`).join("")}</tr><tr>${cs.map(()=>`<td style="border:1px solid #8EA9DB;height:52px;font-size:9px;color:#8A94A6;vertical-align:bottom;padding:3px 5px">Signature / Stamp / Date</td>`).join("")}</tr></table>`:"";
+ const html=`<div class="doc xl" style="font-family:Arial,Helvetica,sans-serif;color:#111;padding:18px 24px"><div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1B273D;padding-bottom:6px"><div><div style="font-size:20px;font-weight:800">UTILITIES BACK CHARGE – ${esc(String(B.n).toUpperCase())}</div><div style="font-size:10px;color:#444">MIDU &nbsp;|&nbsp; LOGISTICS DEPARTMENT &nbsp;|&nbsp; ASP (PO P1020139) &nbsp;|&nbsp; ${esc(monthName(o.period))}</div></div><img src="${LOGO}" style="height:32px"></div>
+ <table style="width:100%;margin-top:8px;font-size:10.5px"><tr><td><b>Back-charge No.:</b> ${esc(o.no)}</td><td><b>Date:</b> ${esc(dnFinDt(o.date))}</td><td><b>Period:</b> ${esc(monthName(o.period))}</td></tr><tr><td colspan="3"><b>Bill to:</b> ${esc(B.n)}${B.ar?` &nbsp; <span dir="rtl">${esc(B.ar)}</span>`:""}${B.vat?` &nbsp;·&nbsp; ${esc(B.vat)}`:""}</td></tr></table>
+ <table style="width:100%;border-collapse:collapse;margin-top:10px"><tr>${["#","Description","Share %","Amount (SAR)","VAT (SAR)","Total (SAR)"].map(h=>`<th style="background:#1B273D;color:#fff;font-size:10.5px;padding:6px;border:1px solid #8A94A6">${h}</th>`).join("")}</tr>
+ ${L.map((l,i)=>`<tr>${td("center")}${i+1}</td>${td()}${esc(l.type)}</td>${td("center")}${l.pct!==undefined&&l.pct!==null?l.pct+" %":"–"}</td>${td("right")}${n2(+l.rate||0)}</td>${td("right")}${n2(+l.vat||0)}</td>${td("right")}${n2((+l.rate||0)+(+l.vat||0))}</td></tr>`).join("")}
+ <tr>${td("right","font-weight:700;background:#EEF1F6")}</td>${td("right","font-weight:700;background:#EEF1F6")}TOTAL</td>${td("right","background:#EEF1F6")}</td>${td("right","font-weight:700;background:#EEF1F6")}${n2(sub)}</td>${td("right","font-weight:700;background:#EEF1F6")}${n2(vat)}</td>${td("right","font-weight:700;background:#EEF1F6")}${n2(sub+vat)}</td></tr></table>
+ <div style="font-size:9.5px;color:#555;margin-top:5px">${o.contractor==="Concrete Division"?"All prices are VAT included.":"Amounts before VAT; VAT 15% shown separately."} Quantities and daily details: monthly back-charge file${o.src?" “"+esc(o.src)+"”":""}. The debit note is issued after this back charge is signed by the sub-contractor.</div>
+ ${esPanel(bciK(),o)}${csT}${typeof docQrStrip==="function"?docQrStrip("BCI",o.no,o.date,o.contractor+" "+monthName(o.period)):""}</div>`;return html;}
+function bciMake(c,m){const W=window.XLB_WB;if(!W)return msg("err",tr("Pick the month's Excel back-charge file first (card below).","اختر ملف إعادة الفوترة للشهر أولاً."));const x=xlbLines(W,c,m);if(x.warn.length)return msg("err",esc(x.warn.join(" · ")));if(!x.lines.length)return msg("err",tr("No amounts for this contractor in the file.","لا توجد مبالغ لهذا المقاول."));
+ const no=bciNo(c,m);if((D.bcs||[]).some(b=>b.no===no&&!b.cancelled))return msg("err",no+" "+tr("already exists.","موجود مسبقاً."));
+ const d=xlbDn(c,m,x,window.XLB_FN);D.bcs=D.bcs||[];D.bcs.push({no,contractor:c,period:m,date:today(),lines:d.lines,sub:d.sub,vat:d.vat,summary:d.summary,src:window.XLB_FN||"",by:apMe()});persist();toast("✔ "+no);bciDraw();}
+function bciDraw(){const out=$("#bciOut");if(!out)return;const m=($("#bM")||{}).value||"";const k=bciK();
+ const rows=CONTR.map(c=>{const o=(D.bcs||[]).find(b=>b.contractor===c&&b.period===m&&!b.cancelled);
+  if(!o)return `<tr><td class="en"><b>${esc(c)}</b></td><td colspan="3" class="hint">${tr("Not created yet","لم يُنشأ بعد")}</td><td><button class="b sm" data-bcimk="${esc(c)}" ${window.XLB_WB?"":"disabled title='Pick the Excel file first'"}>➕ ${tr("Create from Excel file","إنشاء من ملف Excel")}</button></td></tr>`;
+  const i=D.bcs.indexOf(o),ok=esR(k,o)&&esDone(k,o);
+  return `<tr><td class="en"><b>${esc(c)}</b><div class="hint en">${esc(o.no)}</div></td><td class="num">${money((+o.sub||0)+(+o.vat||0))}</td><td>${bciStat(o)}<div>${esTrail(k,o)}</div></td><td>${o.att?`<a href="#" data-bciopen="${i}">📎 ${esc(o.att.name||tr("Signed copy","النسخة الموقعة"))}</a><div class="hint">${esc(dnFinDt(o.att.at))}${o.att.by?" · "+esc(o.att.by):""}</div>`:"–"}</td>
+   <td style="white-space:nowrap"><button class="b l sm" data-bciv="${i}">🖨 ${tr("View / print","عرض / طباعة")}</button> ${ok?`<label class="b g sm" style="cursor:pointer">📎 ${o.att?tr("Replace signed copy","استبدال النسخة الموقعة"):tr("Attach signed copy","إرفاق النسخة الموقعة")}<input type="file" accept=".pdf,image/*" data-bciatt="${i}" style="display:none"></label>`:`<span class="hint">${tr("Attach after Basel and Najed sign","يُرفق بعد توقيع باسل ونجد")}</span>`}</td></tr>`;}).join("");
+ out.innerHTML=`<div class="card"><h2>① ${tr("Back-charge invoices","فواتير إعادة الفوترة")} – ${esc(m?monthName(m):"")}</h2><p class="hint">${tr("Create → you sign → Basel Shamma (Project Manager) → Najed Fakhreddine (Project Director) sign with their PIN (e-mail alert at each step) → print → the sub-contractor signs → attach the signed copy. Then the debit note is created (card below).","إنشاء ← توقيعك ← باسل ← نجد ← طباعة ← توقيع المقاول ← إرفاق النسخة الموقعة. ثم يُنشأ إشعار المدين.")}</p>
+ <table class="t"><tr><th>${tr("Contractor","المقاول")}</th><th class="num">${tr("Total","الإجمالي")}</th><th>${tr("Signatures","التواقيع")}</th><th>${tr("Signed by sub-contractor","موقّع من المقاول")}</th><th></th></tr>${rows}</table></div>`;
+ out.querySelectorAll("[data-bcimk]").forEach(b=>b.onclick=()=>bciMake(b.dataset.bcimk,m));
+ out.querySelectorAll("[data-bciv]").forEach(b=>b.onclick=()=>{const o=D.bcs[+b.dataset.bciv];if(o)openDoc(bciDoc(o));});
+ out.querySelectorAll("[data-bciopen]").forEach(a=>a.onclick=ev=>{ev.preventDefault();const o=D.bcs[+a.dataset.bciopen];if(o)openAtt(o.att);});
+ out.querySelectorAll("[data-bciatt]").forEach(inp=>inp.onchange=async()=>{const o=D.bcs[+inp.dataset.bciatt],f=inp.files[0];if(!o||!f)return;
+  try{const a=await saveAtt(f,AREAS_UT_SIGNED(o.period),o.no,"signed by "+o.contractor);o.att=a;persist();toast("✔ "+o.no+" – "+tr("signed copy attached","أُرفقت النسخة الموقعة"));bciDraw();}catch(e){msg("err",esc(e.message));}});}
+const AREAS_UT_SIGNED=m=>(typeof AREAS!=="undefined"?AREAS.ut:"02 Utilities")+"/05 Signed back charges/"+m;
+{const V=VIEWS.utBC;VIEWS.utBC=()=>{const h=V(),k='<div class="card" id="xlbCard">',i=h.indexOf(k);return i<0?h+'<div id="bciOut"></div>':h.slice(0,i)+'<div id="bciOut"></div>'+h.slice(i);};}
+{const B=BIND.utBC;BIND.utBC=()=>{B();bciDraw();const s=$("#bM");if(s)s.addEventListener("change",bciDraw);};}
 {const B=BIND.utReg;BIND.utReg=()=>{B&&B();document.querySelectorAll("[data-dnown]").forEach(c=>c.onchange=()=>{const d=D.dns[+c.dataset.dnown];if(!d)return;d.owned=c.checked;persist();render();toast("✔ "+d.no);});};}
 </script>
 </body>
