@@ -262,11 +262,6 @@
                                   "f":  "51.jpg",
                                   "title":  "Back charges: one cycle, every month",
                                   "note":  "Utilities and generator rental are back-charged every month. The back-charge invoice is signed by Logistics, Basel and Najed, then by the sub-contractor; only then is the debit note issued, signed by Najed and the sub-contractor, and sent to Finance with one click. The master back-charge file and CAPEX \u0026 OPEX follow automatically."
-                              },
-                              {
-                                  "f":  "52.jpg",
-                                  "title":  "Back charges: please confirm with us",
-                                  "note":  "Six points for Finance on back charges: how each debit note is recorded and its VAT invoice number, VAT on utilities, the status of the 14 notes issued, assets paid by MIDU that belong to a sub-contractor, the Concrete Division cost transfer, and confirming receipt."
                               }
                           ],
                    "ar":  [
@@ -524,11 +519,6 @@
                                   "f":  "51.jpg",
                                   "title":  "إعادة الفوترة: دورة واحدة كل شهر",
                                   "note":  "تُعاد فوترة الخدمات وإيجار المولدات كل شهر. توقّع فاتورة إعادة الفوترة اللوجستيات ثم باسل ثم نجد ثم المقاول، وبعدها فقط يصدر إشعار المدين ويوقعه نجد والمقاول، ثم يُرسل إلى المالية بضغطة واحدة. يتحدث ملف إعادة الفوترة الرئيسي و CAPEX و OPEX تلقائياً."
-                              },
-                              {
-                                  "f":  "52.jpg",
-                                  "title":  "إعادة الفوترة: نرجو التأكيد معنا",
-                                  "note":  "ست نقاط للمالية: طريقة تسجيل كل إشعار مدين ورقم فاتورته الضريبية، الضريبة على الخدمات، حالة الإشعارات الـ 14 الصادرة، الأصول التي دفعتها MIDU ويملكها المقاول، نقل تكلفة قسم الخرسانة، وتأكيد الاستلام."
                               }
                           ]
                }
