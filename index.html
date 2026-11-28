@@ -4060,7 +4060,7 @@ function xlbDn(c,m,x,fname){const incl=c==="Concrete Division";const lines=x.lin
  f.onchange=async()=>{const file=f.files[0];if(!file)return;try{WB=XLSX.read(await file.arrayBuffer(),{type:"array"});FN=file.name;draw();}catch(e){WB=null;out.innerHTML=`<div class="msg err" style="display:flex">${esc(e.message)}</div>`;}};
  ["#bM","#bC"].forEach(s=>{const el=$(s);if(el)el.addEventListener("change",draw);});};}
 /* signed copies of the old debit notes: link in the master register */
-{const V=VIEWS.utReg;VIEWS.utReg=()=>{let h=V();(D.dns||[]).forEach(d=>{if(!d.signed||!d.signed.length)return;const a=d.signed.filter(s=>/^https:\/\/[a-z0-9-]+\.sharepoint\.com\//i.test(s.u||"")).map(s=>`<a class="b l sm" style="text-decoration:none" href="${esc(s.u)}" target="_blank" rel="noopener" title="${esc(s.f||"")}">📎 ${esc(s.n||tr("Signed copy","النسخة الموقعة"))}</a>`).join(" ");
+{const V=VIEWS.utReg;VIEWS.utReg=()=>{let h=V();(D.dns||[]).forEach(d=>{if(!d.signed||!d.signed.length)return;const a=d.signed.filter(s=>/^https:\/\/([a-z0-9-]+\.sharepoint\.com|outlook\.office365\.com)\//i.test(s.u||"")).map(s=>`<a class="b l sm" style="text-decoration:none" href="${esc(s.u)}" target="_blank" rel="noopener" title="${esc(s.f||"")}">📎 ${esc(s.n||tr("Signed copy","النسخة الموقعة"))}</a>`).join(" ");
  const k='data-doc="'+d.no+'">',i=h.indexOf(k);if(!a||i<0)return;const j=h.indexOf("</button>",i);if(j<0)return;h=h.slice(0,j+9)+" "+a+h.slice(j+9);});return h;};}
 /* ===================== Update 84: debit notes already submitted to Finance are not sent for e-signature (Azzam, 28 Nov 2026) =====================
    ASP-MIDU-2026-0001…0013 were handed to Finance (Osama Al Saggaf / Mohammed Hawbani) on 7–13 Nov 2026 (master back-charge file, Register).
