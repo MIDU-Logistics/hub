@@ -1390,12 +1390,14 @@ function bcPackHtml(m,c){const C=upKey(c);const sheets=UT_SHEETS.filter(sh=>D.ut
 /* debit note (Debit Memo) */
 function dnDoc(d){const C=upKey(d.contractor),B=UT_BILL[C]||{n:d.contractor,ar:"",addr:"",vat:""};const per=d.period?upMon(d.period).replace("-"," "):"";
  const incl=d.vat===0||d.vat==="0";let lines=[];
- if(d.auto){const g={};(d.lines||[]).forEach(l=>{const sh=UT_SHEETS.find(s=>s.types.includes(l.type));const k=sh?sh.dn:l.type;g[k]=(g[k]||0)+l.qty*l.rate;});
+ /* Update 83: a debit note taken from the Excel debit note / back-charge file keeps its lines and VAT exactly as in Excel */
+ if(d.xl)lines=(d.lines||[]).map(l=>[l.type,(+l.rate||0)*(l.qty===undefined?1:+l.qty),l.vat===undefined||l.vat===null?null:+l.vat]);
+ else if(d.auto){const g={};(d.lines||[]).forEach(l=>{const sh=UT_SHEETS.find(s=>s.types.includes(l.type));const k=sh?sh.dn:l.type;g[k]=(g[k]||0)+l.qty*l.rate;});
   UT_SHEETS.forEach(s=>{if(g[s.dn]!==undefined){lines.push([s.dn+" ("+per+")",g[s.dn]]);delete g[s.dn];}});Object.entries(g).forEach(([k,v])=>lines.push([k+" ("+per+")",v]));}
  else lines=(d.lines||[]).map(l=>[l.type+(l.qty!==1||l.unit!=="lot"?` – ${n0(l.qty)} ${/^l$/i.test(l.unit||"")?"LTR":(l.unit||"")} × ${rateTxt(l.rate)}`:""),l.qty*l.rate]);
  const vr=incl?0:0.15,sub=lines.reduce((a,x)=>a+x[1],0),vat=incl?0:dnVat(d),tot=sub+vat;
  const td=(a,x)=>`<td style="padding:5px 6px;font-size:10.5px;text-align:${a||"center"};border-bottom:1px solid #D9DEE7;${x||""}">`;
- const rows=lines.map(([t,a])=>`<tr>${td("center")}${esc(t)}</td>${td("right")}${n2(a)}</td>${td("right")}${n2(a*vr)}</td>${td("right")}${n2(a*(1+vr))}</td></tr>`).join("")+Array.from({length:Math.max(0,12-lines.length)},()=>`<tr>${td()}&nbsp;</td>${td()}</td>${td()}</td>${td("right")}-</td></tr>`).join("");
+ const rows=lines.map(([t,a,lv])=>{const v=lv===null||lv===undefined?a*vr:lv,txt=d.xl&&!a&&!v;return `<tr>${td("center")}${esc(t)}</td>${td("right")}${txt?"":n2(a)}</td>${td("right")}${txt?"":n2(v)}</td>${td("right")}${txt?"":n2(a+v)}</td></tr>`;}).join("")+Array.from({length:Math.max(0,12-lines.length)},()=>`<tr>${td()}&nbsp;</td>${td()}</td>${td()}</td>${td("right")}-</td></tr>`).join("");
  const bt=(en,v,ar)=>`<tr><td style="font-size:10px;padding:3px 0;width:18%">${en}</td><td style="font-size:10px;font-weight:700">${v||""}</td><td style="font-size:10px;text-align:right;width:16%" dir="rtl">${ar}</td></tr>`;
  return `<div class="doc xl" style="font-family:Arial,Helvetica,sans-serif;color:#111;padding:0 0 10px"><div style="height:12px;background:${UP_NAVY}"></div><div style="padding:16px 26px">
  <div style="display:flex;justify-content:space-between;align-items:flex-start"><div style="display:flex;gap:16px;align-items:center">${`<img src="${LOGO}" style="height:30px">`}<div style="text-align:center;font-size:11px;line-height:1.5">MIDU Company Limited<br><span dir="rtl">شركة مايدو المحدودة</span><br>VAT No.: 311764779200003</div></div>
@@ -1403,8 +1405,8 @@ function dnDoc(d){const C=upKey(d.contractor),B=UT_BILL[C]||{n:d.contractor,ar:"
  <div style="display:flex;justify-content:space-between;border-bottom:1px solid ${UP_NAVY};margin-top:16px;font-size:10px;font-weight:700"><span>BILL TO</span><span dir="rtl">تفاصيل العميل</span></div>
  <table style="width:100%;border-collapse:collapse;margin-top:4px">${bt("Company Name",esc(B.n)+(B.ar?` &nbsp;&nbsp;<span dir="rtl">${esc(B.ar)}</span>`:""),"الشركة:")}${bt("Address",esc(B.addr),"العنوان")}${bt("ATTN:","","ملاحظة")}${bt("VAT No.:",esc(B.vat),"رقم الضريبي")}${bt("Contact","","رقم الجوال")}</table>
  <table style="width:100%;border-collapse:collapse;margin-top:14px"><tr><th style="background:${UP_NAVY};color:#fff;text-align:center;padding:8px;font-size:13px;width:52%">DESCRIPTION<div style="font-size:9px" dir="rtl">الصنف</div></th><th style="background:${UP_NAVY};color:#fff;text-align:center;font-size:13px">Amount</th><th style="background:${UP_NAVY};color:#fff;text-align:center;font-size:13px">VAT</th><th style="background:${UP_NAVY};color:#fff;text-align:center;font-size:13px">TOTAL<div style="font-size:9px" dir="rtl">الإجمالي</div></th></tr>${rows}
- <tr><td colspan="4" style="font-size:10px;padding:6px">Note: ${incl?"All prices are VAT included":"Amounts are shown before VAT; VAT 15% is added in the VAT column"}</td></tr></table>
- <table style="margin-left:auto;border-collapse:collapse;font-size:10px;margin-top:6px">${[["SUBTOTAL",n2(sub)],["DISCOUNT","-"],["SUBTOTAL LESS DISCOUNT",n2(sub)],["VAT Rate",incl?"0%":"15%"],["Total VAT",n2(vat)]].map(([a,b])=>`<tr><td style="text-align:right;font-weight:700;padding:3px 10px">${a}</td><td style="text-align:right;padding:3px 6px;min-width:110px;border-bottom:1px solid #D9DEE7">${b}</td></tr>`).join("")}
+ ${d.xl&&d.xlNote===""?"":`<tr><td colspan="4" style="font-size:10px;padding:6px">${d.xl&&d.xlNote?esc(d.xlNote):"Note: "+(incl?"All prices are VAT included":"Amounts are shown before VAT; VAT 15% is added in the VAT column")}</td></tr>`}</table>
+ <table style="margin-left:auto;border-collapse:collapse;font-size:10px;margin-top:6px">${[["SUBTOTAL",n2(sub)],["DISCOUNT","-"],["SUBTOTAL LESS DISCOUNT",n2(sub)],["VAT Rate",incl&&!d.xl?"0%":"15%"],["Total VAT",n2(vat)]].map(([a,b])=>`<tr><td style="text-align:right;font-weight:700;padding:3px 10px">${a}</td><td style="text-align:right;padding:3px 6px;min-width:110px;border-bottom:1px solid #D9DEE7">${b}</td></tr>`).join("")}
  <tr><td></td><td style="text-align:right;font-weight:700;font-size:12px;padding:5px 6px;background:#EEF1F6;border-top:2px solid ${UP_NAVY}">${n2(tot)}</td></tr></table>
  <table style="width:100%;margin-top:34px;font-size:10.5px"><tr><td>Prepared by :<br>Azzam El Masri</td><td>Approved By :<br>Najed Fakhreddine</td><td>Approved By : &nbsp;${esc(B.n==="MIDU Concrete Division"?"Concrete Division":B.n)}<br>&nbsp;</td></tr></table>
  ${d.status?`<div style="font-size:9px;color:#777;margin-top:10px">Status: ${esc(d.status)}${d.period?" · Period "+esc(d.period):""}</div>`:""}</div><div style="height:12px;background:${UP_NAVY};margin-top:20px"></div></div>`;}
@@ -2485,7 +2487,7 @@ function buyerMailScan(){if(typeof LOCAL==="undefined"||!LOCAL.connected||LOCAL.
 const ES_BASEL="Basel Shamma";HUB_MAIL.baselshamma=HUB_MAIL.baselshamma||"b.shamma@midu.com.sa";
 /* Debit notes (back charges to sub-contractors): Prepared (Logistics) → Project Manager → Project Director */
 {const k=esK("dn");if(k)k.steps=iss=>[["PREP","Prepared by (Logistics Manager)",iss],["PM","Reviewed by (Project Manager)",ES_BASEL],["PD","Approved by (Project Director)",ES_NAJED]];}
-{const F=dnDoc;dnDoc=d=>F(d).replace(`<td>Approved By :<br>Najed Fakhreddine</td>`,`<td>Reviewed By :<br>Basel Shamma<br><span style="font-size:9px">Project Manager</span></td><td>Approved By :<br>Najed Fakhreddine</td>`);}
+{const F=dnDoc;dnDoc=d=>d.legacy?F(d):F(d).replace(   /* Update 83: not on the old notes signed before the Project Manager step existed */`<td>Approved By :<br>Najed Fakhreddine</td>`,`<td>Reviewed By :<br>Basel Shamma<br><span style="font-size:9px">Project Manager</span></td><td>Approved By :<br>Najed Fakhreddine</td>`);}
 
 /* ---- Petty cash custody ---- */
 if(typeof COLL_AREA!=="undefined")COLL_AREA.pca="pr";
@@ -4019,6 +4021,46 @@ const docQrAdd=(h,strip)=>{if(!strip)return h;const i=h.lastIndexOf("</div>");re
 {const F=logForm;logForm=d=>{const L=d.lines||[];return docQrAdd(F(d),docQrStrip(d.type,d.no,d.date,L.length+" lines, qty "+L.reduce((a,l)=>a+(+l.qty||0),0)+(d.cancelled?" – CANCELLED":"")));};}
 {const F=ahsForm;ahsForm=(d,...a)=>{const no=d.type==="AHS"?d.no:`AHS-${(d.date||"").replace(/-/g,"")}-${d.no}`;return docQrAdd(F(d,...a),docQrStrip("AHS",no,d.date,(d.party||"")+(d.iqama?" ("+d.iqama+")":"")));};}
 {const F=clearanceHtml;clearanceHtml=(e,...a)=>{const no="CLR-"+today().replace(/-/g,"")+(e.no?"-"+e.no:"");return docQrAdd(F(e,...a),docQrStrip("CLR",no,today(),(e.name||"")+(e.no?" ("+e.no+")":"")));};}
+/* ===================== Update 83: debit notes = the Excel debit notes (Azzam, 28 Nov 2026) =====================
+   Old notes (ASP-MIDU-2026-0001…0014): lines, VAT and signed copy were added to the data from the signed Excel debit notes
+   (d.xl, d.legacy, d.signed = [{n,u,f}]); dnDoc prints them line by line, without the Project Manager added later.
+   New notes: "Create debit note" now reads the month's Excel back-charge file ("Utilities sub-contractors Back charge (Month).xlsx"):
+   one line per sheet of the contractor = cell F40 of that sheet, the same as the Excel debit note. */
+const XLB_ORDER={"Concrete Division":["Diesel","Potable Water","Sewage","Garbage Skip","Concrete Waste Skip","Concrete Vacuum","Concrete Truck Skip","Drinking Water Labors","Ice Cubes","Drinking Water Cartons","Generators Rental"],
+ EMCO:["Diesel","Potable Water","Sewage","Garbage Skip","Drinking Water Labors","Ice Cubes","Drinking Water Cartons","Generators Rental"],
+ MCC:["Diesel","Garbage Skip","Potable Water","Drinking Water Cartons","Sewage","Drinking Water Labors","Ice Cubes","Generators Rental"]};
+const XLB_NAME={Diesel:"Diesel Common Supply","Potable Water":"Potable Water Common Supply",Sewage:"Sewage Common Vaccum","Garbage Skip":"Garbage Waste Skip","Concrete Waste Skip":"Concrete Waste Skip","Concrete Vacuum":"Concrete Vacuum Skip","Concrete Truck Skip":"Concrete Truck Skip","Drinking Water Labors":"Labor Drinking Water","Ice Cubes":"Ice Cubes","Drinking Water Cartons":"Drinking Water Cartons"};
+const XLB_MCC={Diesel:"Diesel Common supply for ASP","Garbage Skip":"Garbage Waste Skips","Potable Water":"Potable water","Drinking Water Cartons":"Drinking water boxes",Sewage:"Sewage Vacuum"};
+const XLB_KEY={"Concrete Division":"Concrete",EMCO:"EMCO",MCC:"MCC"};
+function xlbLines(wb,c,m){if(!/^\d{4}-\d{2}$/.test(m||""))return {lines:[],warn:[tr("Pick the month first.","اختر الشهر أولاً.")]};const key=XLB_KEY[c]||c,mon=monthName(m),cv=(ws,a)=>ws&&ws[a]?ws[a].v:undefined,out=[],warn=[];
+ const dsh=wb.Sheets["Diesel "+key];const head=String(cv(dsh,"C6")||"");
+ if(head&&!head.toLowerCase().replace(/[^a-z0-9]/g,"").startsWith(mon.toLowerCase().replace(/[^a-z0-9]/g,"")))warn.push(tr("This file is for","هذا الملف لشهر")+" "+head.split("(")[0].trim()+", "+tr("not","وليس")+" "+mon);
+ (XLB_ORDER[c]||[]).forEach(p=>{const ws=wb.Sheets[p+" "+key]||(key==="Concrete"?wb.Sheets[p]:null);if(!ws)return;const amt=+cv(ws,"F40")||0;if(Math.abs(amt)<0.005)return;
+  let desc;if(p==="Generators Rental"){const n=(String(cv(ws,"C3")||"").split("–")[1]||"").trim(),per=String(cv(ws,"C6")||"").split("(")[0].trim().replace(/\s+[–-]\s+/," to ");desc="Generators Rental Charges"+(n?" – "+n:"")+(per?" ("+per+")":" ("+mon+")");}
+  else desc=((key==="MCC"&&XLB_MCC[p])||XLB_NAME[p]||p)+" ("+mon+")";
+  out.push({p,desc,gross:Math.round(amt*100)/100});});
+ return {lines:out,warn};}
+/* Concrete Division (MIDU's own division): amounts are VAT included, VAT 0. EMCO / MCC: Excel amount ÷ 1.15 before VAT + VAT 15 % (as the November Excel debit notes) */
+function xlbDn(c,m,x,fname){const incl=c==="Concrete Division";const lines=x.lines.map(l=>{const a=incl?l.gross:Math.round(l.gross/1.15*100)/100;return {type:l.desc,qty:1,unit:"lot",rate:a,vat:incl?0:Math.round((l.gross-a)*100)/100};});
+ const sub=r2(lines.reduce((a,l)=>a+l.rate,0)),vat=r2(lines.reduce((a,l)=>a+l.vat,0));
+ return {no:seqNo("ASP-MIDU-2026-",D.dns.map(d=>d.no)),contractor:c,period:m,date:today(),sub,vat,status:"Draft",paid:0,auto:true,xl:true,type:"Utilities",lines,
+  xlNote:incl?"Note: All prices are VAT included":"Note: Amounts are shown before VAT; VAT 15% is added in the VAT column",src:fname||""};}
+{const V=VIEWS.utBC;VIEWS.utBC=()=>V()+`<style>#bMake{display:none}</style><div class="card" id="xlbCard"><h2>${tr("Create the debit note from the Excel back-charge file","إنشاء إشعار المدين من ملف إعادة الفوترة (Excel)")}</h2>
+ <p class="hint">${tr("Pick the month's file “Utilities sub-contractors Back charge (Month).xlsx” (Finance › Utilities Contractor Invoice › month). Each line of the debit note = the contractor's sheet total (cell F40), exactly as the Excel debit note.","اختر ملف الشهر «Utilities sub-contractors Back charge (Month).xlsx» (Finance › Utilities Contractor Invoice). كل سطر = إجمالي ورقة المقاول (الخلية F40) كما في إشعار المدين في Excel.")}</p>
+ <div class="fg"><div class="f w2"><label>${tr("Excel back-charge file","ملف إعادة الفوترة")}</label><input type="file" id="xlbF" accept=".xlsx,.xlsm"></div></div><div id="xlbOut"></div></div>`;}
+{const B=BIND.utBC;BIND.utBC=()=>{B();let WB=null,FN="";const out=$("#xlbOut"),f=$("#xlbF");if(!out||!f)return;
+ const draw=()=>{if(!WB){out.innerHTML="";return;}const m=$("#bM").value,c=$("#bC").value,x=xlbLines(WB,c,m),dn=xlbDn(c,m,x,FN),exists=D.dns.find(d=>d.contractor===c&&d.period===m&&d.auto&&!d.cancelled);
+  out.innerHTML=`${x.warn.length?`<div class="msg err" style="display:flex">⚠ ${esc(x.warn.join(" · "))}</div>`:""}<table class="t"><tr><th>${tr("Description","الوصف")}</th><th class="num">${tr("Amount","المبلغ")}</th><th class="num">VAT</th><th class="num">${tr("Total","الإجمالي")}</th></tr>
+  ${dn.lines.map(l=>`<tr><td class="en">${esc(l.type)}</td><td class="num">${money(l.rate)}</td><td class="num">${money(l.vat)}</td><td class="num">${money(l.rate+l.vat)}</td></tr>`).join("")||`<tr><td colspan="4">${tr("No amounts for this contractor in the file.","لا توجد مبالغ لهذا المقاول في الملف.")}</td></tr>`}
+  <tr class="tot"><td>${tr("Total","الإجمالي")}</td><td class="num">${money(dn.sub)}</td><td class="num">${money(dn.vat)}</td><td class="num">${money(dn.sub+dn.vat)}</td></tr></table>
+  <div class="btns"><span class="hint en">${esc(FN)}</span><span style="flex:1"></span>${exists?tag(tr("Debit note already created","تم إنشاء إشعار المدين")+": "+exists.no,"g"):`<button class="b" style="background:#0E7490" id="xlbMake" ${dn.lines.length&&!x.warn.length?"":"disabled"}>${tr("Create debit note","إنشاء إشعار مدين")} ${esc(dn.no)}</button>`}</div>`;
+  const mk=$("#xlbMake");if(mk)mk.onclick=()=>{const d=xlbDn(c,m,xlbLines(WB,c,m),FN);if(!confirm(tr("Create debit note ","إنشاء إشعار المدين ")+d.no+" – "+c+" – "+monthName(m)+": "+money(d.sub+d.vat)+" SAR?"))return;
+   D.dns.push(d);persist();toast("✔ "+tr("Debit note created","تم إنشاء إشعار المدين")+": "+d.no);draw();openDoc(dnDoc(d));};};
+ f.onchange=async()=>{const file=f.files[0];if(!file)return;try{WB=XLSX.read(await file.arrayBuffer(),{type:"array"});FN=file.name;draw();}catch(e){WB=null;out.innerHTML=`<div class="msg err" style="display:flex">${esc(e.message)}</div>`;}};
+ ["#bM","#bC"].forEach(s=>{const el=$(s);if(el)el.addEventListener("change",draw);});};}
+/* signed copies of the old debit notes: link in the master register */
+{const V=VIEWS.utReg;VIEWS.utReg=()=>{let h=V();(D.dns||[]).forEach(d=>{if(!d.signed||!d.signed.length)return;const a=d.signed.filter(s=>/^https:\/\/[a-z0-9-]+\.sharepoint\.com\//i.test(s.u||"")).map(s=>`<a class="b l sm" style="text-decoration:none" href="${esc(s.u)}" target="_blank" rel="noopener" title="${esc(s.f||"")}">📎 ${esc(s.n||tr("Signed copy","النسخة الموقعة"))}</a>`).join(" ");
+ const k='data-doc="'+d.no+'">',i=h.indexOf(k);if(!a||i<0)return;const j=h.indexOf("</button>",i);if(j<0)return;h=h.slice(0,j+9)+" "+a+h.slice(j+9);});return h;};}
 </script>
 </body>
 </html>
