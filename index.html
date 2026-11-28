@@ -4488,6 +4488,10 @@ itemThumbFor=function(inp){const code=itemCodeFromInput(inp);let t=inp._ithumb;
   t.style.cssText="width:38px;height:38px;object-fit:contain;border:1px solid #D5DCE8;border-radius:6px;background:#fff;vertical-align:middle;margin-inline-end:6px;cursor:zoom-in";
   inp.parentNode.insertBefore(t,inp);inp._ithumb=t;inp.style.width="calc(100% - 48px)";t.onclick=()=>itemPhotoShow(t.dataset.code);}
  t.dataset.code=code;t.style.visibility="hidden";itemPhotoUrl(code).then(u=>{if(t.dataset.code!==code)return;if(u){t.src=u;t.style.visibility="visible";}else{t.remove();inp._ithumb=null;inp.style.width="";}});};
+/* ===================== Update 99: payments recorded from Finance's bank receipts are not payment vouchers to sign (Azzam, 28 Nov 2026) =====================
+   Supplier payments already made by Finance and recorded from the transfer receipt (invs with legacy:true) stay out of the
+   e-signature lists ("Saved before e-signatures" / Send all); they still show as Paid on the Finance screen and in the PO use. */
+{const k=typeof esK==="function"?esK("pv"):null;if(k){const A=k.applies;k.applies=o=>A(o)&&!(o&&o.legacy);}}
 </script>
 </body>
 </html>
