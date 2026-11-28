@@ -2041,7 +2041,7 @@ BIND.users=()=>{USERS_B0();if(typeof LOCAL==="undefined"||!LOCAL.connected)retur
 /* start */
 const h0=(location.hash||"").slice(1);if(VIEWS[h0])view=h0;
 window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(VIEWS[h]&&h!==view){view=h;drawNav();render();}});
-if(M365.configured()&&(window.msal&&Object.keys(localStorage).some(k=>/login\.windows\.net|login\.microsoftonline|msal/i.test(k))))$("#main").innerHTML=`<div class="empty">⟳ ${tr("Signing in…","جارٍ تسجيل الدخول…")}</div>`;else applyLang();
+if(M365.configured()&&(window.msal&&Object.keys(localStorage).some(k=>/login\.windows\.net|login\.microsoftonline|msal/i.test(k))))$("#main").innerHTML=`<div class="empty">⟳ ${tr("Signing in…","جارٍ تسجيل الدخول…")}</div>`;else setTimeout(applyLang,0);   /* Update 82: first draw after the whole script has loaded (CAPEX/OPEX code below was not ready yet → cxSel error) */
 function startData(run){GAS=run;D=emptyD();$("#refresh").style.display="inline-block";$("#refresh").onclick=()=>loadServer(()=>render());
  drawAcct();drawNav();$("#main").innerHTML=`<div class="empty">⟳ ${tr("Loading data…","جارٍ تحميل البيانات…")}</div>`;
  loadServer(()=>{applyLang();if(M365.can("att")&&!MISSING.includes("Attendance Punches"))GAS.withSuccessHandler(r=>{if(r.imported)toast("✔ "+r.imported+" "+tr("new attendance punches imported","بصمة حضور جديدة تم استيرادها"));if(view==="att")render();}).withFailureHandler(()=>{}).importAttendance();});}
