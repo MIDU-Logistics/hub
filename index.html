@@ -17,9 +17,8 @@
 <script src="vendor/jspdf.umd.min.js" defer></script>
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
-<script src="vendor/midu-stamps.js" defer></script>
-<script src="m365.js?v=202611261200"></script>
-<script src="local.js?v=202611271200"></script>
+<script src="m365.js?v=202611281000"></script>
+<script src="local.js?v=202611281000"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -4001,6 +4000,25 @@ function poRevDlg(p){const inv=(D.invs||[]).filter(v=>v.po===p.no).reduce((a,v)=
  return h.slice(0,j)+card+h.slice(j);};}
 /* invoice form: a PO with a supplier not VAT registered proposes VAT 0 */
 {const B=BIND.costs;if(B)BIND.costs=()=>{B();const po=$("#ivPo"),v=$("#ivV");if(!po||!v)return;po.addEventListener("change",()=>{const p=D.pos.find(x=>x.no===po.value);if(p&&p.noVat){v.value="0";v.dispatchEvent(new Event("input",{bubbles:true}));}else if(v.value==="0"){v.value="";v.dispatchEvent(new Event("input",{bubbles:true}));}});};}
+/* ===================== Update 81: company stamps out of the public code + QR with the document number (Azzam, 28 Nov 2026) =====================
+   Pilot readiness review (Turki, 26 Nov 2026), weakness 1: the stamp images were in vendor/midu-stamps.js on the public GitHub repository.
+   They now live only in the shared data: MIDU Hub Data › 00 System › _data › stamps.json (folder mode) or
+   <docRoot>/00 System/stamps.json in SharePoint (Microsoft 365 mode), and are loaded at sign-in by local.js / m365.js.
+   Without that file (demo, or a person the folder is not shared with) the stamp box prints empty, to be stamped by hand.
+   stamps.json = {"v":1,"received":"data:image/png;base64,…","dispatched":"…","handed":"…","cleared":"…"} */
+window.STAMP_RECEIVED=window.STAMP_DISPATCHED=window.STAMP_HANDED=window.STAMP_CLEARED="";
+function hubSetStamps(j){if(!j||typeof j!=="object")return;const ok=v=>typeof v==="string"&&/^data:image\/(png|jpeg);base64,/.test(v)?v:"";
+ window.STAMP_RECEIVED=ok(j.received);window.STAMP_DISPATCHED=ok(j.dispatched);window.STAMP_HANDED=ok(j.handed);window.STAMP_CLEARED=ok(j.cleared);}
+/* QR with the document number on every stamped document, so a copied stamp on a forged paper can be checked against the Hub */
+function docQrSvg(text,px){try{if(typeof qrcode!=="function")return "";const m=lbQr(text),n=m.length,q=2,s=n+q*2;let r="";
+ m.forEach((row,y)=>row.forEach((dk,x)=>{if(dk)r+=`M${x+q} ${y+q}h1v1h-1z`;}));
+ return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s} ${s}" width="${px}" height="${px}" shape-rendering="crispEdges"><rect width="${s}" height="${s}" fill="#fff"/><path d="${r}" fill="#000"/></svg>`;}catch(e){return "";}}
+function docQrStrip(type,no,date,extra){const id=String(no||"").startsWith(type)?String(no):type+" "+no;const t=["MIDU-Team Hub",id,date,extra].filter(Boolean).join(" | ");const svg=docQrSvg(t,64);if(!svg)return "";
+ return `<div style="display:flex;align-items:center;gap:10px;margin-top:8px;border-top:1px dashed #8A94A6;padding-top:6px;font-size:9px;color:#555">${svg}<div><b style="color:#111">${esc(id)}</b> · ${esc(date||"")}${extra?" · "+esc(extra):""}<br>Scan to read the document number, then check it in MIDU-Team Hub. A stamp without a matching Hub record is not valid.</div></div>`;}
+const docQrAdd=(h,strip)=>{if(!strip)return h;const i=h.lastIndexOf("</div>");return i<0?h+strip:h.slice(0,i)+strip+h.slice(i);};
+{const F=logForm;logForm=d=>{const L=d.lines||[];return docQrAdd(F(d),docQrStrip(d.type,d.no,d.date,L.length+" lines, qty "+L.reduce((a,l)=>a+(+l.qty||0),0)+(d.cancelled?" – CANCELLED":"")));};}
+{const F=ahsForm;ahsForm=(d,...a)=>{const no=d.type==="AHS"?d.no:`AHS-${(d.date||"").replace(/-/g,"")}-${d.no}`;return docQrAdd(F(d,...a),docQrStrip("AHS",no,d.date,(d.party||"")+(d.iqama?" ("+d.iqama+")":"")));};}
+{const F=clearanceHtml;clearanceHtml=(e,...a)=>{const no="CLR-"+today().replace(/-/g,"")+(e.no?"-"+e.no:"");return docQrAdd(F(e,...a),docQrStrip("CLR",no,today(),(e.name||"")+(e.no?" ("+e.no+")":"")));};}
 </script>
 </body>
 </html>

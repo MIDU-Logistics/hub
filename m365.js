@@ -321,6 +321,11 @@ async function getAll() {
   const got = await pool(names, 4, n => listItems(n));
   names.forEach((n, i) => out[n] = got[i]);
   out._missing = M365.missing.slice();
+  /* Company stamps: read from <docRoot>/00 System/stamps.json in SharePoint, never from the public code – Update 81 */
+  try {
+    const r = await M365.graph("GET", "/sites/" + M365.siteId + "/drive/root:/" + encPath(M365_CONFIG.docRoot + "/00 System/stamps.json") + ":/content", undefined, { raw: true });
+    if (typeof hubSetStamps === "function") hubSetStamps(JSON.parse(await r.text()));
+  } catch (e) { console.warn("stamps", e); }
   return out;
 }
 

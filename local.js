@@ -260,6 +260,8 @@ async function localGetAll() {
   const sysDir = dirs.sys;
   const ch = await readJson(sysDir, "choices.json");
   try { window.WHREF = await readJson(sysDir, "whref.json"); } catch (e) { window.WHREF = null; }
+  /* Company stamps live only in the shared folder (00 System/_data/stamps.json), never in the public code – Update 81 */
+  try { if (typeof hubSetStamps === "function") hubSetStamps(await readJson(sysDir, "stamps.json")); } catch (e) { console.warn("stamps", e); }
   M365.choices = (ch && ch.choices) || {};
   const out = {}; let merged = 0;
   for (const n of LOCAL_COLLS) {
