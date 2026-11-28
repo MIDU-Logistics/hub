@@ -18,7 +18,7 @@
 <script src="vendor/qrcode.js" defer></script>
 <script src="vendor/midu-label-logo.js" defer></script>
 <script src="m365.js?v=202611281800"></script>
-<script src="local.js?v=202611281800"></script>
+<script src="local.js?v=202611282000"></script>
 <style>
 :root{--navy:#1B273D;--navy2:#2C3B57;--blue:#2F6FDE;--green:#1E9E6A;--amber:#D9961A;--red:#D2463C;--teal:#138A8A;--plum:#714B67;--ink:#1E2433;--muted:#5B6476;--line:#DDE2EA;--soft:#F2F4F8;--soft2:#E9EDF4;--bg:#F6F7FA}
 *{box-sizing:border-box}
@@ -861,7 +861,7 @@ const rateTxt=r=>String(+(+r).toFixed(4));
 function bcLines(m,c){const rows=D.ut.filter(u=>u.date.startsWith(m)&&shareOf(u,c)>0);
  return [...new Set(rows.map(u=>u.type))].map(t=>{const rt=utRate(t),q=Math.round(rows.filter(u=>u.type===t).reduce((a,u)=>a+u.qty*shareOf(u,c),0)*1000)/1000;return {type:t,unit:rt.unit||(rows.find(u=>u.type===t)||{}).unit||"",qty:q,rate:rt.rate};}).filter(l=>l.qty>0).sort((a,b)=>utCats().indexOf(a.type)-utCats().indexOf(b.type));}
 VIEWS.utBC=()=>head(tr("Back charge & debit notes","إعادة الفوترة وإشعارات المدين"),tr("Pick month and contractor: each line = the readings × the contractor's share of each item × the rate. Create the debit note in one click.","اختر الشهر والمقاول: كل سطر = القراءات × حصة المقاول من كل بند × السعر. أنشئ إشعار المدين بضغطة واحدة."))+utFlow("utBC")+msgBox+
- `<div class="card"><div class="fg">${sel("bM",tr("Month","الشهر"),utMonths())}${sel("bC",tr("Contractor","المقاول"),CONTR)}${fld("bNo",tr("Next debit note No.","رقم إشعار المدين التالي"),{ro:true,val:seqNo("ASP-MIDU-2026-",D.dns.map(d=>d.no))})}</div></div><div id="bOut"></div>`;
+ `<div class="card"><div class="fg">${sel("bM",tr("Month","الشهر"),utMonths())}${sel("bC",tr("Contractor","المقاول"),CONTR)}${fld("bNo",tr("Next debit note No.","رقم إشعار المدين التالي"),{ro:true,val:seqNo(dnPrefix(),D.dns.map(d=>d.no))})}</div></div><div id="bOut"></div>`;
 BIND.utBC=()=>{const draw=()=>{const m=$("#bM").value,c=$("#bC").value,lines=bcLines(m,c);
   const sub=lines.reduce((a,l)=>a+l.qty*l.rate,0),exists=D.dns.find(d=>d.contractor===c&&d.period===m&&d.auto);
   const unset=D.ut.filter(u=>u.date.startsWith(m)&&!isSet(u)),unsetIt=[...new Set(unset.map(u=>u.item))];
@@ -874,7 +874,7 @@ BIND.utBC=()=>{const draw=()=>{const m=$("#bM").value,c=$("#bC").value,lines=bcL
     return {name:cc,st,rows:[["Description","Unit","Qty","Rate (SAR)","Amount (SAR)"],...ln,["Subtotal","","","",st],["VAT 15%","","","",r2(st*.15)],["Total","","","",r2(st*1.15)]]};});
    const summ={name:"Summary",rows:[["Contractor","Subtotal (SAR)","VAT 15%","Total (SAR)"],...all.map(a=>[a.name,a.st,r2(a.st*.15),r2(a.st*1.15)])]};
    GAS.withSuccessHandler(r=>{ex.disabled=false;msg("ok",`✔ <a href="${r.url}" target="_blank">${esc(r.name)}</a>`);}).withFailureHandler(e=>{ex.disabled=false;msg("err",e.message);}).exportSheets("02 Utilities/04 Back Charge Files/"+m,"Utilities sub-contractors Back charge ("+monthName(m)+")",[summ,...all]);};
-  const bp=$("#bPrint");if(bp)bp.onclick=()=>openModal(c+" – "+m,bcPackHtml(m,c),"Back charge "+upShort(c)+" ("+upMon(m)+")");const mk=$("#bMake");if(mk)mk.onclick=()=>{const dn={no:seqNo("ASP-MIDU-2026-",D.dns.map(d=>d.no)),contractor:c,period:m,date:today(),sub:Math.round(sub*100)/100,status:"Draft",paid:0,auto:true,type:"Utilities",lines:lines.map(l=>({type:`${l.type} (${monthName(m)})`,qty:l.qty,unit:l.unit,rate:l.rate}))};D.dns.push(dn);persist();render();$("#bM").value=m;$("#bC").value=c;draw();msg("ok",`✔ ${tr("Debit note created","تم إنشاء إشعار المدين")}: <b class="en">${dn.no}</b> <button class="b sm" id="pr">${tr("Print preview","معاينة الطباعة")}</button>`);$("#pr").onclick=()=>openDoc(dnDoc(dn));};};
+  const bp=$("#bPrint");if(bp)bp.onclick=()=>openModal(c+" – "+m,bcPackHtml(m,c),"Back charge "+upShort(c)+" ("+upMon(m)+")");const mk=$("#bMake");if(mk)mk.onclick=()=>{const dn={no:seqNo(dnPrefix(),D.dns.map(d=>d.no)),contractor:c,period:m,date:today(),sub:Math.round(sub*100)/100,status:"Draft",paid:0,auto:true,type:"Utilities",lines:lines.map(l=>({type:`${l.type} (${monthName(m)})`,qty:l.qty,unit:l.unit,rate:l.rate}))};D.dns.push(dn);persist();render();$("#bM").value=m;$("#bC").value=c;draw();msg("ok",`✔ ${tr("Debit note created","تم إنشاء إشعار المدين")}: <b class="en">${dn.no}</b> <button class="b sm" id="pr">${tr("Print preview","معاينة الطباعة")}</button>`);$("#pr").onclick=()=>openDoc(dnDoc(dn));};};
  $("#bM").onchange=draw;$("#bC").onchange=draw;draw();};
 const monthName=m=>new Date(m+"-01T00:00").toLocaleString("en-US",{month:"long",year:"numeric"});
 const DNST=["Draft","Submitted","Signed by contractor","Received by Finance","Paid"];
@@ -3029,7 +3029,7 @@ const MS_LINK=OWL("AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAA
  BIND.utReg=()=>{B0&&B0();const b=$("#msMake");if(!b)return;b.onclick=()=>{
   const lines=MS_ITEMS.map(x=>({type:x[0],qty:1,unit:"lot",rate:x[1]}));let sub=MS_ITEMS.reduce((a,x)=>a+x[1],0),vat=MS_ITEMS.reduce((a,x)=>a+x[2],0);
   if(!confirm(tr("Create the debit note to MIDU Steel for ","إنشاء إشعار مدين على MIDU Steel بمبلغ ")+money(sub+vat)+" SAR?"))return;
-  D.dns.push({no:seqNo("ASP-MIDU-2026-",D.dns.map(d=>d.no)),contractor:"MIDU Steel",cc:"ASP-STL",period:"2026-10",date:today(),sub:r2(sub),vat:r2(vat),status:"Draft",paid:0,auto:false,type:"Furniture & equipment",lines});
+  D.dns.push({no:seqNo(dnPrefix(),D.dns.map(d=>d.no)),contractor:"MIDU Steel",cc:"ASP-STL",period:"2026-10",date:today(),sub:r2(sub),vat:r2(vat),status:"Draft",paid:0,auto:false,type:"Furniture & equipment",lines});
   persist();render();toast("✔ "+tr("Debit note created","تم إنشاء إشعار المدين"));};};}
 /* Gheil electrical panels in CAPEX & OPEX */
 const GH_LINK=OWL("AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAAAB2Tsf0ZED2R4L6CT9ilR8%2BBwBOnLmPnoVuTpI4fvk7QZoJAAAbgjr0AABOnLmPnoVuTpI4fvk7QZoJAAAbgmjGAAA%3D"),GH_LINK2=OWL("AAMkADczNGU4MTlmLThlMGItNDRlYS1hNmViLTNlZGJiZWY5Y2M0YgBGAAAAAAB2Tsf0ZED2R4L6CT9ilR8%2BBwBOnLmPnoVuTpI4fvk7QZoJAAAbgjr0AABOnLmPnoVuTpI4fvk7QZoJAAAbgmjEAAA%3D");
@@ -4044,7 +4044,7 @@ function xlbLines(wb,c,m){if(!/^\d{4}-\d{2}$/.test(m||""))return {lines:[],warn:
 /* Concrete Division (MIDU's own division): amounts are VAT included, VAT 0. EMCO / MCC: Excel amount ÷ 1.15 before VAT + VAT 15 % (as the November Excel debit notes) */
 function xlbDn(c,m,x,fname){const incl=c==="Concrete Division";const lines=x.lines.map(l=>{const a=incl?l.gross:Math.round(l.gross/1.15*100)/100;return Object.assign({type:l.desc,qty:1,unit:"lot",rate:a,vat:incl?0:Math.round((l.gross-a)*100)/100},l.pct!==null&&l.pct!==undefined?{pct:l.pct}:{});});
  const sub=r2(lines.reduce((a,l)=>a+l.rate,0)),vat=r2(lines.reduce((a,l)=>a+l.vat,0));
- return {no:seqNo("ASP-MIDU-2026-",D.dns.map(d=>d.no)),contractor:c,period:m,date:today(),sub,vat,status:"Draft",paid:0,auto:true,xl:true,type:"Utilities",lines,summary:"Utilities back charge – "+monthName(m)+(x.lines.some(l=>l.p==="Generators Rental")?" (incl. generators rental)":""),
+ return {no:seqNo(dnPrefix(),D.dns.map(d=>d.no)),contractor:c,period:m,date:today(),sub,vat,status:"Draft",paid:0,auto:true,xl:true,type:"Utilities",lines,summary:"Utilities back charge – "+monthName(m)+(x.lines.some(l=>l.p==="Generators Rental")?" (incl. generators rental)":""),
   xlNote:incl?"Note: All prices are VAT included":"Note: Amounts are shown before VAT; VAT 15% is added in the VAT column",src:fname||""};}
 {const V=VIEWS.utBC;VIEWS.utBC=()=>V()+`<style>#bMake{display:none}</style><div class="card" id="xlbCard"><h2>${tr("Create the debit note from the Excel back-charge file","إنشاء إشعار المدين من ملف إعادة الفوترة (Excel)")}</h2>
  <p class="hint">${tr("Pick the month's file “Utilities sub-contractors Back charge (Month).xlsx” (Finance › Utilities Contractor Invoice › month). Each line of the debit note = the contractor's sheet total (cell F40), exactly as the Excel debit note.","اختر ملف الشهر «Utilities sub-contractors Back charge (Month).xlsx» (Finance › Utilities Contractor Invoice). كل سطر = إجمالي ورقة المقاول (الخلية F40) كما في إشعار المدين في Excel.")}</p>
@@ -4201,7 +4201,8 @@ function bciDoc(o){const C=upKey(o.contractor),B=UT_BILL[C]||{n:o.contractor,ar:
  <div style="font-size:9.5px;color:#555;margin-top:5px">${o.contractor==="Concrete Division"?"All prices are VAT included.":"Amounts before VAT; VAT 15% shown separately."} Quantities and daily details: monthly back-charge file${o.src?" “"+esc(o.src)+"”":""}. The debit note is issued after this back charge is signed by the sub-contractor.</div>
  ${esPanel(bciK(),o)}${csT}${typeof docQrStrip==="function"?docQrStrip("BCI",o.no,o.date,o.contractor+" "+monthName(o.period)):""}</div>`;return html;}
 function bciMake(c,m){const W=window.XLB_WB;if(!W)return msg("err",tr("Pick the month's Excel back-charge file first (card below).","اختر ملف إعادة الفوترة للشهر أولاً."));const x=xlbLines(W,c,m);if(x.warn.length)return msg("err",esc(x.warn.join(" · ")));if(!x.lines.length)return msg("err",tr("No amounts for this contractor in the file.","لا توجد مبالغ لهذا المقاول."));
- const no=bciNo(c,m);if((D.bcs||[]).some(b=>b.no===no&&!b.cancelled))return msg("err",no+" "+tr("already exists.","موجود مسبقاً."));
+ const base=bciNo(c,m);if((D.bcs||[]).some(b=>b.contractor===c&&b.period===m&&!b.cancelled))return msg("err",base+" "+tr("already exists.","موجود مسبقاً."));
+ let no=base,rv=2;while((D.bcs||[]).some(b=>b.no===no))no=base+"-R"+(rv++);   /* a cancelled one keeps its number; the new one is -R2, -R3 … */
  const d=xlbDn(c,m,x,window.XLB_FN);D.bcs=D.bcs||[];D.bcs.push({no,contractor:c,period:m,date:today(),lines:d.lines,sub:d.sub,vat:d.vat,summary:d.summary,src:window.XLB_FN||"",by:apMe()});persist();toast("✔ "+no);bciDraw();}
 function bciDraw(){const out=$("#bciOut");if(!out)return;const m=($("#bM")||{}).value||"";const k=bciK();
  const rows=CONTR.map(c=>{const o=(D.bcs||[]).find(b=>b.contractor===c&&b.period===m&&!b.cancelled);
@@ -4228,7 +4229,7 @@ const AREAS_UT_SIGNED=m=>(typeof AREAS!=="undefined"?AREAS.ut:"02 Utilities")+"/
 const DN_SIGNED_DIR=m=>(typeof AREAS!=="undefined"?AREAS.ut:"02 Utilities")+"/06 Signed debit notes/"+m;
 const dnOfBci=o=>(D.dns||[]).find(d=>!d.cancelled&&d.bci===o.no)||(D.dns||[]).find(d=>!d.cancelled&&!d.bci&&d.contractor===o.contractor&&d.period===o.period&&d.auto);
 function dnFromBci(o){if(!bciSigned(o))return msg("err",tr("Attach the back-charge signed by the sub-contractor first.","أرفق إعادة الفوترة الموقعة من المقاول أولاً."));if(dnOfBci(o))return msg("err",tr("A debit note already exists for this back-charge.","يوجد إشعار مدين لهذه الفاتورة."));
- const incl=o.contractor==="Concrete Division",d={no:seqNo("ASP-MIDU-2026-",D.dns.map(x=>x.no)),contractor:o.contractor,period:o.period,date:today(),sub:+o.sub||0,vat:+o.vat||0,status:"Draft",paid:0,auto:true,xl:true,type:"Utilities",
+ const incl=o.contractor==="Concrete Division",d={no:seqNo(dnPrefix(),D.dns.map(x=>x.no)),contractor:o.contractor,period:o.period,date:today(),sub:+o.sub||0,vat:+o.vat||0,status:"Draft",paid:0,auto:true,xl:true,type:"Utilities",
   lines:(o.lines||[]).map(l=>Object.assign({},l)),xlNote:incl?"Note: All prices are VAT included":"Note: Amounts are shown before VAT; VAT 15% is added in the VAT column",summary:o.summary||("Utilities back charge – "+monthName(o.period)),src:o.src||"",bci:o.no};
  if(!confirm(tr("Create debit note ","إنشاء إشعار المدين ")+d.no+" – "+d.contractor+" – "+monthName(d.period)+": "+money(d.sub+d.vat)+" SAR?"))return;
  D.dns.push(d);persist();toast("✔ "+tr("Debit note created","تم إنشاء إشعار المدين")+": "+d.no);bciDraw();}
@@ -4291,6 +4292,36 @@ function finSend(d){if(!dnCanSend(d))return;const to=finTo(),info=finInfo(),miss
  out.querySelectorAll("[data-finsend]").forEach(b=>b.onclick=()=>{finSend(D.dns[+b.dataset.finsend]);bciDraw();});};}
 {const V=VIEWS.utReg;VIEWS.utReg=()=>{let h=V();(D.dns||[]).forEach((d,i)=>{if(!dnCanSend(d))return;const k='data-doc="'+d.no+'">',j=h.indexOf(k);if(j<0)return;const e=h.indexOf("</button>",j);if(e<0)return;h=h.slice(0,e+9)+` <button class="b sm" style="background:#7C3AED;color:#fff" data-finsend="${i}">📤 ${tr("Send to Finance","إرسال إلى المالية")}</button>`+h.slice(e+9);});return h;};}
 {const B=BIND.utReg;BIND.utReg=()=>{B&&B();document.querySelectorAll("#main [data-finsend]").forEach(b=>b.onclick=()=>finSend(D.dns[+b.dataset.finsend]));};}
+/* ===================== Update 94: back-charge cycle – checks and finishing (Azzam, 28 Nov 2026) =====================
+   - debit note numbers follow the year of issue (ASP-MIDU-2027-0001 from January 2027)
+   - QR with the debit note number on the printed debit note
+   - check of each back-charge invoice against the Hub's own daily readings (warning when they differ by more than 5 %)
+   - a back-charge invoice not yet signed by the sub-contractor (and without a debit note) can be cancelled by the admin and created again
+   - reminders on the home page for steps waiting more than 3 days */
+function dnPrefix(){return "ASP-MIDU-"+today().slice(0,4)+"-";}
+{const F=dnDoc;dnDoc=d=>{const h=F(d);if(typeof docQrStrip!=="function"||!d||!d.no)return h;const L=d.lines||[];return docQrAdd(h,docQrStrip("DN",d.no,d.date,d.contractor+" | "+money(dnTotal(d))+" SAR"+(d.bci?" | "+d.bci:"")));};}
+/* back charge of one contractor for a month from the Hub readings (utilities + generator rental), same basis as the Excel file */
+function bcHubCalc(m,c){let a=0;try{rcBcRows(m).forEach(o=>a+=(o.cq[c]||0)*(o.bc||0));grRows(m).forEach(g=>a+=(g.bc&&g.bc[c])||0);}catch(e){return null;}return r2(a);}
+{const B0=bciDraw;bciDraw=function(){B0();const out=$("#bciOut");if(!out)return;const m=($("#bM")||{}).value||"",adm=typeof whIsAdmin==="function"&&whIsAdmin();
+ const tb=out.querySelector("table.t");if(!tb)return;
+ CONTR.forEach(c=>{const o=(D.bcs||[]).find(b=>b.contractor===c&&b.period===m&&!b.cancelled);if(!o)return;const row=[...tb.querySelectorAll("tr")].find(tr=>tr.innerText.includes(o.no));if(!row)return;const td=row.children[1];
+  const x=(+o.sub||0)+(+o.vat||0),hc=bcHubCalc(m,c);if(hc&&x){const df=(x-hc)/hc;const d=document.createElement("div");d.className="hint";d.style.cssText=Math.abs(df)>0.05?"color:#B45309;font-weight:700":"color:#15803D";
+   d.title=tr("Excel back-charge file compared with the Hub's daily readings for the same month","ملف Excel مقارنة بقراءات المنصة لنفس الشهر");d.textContent=(Math.abs(df)>0.05?"⚠ ":"✔ ")+tr("Hub readings","قراءات المنصة")+": "+money(hc)+" ("+(df>0?"+":"")+Math.round(df*100)+"%)";td.appendChild(d);}
+  if(adm&&!o.att&&!dnOfBci(o)){const cell=row.lastElementChild,b=document.createElement("button");b.className="b r sm";b.style.marginLeft="4px";b.textContent="✕ "+tr("Cancel","إلغاء");
+   b.onclick=()=>{const why=prompt(tr("Cancel ","إلغاء ")+o.no+"? "+tr("Reason (it can then be created again from the corrected Excel file):","السبب (يمكن إنشاؤها مجدداً من ملف Excel المصحح):"));if(!why)return;o.cancelled={at:today(),by:apMe(),reason:why};persist();bciDraw();toast("✔ "+tr("Cancelled","أُلغيت"));};cell.appendChild(b);}});};}
+/* reminders: back-charge steps waiting more than 3 days */
+function bcReminders(){const out=[],k1=esK("bci"),k2=esK("dn"),age=d=>d?Math.floor((Date.now()-new Date(d).getTime())/864e5):0,last=(k,o)=>{const R=esR(k,o);const a=((R&&R.ap)||[]).map(x=>x.at).sort().pop();return a||(R&&R.sent&&R.sent.at)||o.date;};
+ (D.bcs||[]).filter(o=>!o.cancelled).forEach(o=>{if(!esR(k1,o))return;const n=esNext(k1,o),d=age(last(k1,o));
+  if(n&&d>3)out.push(`${esc(o.no)} – ${tr("waiting for","بانتظار")} <b>${esc(esName(k1,o,n))}</b> ${tr("since","منذ")} ${d} ${tr("days","يوم")}`);
+  else if(!n&&!o.att&&d>3)out.push(`${esc(o.no)} – ${tr("approved","معتمد")} ${d} ${tr("days ago: get","يوماً: احصل على")} <b>${esc(o.contractor)}</b>${tr("'s signature and attach it","توقيع المقاول وأرفقه")}`);
+  else if(o.att&&!dnOfBci(o)&&age(o.att.at)>3)out.push(`${esc(o.no)} – ${tr("signed by the sub-contractor: create the debit note","موقعة من المقاول: أنشئ إشعار المدين")}`);});
+ (D.dns||[]).filter(d=>d.bci&&!d.cancelled).forEach(d=>{if(!esR(k2,d))return;const n=esNext(k2,d),a=age(last(k2,d));
+  if(n&&a>3)out.push(`${esc(d.no)} – ${tr("waiting for","بانتظار")} <b>${esc(esName(k2,d,n))}</b> ${tr("since","منذ")} ${a} ${tr("days","يوم")}`);
+  else if(!n&&!d.att&&a>3)out.push(`${esc(d.no)} – ${tr("approved: get","معتمد: احصل على توقيع")} <b>${esc(d.contractor)}</b>${tr("'s signature on the debit note and attach it","على إشعار المدين وأرفقه")}`);
+  else if(d.att&&!dnFin(d)&&age(d.att.at)>3)out.push(`${esc(d.no)} – ${tr("signed: send it to Finance","موقّع: أرسله إلى المالية")}`);});
+ return out;}
+{const V=VIEWS.home;if(V)VIEWS.home=()=>{const h=V();try{if(!((typeof whIsAdmin==="function"&&whIsAdmin())||(typeof M365!=="undefined"&&M365.can&&M365.can("utBC"))))return h;const L=bcReminders();if(!L.length)return h;
+ const b=`<div class="banner" style="background:#EFF6FF;border-color:#3B82F6;color:#1E3A8A;cursor:pointer" onclick="go('utBC')">⏱ <b>${tr("Back-charge cycle – waiting","دورة إعادة الفوترة – بانتظار")}</b><br>${L.slice(0,6).join("<br>")}${L.length>6?"<br>+ "+(L.length-6):""}</div>`;const i=h.indexOf('<div class="card">');return i<0?b+h:h.slice(0,i)+b+h.slice(i);}catch(e){return h;}};}
 {const B=BIND.utReg;BIND.utReg=()=>{B&&B();document.querySelectorAll("[data-dnown]").forEach(c=>c.onchange=()=>{const d=D.dns[+c.dataset.dnown];if(!d)return;d.owned=c.checked;persist();render();toast("✔ "+d.no);});};}
 </script>
 </body>
